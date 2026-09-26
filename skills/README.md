@@ -19,6 +19,11 @@ contains three skills every project inherits,
 [documentation/SKILL.md](documentation/SKILL.md), plus this guide and a copyable
 template for reusable skills.
 
+The skills Privatium ships to people building apps on it are not in this folder. They
+live in [app-skills/](../app-skills/README.md), because the program embeds that folder
+and hands it to app authors, while this folder holds only the skills for working on
+Privatium itself. [The skills index](../SKILLS.md) covers both.
+
 ### What belongs here
 
 Each future skill lives at `skills/<skill-name>/SKILL.md`, with lowercase letters,
@@ -53,8 +58,6 @@ data, generated caches, or unrelated manuals here.
 Prefer official documentation for the project's actual runtime and version.
 Review third-party instructions, scripts, dependencies, licenses, network access,
 and side effects before installation. Popularity is not evidence of safety.
-Adapt the [authoring examples](../docs/skill-examples.md) to real project commands;
-do not copy every example into every project.
 
 ### Conclusion
 

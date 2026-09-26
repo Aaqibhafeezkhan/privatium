@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/phase-prompt-template.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-05
-Last Modified: 2026-09-05
+Last Modified: 2026-09-26
 Summary: A copy-and-paste prompt for starting a Privatium phase, milestone, change or repair in a new
          AI chat. Non-normative.
 Notes: See README file for documentation and full license information.
@@ -107,7 +107,7 @@ While working:
   do not quietly begin the next.
 - When implementation reveals a spec defect, fix the spec in the same change and record
   it in the plan's §3. Never implement around the spec and never code around a gap.
-- A change to spec/ that is not reflected in skills/ is incomplete: regenerate with
+- A change to spec/ that is not reflected in app-skills/ is incomplete: regenerate with
   `cargo xtask gen-skill-reference` and edit the SKILL.md files that cite what changed.
 - Write the named tests first. Every normative MUST maps to a named test carrying the
   spec's section number; cover the empty input, the missing configuration, the invalid

@@ -2,10 +2,10 @@
 // crates/privatium/src/skill.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-09-04
+// Last Modified: 2026-09-26
 // Summary: `privatium skill list|export` (spec/cli.md §6, docs/skills.md §6): the skills embedded in
 //          this build — the same files /skills/<name>.md and /skills/bundle.zip serve — named,
-//          and written to disk at their repository-relative paths so an owner hands their
+//          and written to disk at their paths under app-skills/ so an owner hands their
 //          assistant the contract of the version they are running.
 // Notes: See README file for documentation and full license information.
 //
@@ -32,7 +32,7 @@ use privatium_core::http::skills;
 use crate::cli::HELP;
 
 /// Where `export` writes without `--out`: a `skills/` folder in the working directory,
-/// which is the tree's own name in the repository and in the bundle.
+/// which is where a repository built from the template keeps the skills its assistants read.
 const DEFAULT_OUT: &str = "skills";
 
 /// `skill list`: one line per skill — the folder name, then the `description:` of its

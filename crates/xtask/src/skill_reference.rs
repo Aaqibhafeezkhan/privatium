@@ -2,7 +2,7 @@
 // crates/xtask/src/skill_reference.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-07
+// Last Modified: 2026-09-26
 // Summary: `cargo xtask gen-skill-reference [--check]` (docs/skills.md §7): the reference/ files of
 //          every skill, written from the crate — the lint rule table, the pv surface, the
 //          sandbox's removed names, the limits, the permissions and their plain-language
@@ -57,7 +57,7 @@ pub fn run(root: &Path, check: bool) -> Result<bool> {
             fs::write(&target, content).with_context(|| format!("writing {path}"))?;
         }
         println!(
-            "gen-skill-reference: wrote {} files under skills/*/reference/",
+            "gen-skill-reference: wrote {} files under app-skills/*/reference/",
             files.len()
         );
         return Ok(true);
@@ -71,7 +71,7 @@ pub fn run(root: &Path, check: bool) -> Result<bool> {
         }
     }
     for path in crate::repo::files(root)? {
-        if path.starts_with("skills/") && path.contains("/reference/") && !files.contains_key(&path)
+        if path.starts_with("app-skills/") && path.contains("/reference/") && !files.contains_key(&path)
         {
             drift.push(format!("{path}: not written by the generator"));
         }
@@ -88,7 +88,7 @@ pub fn run(root: &Path, check: bool) -> Result<bool> {
     }
     eprintln!(
         "\ngen-skill-reference: {} files drifted. A change to spec/ or to the crate that is not \
-         reflected in skills/ is an incomplete change (docs/skills.md §7): run \
+         reflected in app-skills/ is an incomplete change (docs/skills.md §7): run \
          `cargo xtask gen-skill-reference` and commit the result.",
         drift.len()
     );
@@ -106,7 +106,7 @@ fn generate(root: &Path) -> Result<BTreeMap<String, String>> {
     let mut files: BTreeMap<String, String> = BTreeMap::new();
     let mut put = |skill: &str, name: &str, body: String| {
         files.insert(
-            format!("skills/{skill}/reference/{name}"),
+            format!("app-skills/{skill}/reference/{name}"),
             format!("{BANNER}{body}"),
         );
     };
@@ -231,7 +231,7 @@ fn generate(root: &Path) -> Result<BTreeMap<String, String>> {
     for (skill, names) in by_skill {
         let list: String = names.iter().map(|n| format!("- `{n}`\n")).collect();
         files.insert(
-            format!("skills/{skill}/reference/README.md"),
+            format!("app-skills/{skill}/reference/README.md"),
             format!(
                 "{BANNER}# Reference\n\nThe pinned reference for `{skill}` (docs/skills.md §3): generated from \
                  `privatium-core` {} (`{PROTOCOL}`, `api = {SUPPORTED_API}`) and the specification at the \

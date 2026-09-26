@@ -2,7 +2,7 @@
 // crates/xtask/src/main.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-08-31
-// Last Modified: 2026-09-03
+// Last Modified: 2026-09-26
 // Summary: Command dispatch for the repository's own checks. Deliberately not clap: spec/cli.md governs
 //          the flags of `privatium`, and nothing here should ever be mistaken for part of that
 //          surface.
@@ -40,7 +40,7 @@ cargo xtask <command>
   icons-verify          every icon name the shell, the apps, the skills and docs/icons.md
                         refer to exists in the vendored Bootstrap Icons set (docs/icons.md)
   gen-skill-reference [--check]
-                        write skills/*/reference/ from the crate and the spec
+                        write app-skills/*/reference/ from the crate and the spec
                         (docs/skills.md §7); --check fails naming what drifted
   lint-spec-refs        every lint rule cites a document and section this checkout has
                         (spec/cli.md §5.2)

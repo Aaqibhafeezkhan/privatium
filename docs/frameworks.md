@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/frameworks.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-05
+Last Modified: 2026-09-26
 Summary: Which frameworks, libraries and engines work inside Privatium, which do not, and why.
          Selection criteria are explicit and testable.
 Notes: See README file for documentation and full license information.
@@ -29,7 +29,7 @@ Every recommendation below is scored against these, in order:
 2. **LLM-writable.** An owner should be able to describe what they want to any assistant
    and get working code. This favours large training footprints and stable APIs over
    technical elegance. Mitigated for every choice by shipping a pinned API reference in
-   `skills/` (`docs/skills.md`) so the model does not rely on training data alone.
+   `app-skills/` (`docs/skills.md`) so the model does not rely on training data alone.
 3. **Small.** This runs on a phone over cell data. Kilobytes, not megabytes.
 4. **Open source, and survivable.** OSI license, and a maintainership that will still
    exist in five years.

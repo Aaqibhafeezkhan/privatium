@@ -2,8 +2,8 @@
 // crates/privatium-core/src/http/skills.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-06
-// Summary: /skills/<name>.md and /skills/bundle.zip (spec/cli.md §6, docs/skills.md §6): the skills/
+// Last Modified: 2026-09-26
+// Summary: /skills/<name>.md and /skills/bundle.zip (spec/cli.md §6, docs/skills.md §6): the app-skills/
 //          tree of this build, embedded so an owner gets the contract matching the version
 //          they are running. The bundle is a stored (uncompressed) zip written by hand — a
 //          hundred kilobytes of Markdown does not justify a compression crate.
@@ -27,8 +27,10 @@ use std::sync::LazyLock;
 
 use include_dir::{Dir, include_dir};
 
-/// `skills/` at the repository root, as of this build.
-static SKILLS: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/../../skills");
+/// `app-skills/` at the repository root, as of this build: the skills shipped to app
+/// authors, kept apart from `skills/`, which holds the skills for working on this
+/// repository and ships nowhere.
+static SKILLS: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/../../app-skills");
 
 /// The file each skill folder is served as.
 const SKILL_FILE: &str = "SKILL.md";
@@ -46,7 +48,7 @@ pub fn names() -> Vec<String> {
     names
 }
 
-/// `skills/<name>/SKILL.md`, if `name` is a skill.
+/// `app-skills/<name>/SKILL.md`, if `name` is a skill.
 #[must_use]
 pub fn skill(name: &str) -> Option<&'static str> {
     if name.contains(['/', '\\', '.']) {
@@ -57,7 +59,7 @@ pub fn skill(name: &str) -> Option<&'static str> {
         .and_then(|file| file.contents_utf8())
 }
 
-/// Every file under `skills/` at its repository-relative, slash-separated path, sorted —
+/// Every file under `app-skills/` at its path relative to that folder, slash-separated, sorted —
 /// what `privatium skill export` writes to disk (`spec/cli.md §6`) and what the bundle
 /// below holds.
 #[must_use]
@@ -68,9 +70,10 @@ pub fn files() -> Vec<(String, &'static [u8])> {
     entries
 }
 
-/// `/skills/bundle.zip`: every file under `skills/` — `README.md`, each skill's `SKILL.md`
-/// and its `reference/` — at its repository-relative path, so extracting the archive in
-/// place reproduces the `skills/` tree the running version shipped (`spec/cli.md §6`).
+/// `/skills/bundle.zip`: every file under `app-skills/` — `README.md`, each skill's `SKILL.md`
+/// and its `reference/` — at its path relative to that folder, so extracting the archive
+/// into a `skills/` folder reproduces the tree `privatium skill export` writes
+/// (`spec/cli.md §6`).
 ///
 /// Built once per process; the same bytes every time, since the entries carry a fixed
 /// timestamp rather than the moment of the request.

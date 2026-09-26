@@ -2,7 +2,7 @@
 // crates/xtask/src/icons.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-06
+// Last Modified: 2026-09-26
 // Summary: `cargo xtask icons-verify`. Every icon name the shell, the reference apps, the skills and
 //          docs/icons.md's vocabulary table refer to must exist in the vendored Bootstrap
 //          Icons set, and the vendored VERSION must be the one docs/icons.md pins
@@ -117,6 +117,7 @@ pub fn check(root: &Path) -> Result<bool> {
 fn scanned(path: &str) -> bool {
     let in_tree = path.starts_with("apps/")
         || path.starts_with("skills/")
+        || path.starts_with("app-skills/")
         || path.starts_with("docs/")
         || path.starts_with("crates/privatium-core/src/");
     let extension = path
