@@ -1105,7 +1105,7 @@ dependencies = [
 
 [[package]]
 name = "privatium"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1127,7 +1127,7 @@ dependencies = [
 
 [[package]]
 name = "privatium-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -1990,7 +1990,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "privatium-core",

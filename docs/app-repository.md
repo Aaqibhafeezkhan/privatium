@@ -172,7 +172,7 @@ A Tier 1 app has no package manager and no lockfile, so the pin is three plain s
 1. **`api = 1` in `app.toml`.** This is the contract the app targets. A node that
    implements a lower `api` refuses the app instead of guessing.
 2. **A line in the README.** State the release you tested with, for example
-   "Tested with Privatium v0.2". Update it when you test a newer one.
+   "Tested with Privatium v0.3". Update it when you test a newer one.
 3. **A lint job that downloads that exact release.** GitHub Actions can run the linter
    without a Rust toolchain. The example below is the whole workflow; put it at
    `.github/workflows/lint.yml` and change the version and the slug.
@@ -183,7 +183,7 @@ A Tier 1 app has no package manager and no lockfile, so the pin is three plain s
    on: [push, pull_request]
 
    env:
-     PRIVATIUM_VERSION: v0.2
+     PRIVATIUM_VERSION: v0.3
 
    jobs:
      lint:

@@ -2,7 +2,7 @@
 // crates/privatium-core/src/lib.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-08-31
-// Last Modified: 2026-09-07
+// Last Modified: 2026-09-26
 // Summary: Crate root. The error type, the engine linkage probe, `Node::open` and the bootstrap order
 //          it follows, the sink that turns what a log scan found into sys_audit rows
 //          (spec/protocol.md §4.4), and the node-level API of spec/app-contract.md §6 —
@@ -87,6 +87,18 @@ use store::{
 /// which knows what this build implements, not here — this constant is the wire format,
 /// and the wire format really is `pv/1`.
 pub const PROTOCOL: &str = "pv/1";
+
+/// The version of this build as a person reads it and as releases are tagged:
+/// `major.minor`, so `0.3` for the manifest's `0.3.0`. Cargo needs three numbers and the
+/// patch stays zero; releases are numbered by minor. The workspace manifest is the only
+/// place the number is written, every crate inherits it, and `--version`, `skill export`
+/// and the generated skill references all print this, so what they say is the tag the
+/// reader downloaded.
+pub const VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION_MAJOR"),
+    ".",
+    env!("CARGO_PKG_VERSION_MINOR")
+);
 
 /// Anything that can go wrong opening or running a node.
 ///

@@ -209,9 +209,9 @@ fn synopsis_flags(text: &str) -> BTreeSet<(String, String)> {
     flags
 }
 
-/// `§1` — `--version` prints the build version and a qualified protocol string, since a
-/// build without sync does not satisfy `spec/protocol.md §13`, and beneath it the
-/// project's own facts. Those are asserted as the literal text a person reads, so a
+/// `§1` — `--version` prints the build version as the release tags spell it (`0.3`, not
+/// `0.3.0`) and a qualified protocol string, since a build without sync does
+/// not satisfy `spec/protocol.md §13`, and beneath it the project's own facts. Those are asserted as the literal text a person reads, so a
 /// change to the manifest or to `build.rs` that moves what `--version` says shows up in
 /// this diff rather than only in a release.
 #[test]
@@ -220,13 +220,16 @@ fn test_spec_cli_1_version_qualifies_protocol() {
     let (code, out, _) = privatium(root.path(), &["--version"]);
     assert_eq!(code, 0);
     let mut lines = out.trim().lines();
+    let shown = format!(
+        "{}.{}",
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        env!("CARGO_PKG_VERSION_MINOR")
+    );
     assert_eq!(
         lines.next().unwrap(),
-        format!(
-            "privatium {} pv/1 (partial: phase 2)",
-            env!("CARGO_PKG_VERSION")
-        )
+        format!("privatium {shown} pv/1 (partial: phase 2)")
     );
+    assert_eq!(privatium_core::VERSION, shown);
     let rest: Vec<&str> = lines.collect();
     for expected in [
         "Product:       Privatium",
