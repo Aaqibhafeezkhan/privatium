@@ -5,7 +5,8 @@ description: Context for extending the animals reference app — its decision-tr
 
 # animals
 
-Tier 1. A binary decision tree that learns one animal per round.
+Tier 1. A binary decision tree that learns one animal per round. A fresh game starts
+from the starter tree in `lib/tree.lua`: "Does it have legs?", yes is a dog, no is a fish.
 
 ## Schema
 
@@ -33,7 +34,6 @@ finding it requires a traversal.
 | Interaction | Tool | File |
 |---|---|---|
 | Submit a guess | HTMX | `views/_board.lsp` |
-| Plant the first animal | HTMX | `views/_board.lsp` |
 | Restart a round | HTMX | `views/_board.lsp` |
 | Teach a new animal | plain form post | `views/teach.lsp` |
 | Forget everything | plain form post | `views/knowledge.lsp` |
@@ -95,12 +95,18 @@ input.
 
 - `tx.append` returns the minted ULID; the branch references both new leaves before they
   exist. Do not pre-generate ids outside the batch.
-- `reset` writes tombstones. It never rewrites a log.
+- `reset` writes tombstones, then `tree.plant(tx)` in the same batch, so the game is
+  never left without a question. It never rewrites a log.
+- `GET /` plants the starter tree when `tree.root_id()` is nil, and that is the only GET
+  that writes. Do not add others; every other write is a POST behind `csrf()`.
+- `/answer` accepts only `yes` or `no` and refuses anything else with the board's error
+  branch and no write. Keep the allowlist.
 - The radio pair in `views/teach.lsp` is wrapped in `fieldset`/`legend`, and each radio
   has an `id` its wrapping label names with `for` (`PV402`). Keep both.
 - `sample/seed.jsonl` is seven `CHECK`-clean events (three questions, four animals) with
   no `cursor` row. Keep every leaf without `yes_id`/`no_id`, and the root the only node
-  nothing points at.
+  nothing points at. It loads only into an empty log, so only before the game's first
+  visit.
 - `knowledge()` selects `n.id AS animal_id` only so the collapsible path can pair
   `id` with `aria-controls`. Two animals can share a name; ULIDs cannot.
 - `views/_board.lsp` is a partial because HTMX swaps it. `views/play.lsp` is the

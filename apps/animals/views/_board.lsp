@@ -22,16 +22,10 @@ Notes: See README file for documentation and full license information.
 
 <? elseif not node then ?>
 
+  <?-- Only reachable if the starter tree could not be written; the board itself
+       never plants anything, so offer the page that does. --?>
   <h1>I don't know any animals yet.</h1>
-  <?-- hx-target="#board": the server returns this partial and it replaces itself. --?>
-  <form method="post" action="<?= url('/seed') ?>"
-        hx-post="<?= url('/seed') ?>" hx-target="#board">
-    <?= csrf() ?>
-    <label for="animal">Name one</label>
-    <input id="animal" name="animal" type="text" maxlength="40"
-           placeholder="elephant" required autofocus>
-    <button type="submit" class="pv-btn pv-btn-primary">Start</button>
-  </form>
+  <p><a class="pv-btn pv-btn-primary" href="<?= url('/') ?>">Start a game</a></p>
 
 <? elseif node.kind == 'q' then ?>
 
@@ -72,5 +66,6 @@ Notes: See README file for documentation and full license information.
 <? end ?>
 
 <? if stats then ?>
-  <p class="pv-meta"><?= stats.animals ?> animals, <?= stats.questions ?> questions</p>
+  <?-- One line, so the count reads as one sentence to a screen reader. --?>
+  <p class="pv-meta"><?= stats.animals ?> animal<?= stats.animals == 1 and '' or 's' ?>, <?= stats.questions ?> question<?= stats.questions == 1 and '' or 's' ?></p>
 <? end ?>

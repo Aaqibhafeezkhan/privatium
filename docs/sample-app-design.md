@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/sample-app-design.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-06
-Last Modified: 2026-09-07
+Last Modified: 2026-09-26
 Summary: How the reference apps keep their presentation small and responsive.
 Notes: See README file for documentation and full license information.
 
@@ -144,10 +144,13 @@ library. Download PNG first to keep a separate image. PNG export renders the she
 crosshair. Download SVG writes every mark as a shape, the colour inside an outline
 included, since a fill is the inside of one mark rather than a region of pixels.
 
-A correct Animals guess shows “I guessed it!” with a Start over button. The win page
+A fresh Animals game opens on its first question, “Does it have legs?”, with a dog and
+a fish behind it, so there is something to play before anything has been taught. A
+correct guess shows “I guessed it!” with a Start over button. The win page
 is a presentation state, available with or without HTMX; it writes no event. Starting
 over moves the cursor to the root and keeps the learned animals. The same restart
-control sits beside What I know during play.
+control sits beside What I know during play. Forget everything, on the What I know
+page, removes every learned animal and returns the game to that first question.
 
 Sketch groups its Apps link and the rest of its actions in one menu on the top bar's
 right. Every icon-only control keeps an accessible name and a 44-pixel target, using

@@ -1763,7 +1763,6 @@ async fn test_reference_apps_load_and_route() {
             "GET /won",
             "POST /start",
             "POST /answer",
-            "POST /seed",
             "GET /teach",
             "POST /teach",
             "GET /knowledge",
@@ -1860,10 +1859,11 @@ async fn test_reference_apps_load_and_route() {
     );
     assert!(text.contains("value=\"Ada\""), "{text}");
 
-    // animals: the empty board inside the frame, with the app's own assets from static/.
+    // animals: the first visit plants the starter tree and shows its question inside the
+    // frame, with the app's own assets from static/.
     let board = body_of(handler.handle(get("/a/animals/")).await).await;
     assert!(board.starts_with("<!doctype html>"), "{board}");
-    assert!(board.contains("I don't know any animals yet."), "{board}");
+    assert!(board.contains("<h1>Does it have legs?</h1>"), "{board}");
     assert!(
         board.contains("<link rel=\"stylesheet\" href=\"/a/animals/static/animals.css\">"),
         "{board}"
@@ -1878,24 +1878,30 @@ async fn test_reference_apps_load_and_route() {
     assert!(header(&css, &CONTENT_SECURITY_POLICY).contains("/a/animals/"));
     assert_eq!(header(&css, &CACHE_CONTROL), "no-store");
 
-    // Plant the first animal, start a round, walk one step, and forget.
-    let planted = handler
-        .handle(posted(&handler, "/a/animals/seed", "animal=wombat"))
-        .await;
-    assert_eq!(planted.status(), StatusCode::SEE_OTHER);
-    assert_eq!(header(&planted, &LOCATION), "/a/animals/");
+    // The starter tree is three puts; start a round, walk one step to a leaf, and forget.
+    let lines = log_lines(&animals_log);
+    assert_eq!(lines.len(), 3);
+    assert!(lines.iter().all(|l| l["tbl"] == "node"), "{lines:?}");
+    assert_eq!(
+        lines[0]["d"],
+        serde_json::json!({ "kind": "a", "text": "dog" })
+    );
     let started = handler
         .handle(posted(&handler, "/a/animals/start", ""))
         .await;
     assert_eq!(started.status(), StatusCode::SEE_OTHER);
+    assert_eq!(header(&started, &LOCATION), "/a/animals/");
+    let answered = handler
+        .handle(posted(&handler, "/a/animals/answer", "choice=yes"))
+        .await;
+    assert_eq!(answered.status(), StatusCode::SEE_OTHER);
     let lines = log_lines(&animals_log);
-    assert_eq!(lines.len(), 2);
-    assert_eq!(lines[0]["tbl"], "node");
-    assert_eq!(lines[0]["d"]["kind"], "a");
-    assert_eq!(lines[1]["tbl"], "cursor");
-    assert_eq!(lines[1]["id"], "cursor");
+    assert_eq!(lines.len(), 5);
+    assert_eq!(lines[4]["tbl"], "cursor");
+    assert_eq!(lines[4]["id"], "cursor");
+    assert_eq!(lines[4]["d"]["node_id"], lines[0]["id"]);
     let guess = body_of(handler.handle(get("/a/animals/")).await).await;
-    assert!(guess.contains("<h1>Is it a wombat?</h1>"), "{guess}");
+    assert!(guess.contains("<h1>Is it a dog?</h1>"), "{guess}");
     // Teaching is three events in one batch plus the cursor's tombstone (lib/tree.lua via
     // require, and pv.batch).
     let taught = handler
@@ -1907,13 +1913,13 @@ async fn test_reference_apps_load_and_route() {
         .await;
     assert_eq!(taught.status(), StatusCode::SEE_OTHER);
     let lines = log_lines(&animals_log);
-    assert_eq!(lines.len(), 6);
-    assert_eq!(lines[4]["d"]["kind"], "q");
+    assert_eq!(lines.len(), 9);
+    assert_eq!(lines[7]["d"]["kind"], "q");
     assert_eq!(
-        lines[4]["id"], lines[0]["id"],
+        lines[7]["id"], lines[0]["id"],
         "the leaf became the question"
     );
-    assert_eq!(lines[5]["op"], "del");
+    assert_eq!(lines[8]["op"], "del");
     // An htmx caller gets `_board.lsp` alone — no document, no frame — with the forms
     // carrying the token.
     let fragment = handler
@@ -1923,7 +1929,7 @@ async fn test_reference_apps_load_and_route() {
     let text = body_of(fragment).await;
     assert!(!text.contains("<!doctype"), "{text}");
     assert!(!text.contains("pv-header"), "{text}");
-    assert!(text.contains("<h1>Does it fly</h1>"), "{text}");
+    assert!(text.contains("<h1>Does it have legs?</h1>"), "{text}");
     assert!(text.contains("name=\"_csrf\""), "{text}");
     let knowledge = body_of(handler.handle(get("/a/animals/knowledge")).await).await;
     assert!(
@@ -1931,14 +1937,19 @@ async fn test_reference_apps_load_and_route() {
         "{knowledge}"
     );
     assert!(
-        knowledge.contains("wombat") && knowledge.contains("penguin"),
+        knowledge.contains("dog") && knowledge.contains("penguin"),
         "{knowledge}"
     );
+    // Reset: a tombstone for each of the five nodes and the cursor, then the starter
+    // tree again, in one batch.
     let reset = handler
         .handle(posted(&handler, "/a/animals/reset", ""))
         .await;
     assert_eq!(reset.status(), StatusCode::SEE_OTHER);
-    assert_eq!(log_lines(&animals_log).len(), 11);
+    let lines = log_lines(&animals_log);
+    assert_eq!(lines.len(), 19);
+    assert!(lines[10..16].iter().all(|l| l["op"] == "del"), "{lines:?}");
+    assert!(lines[16..].iter().all(|l| l["op"] == "put"), "{lines:?}");
 }
 
 // ---------------------------------------------------------------------------------------
@@ -2696,5 +2707,5 @@ async fn test_tier1_static_served_host_and_solo() {
     );
     let page = body_of(handler.handle(get("/")).await).await;
     assert!(page.contains("href=\"/static/animals.css\""), "{page}");
-    assert!(page.contains("I don't know any animals yet."), "{page}");
+    assert!(page.contains("<h1>Does it have legs?</h1>"), "{page}");
 }

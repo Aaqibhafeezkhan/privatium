@@ -63,8 +63,9 @@ Notes: See README file for documentation and full license information.
 
     <div x-show="asking" x-cloak role="group"
          aria-label="Confirm forgetting every animal">
-      <p>Forget every animal? Your event history is kept either way — reset writes
-         tombstones, it never rewrites a log.</p>
+      <p>Forget every animal and start from scratch? The game goes back to its first
+         question. Your event history is kept either way — reset writes tombstones, it
+         never rewrites a log.</p>
       <form method="post" action="<?= url('/reset') ?>">
         <?= csrf() ?>
         <button type="submit" class="pv-btn pv-btn-danger">Yes, forget them</button>
