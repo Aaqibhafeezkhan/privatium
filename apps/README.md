@@ -61,7 +61,8 @@ The medication fill and prior-authorization tracker that motivated this framewor
 live in its own repository as an app folder, once `pv/1` is implemented and proven. It is
 deliberately not here: if the framework needs to be modified to support it, that is a
 finding about the framework, and it should surface as a spec change rather than a special
-case in the reference apps.
+case in the reference apps. The steps for setting up such a repository are in
+[your app in its own repository](../docs/app-repository.md).
 
 ---
 
