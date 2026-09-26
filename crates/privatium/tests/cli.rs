@@ -2,7 +2,7 @@
 // crates/privatium/tests/cli.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-09-08
+// Last Modified: 2026-09-26
 // Summary: spec/cli.md against the real binary, section by section: the qualified --version (§1) and
 //          the exit codes; the flags, which are exactly the spec's synopsis lines (§1–§9, both
 //          directions); a node on loopback with --port, --solo and --no-discovery (§2); dev
@@ -791,7 +791,7 @@ fn test_spec_cli_5_lint_exit_codes_and_formats() {
 }
 
 /// `§6` — `skill list` names every skill this build ships and `skill export` writes the
-/// tree the repository holds, byte for byte, matching the running version.
+/// `app-skills/` tree the repository holds, byte for byte, matching the running version.
 #[test]
 fn test_spec_cli_6_skill_list_and_export() {
     let root = tempfile::tempdir().unwrap();
@@ -817,7 +817,7 @@ fn test_spec_cli_6_skill_list_and_export() {
     assert_eq!(code, 0, "{err}");
     assert!(err.contains("pv/1 (partial: phase 2)"), "{err}");
     let exported = root.path().join("skills");
-    let source = repo().join("skills");
+    let source = repo().join("app-skills");
     let mut count = 0;
     for entry in walk(&source) {
         let relative = entry.strip_prefix(&source).unwrap();

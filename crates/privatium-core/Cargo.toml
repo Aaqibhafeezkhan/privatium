@@ -1,6 +1,6 @@
 # Project:  Privatium™  |  File: crates/privatium-core/Cargo.toml
 # Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-# Created:  2026-08-31  |  Modified: 2026-09-06
+# Created:  2026-08-31  |  Modified: 2026-09-26
 # Summary:  The library. One core crate per ADR 0002 — the server, the shells, and (later)
 #           uniffi all consume this and nothing else.
 #           See main README.md for full license information.
@@ -80,7 +80,7 @@ toml        = { workspace = true }
 # what it reads files through, and (`rt`) what hands a Lua handler to a blocking thread —
 # the runtime itself belongs to the adapter. `hmac` and `hkdf` derive the CSRF key from
 # the node key, so no secret is written anywhere. `include_dir` embeds the icons, the
-# shell's assets and `skills/` (docs/icons.md, spec/cli.md §6).
+# shell's assets and `app-skills/` (docs/icons.md, spec/cli.md §6).
 # `tokio` is the one axum feature the core takes: `ConnectInfo<SocketAddr>`, the
 # extension an embedder's `into_make_service_with_connect_info` router attaches and
 # `auth_layer` reads the peer from (spec/app-contract.md §2.3, §6), is gated behind it.

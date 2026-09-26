@@ -3,7 +3,7 @@ This file is part of Privatium
 spec/cli.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-30
-Last Modified: 2026-09-08
+Last Modified: 2026-09-26
 Summary: NORMATIVE. The command-line interface, including the linter that makes the skills system
          enforceable rather than advisory.
 Notes: See README file for documentation and full license information.
@@ -22,7 +22,7 @@ See <https://www.gnu.org/licenses/fdl-1.3.html>.
 One binary, `privatium`. Running it with no arguments starts a node; every other function is
 a subcommand.
 
-Referenced throughout `skills/` and `docs/skills.md`. This document is what those references
+Referenced throughout `app-skills/` and `docs/skills.md`. This document is what those references
 point at.
 
 ---
@@ -224,7 +224,7 @@ warnings and errors — and the exit code is `3` when anything at or above it re
 <id> <severity>: <message>`, with the fix and the section after it; a count goes to
 standard error.
 
-Advice an assistant can ignore is worth little. The linter is what makes `skills/`
+Advice an assistant can ignore is worth little. The linter is what makes `app-skills/`
 enforceable rather than advisory, which is why it ships with the first working node.
 
 ### 5.1 Rule classes
@@ -375,11 +375,11 @@ and `README.md` when none is named — under `--out`, which defaults to `skills/
 working directory, replacing files already there: a re-export after an upgrade is the
 new version. A name this build does not ship is a usage error listing what it does.
 
-A running node also serves them at `/skills/<name>.md` — `skills/<name>/SKILL.md` — and
-`/skills/bundle.zip`, which holds every file under `skills/` at its repository-relative
-path: `README.md`, each `<name>/SKILL.md`, and each skill's `reference/`. Extracting it in
-place reproduces the `skills/` tree the running version shipped, which is what the `curl`
-line in `skills/README.md` relies on. The entries are stored, not compressed: the bundle is
+A running node also serves them at `/skills/<name>.md` — `app-skills/<name>/SKILL.md` — and
+`/skills/bundle.zip`, which holds every file under `app-skills/` at its path relative to
+that folder: `README.md`, each `<name>/SKILL.md`, and each skill's `reference/`. Extracting
+it into a `skills/` folder reproduces the tree `export` writes, which is what the `curl`
+line in `app-skills/README.md` does. The entries are stored, not compressed: the bundle is
 a few hundred kilobytes of Markdown and every extractor reads a stored zip.
 
 ---

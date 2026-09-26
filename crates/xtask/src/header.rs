@@ -2,7 +2,7 @@
 // crates/xtask/src/header.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-08-31
-// Last Modified: 2026-09-06
+// Last Modified: 2026-09-26
 // Summary: `cargo xtask header-check`. AGENTS.md requires a header block on every source file; this is
 //          what turns that from a habit into a gate.
 // Notes: See README file for documentation and full license information.
@@ -44,7 +44,7 @@ const COPYRIGHT: &str = "Copyright \u{a9} ";
 ///
 /// `.md` is here but is further narrowed to `spec/` and `docs/` by [`in_scope`]: the
 /// root-level documents, every `apps/**` README and SKILL.md, and everything under
-/// `skills/` are exempt by design — they are prose for humans and assistants, and a
+/// `skills/` and `app-skills/` are exempt by design — they are prose for humans and assistants, and a
 /// provenance block at the top of `README.md` would be noise.
 ///
 /// `.html` and `.toml` are deliberately absent. Manifests in this repository carry a
@@ -328,7 +328,10 @@ See <https://www.gnu.org/licenses/fdl-1.3.html>.
         let found = problems("spec/protocol.md", GOOD_DOC, Shape::Full);
         assert!(found.is_empty(), "{found:?}");
 
-        let wrong = GOOD_DOC.replace("GNU Free Documentation License", "GNU General Public License");
+        let wrong = GOOD_DOC.replace(
+            "GNU Free Documentation License",
+            "GNU General Public License",
+        );
         let found = problems("spec/protocol.md", &wrong, Shape::Full);
         assert!(
             found
@@ -361,7 +364,9 @@ See <https://www.gnu.org/licenses/fdl-1.3.html>.
         let bare = GOOD.replace("GNU General Public License", "a licence of some sort");
         let found = problems("crates/privatium-core/src/lib.rs", &bare, Shape::Full);
         assert!(
-            found.iter().any(|problem| problem.contains("General Public")),
+            found
+                .iter()
+                .any(|problem| problem.contains("General Public")),
             "{found:?}"
         );
     }

@@ -96,7 +96,7 @@ jobs:
         shell: bash
         run: node --test crates/privatium-core/tests/js/*.test.mjs
 
-      # docs/skills.md §7: a change to spec/ that is not reflected in skills/ is an
+      # docs/skills.md §7: a change to spec/ that is not reflected in app-skills/ is an
       # incomplete change. The reference sections are generated from the crate and the
       # spec and committed; this fails naming the file that drifted.
       - name: Skill references against the crate and the spec

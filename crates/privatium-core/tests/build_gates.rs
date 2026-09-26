@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/build_gates.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-08-31
-// Last Modified: 2026-09-06
+// Last Modified: 2026-09-26
 // Summary: The build gates: each test proves an engine compiled from source — the bundled SQLite, the
 //          vendored Lua 5.4 — links and runs on all three CI platforms, before anything is
 //          built on it. They are named for the risk they close, not for a spec section,
@@ -99,7 +99,7 @@ fn test_r1_sqlite_json_is_built_in_and_loading_is_off() {
 /// R2 — the vendored Lua C build compiles and links, and it is 5.4.
 ///
 /// Not LuaJIT (iOS forbids JIT) and not Luau (a dialect fragments the documentation and
-/// the assistance that `skills/` depends on). `AGENTS.md`, Language and stack.
+/// the assistance that `app-skills/` depends on). `AGENTS.md`, Language and stack.
 #[test]
 fn test_r2_mlua_vendored_links_and_is_lua_54() {
     let engines = privatium_core::linked_engines().unwrap();

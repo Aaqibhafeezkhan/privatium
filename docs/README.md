@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/README.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-06
-Last Modified: 2026-09-07
+Last Modified: 2026-09-26
 Summary: Index of every Privatium document — guides for people running a node, guides for people
          building apps, the normative specification, and decision records.
 Notes: See README file for documentation and full license information.
@@ -45,6 +45,7 @@ For anyone writing an app to run on a node — by hand or with an AI assistant.
 | [Frameworks and libraries](frameworks.md) | Which libraries, frameworks and game engines fit inside Privatium, and which do not. |
 | [AI assistant guides](skills.md) | How assistant-written apps end up correct, accessible and secure, and how the linter enforces it. |
 | [Sample app design](sample-app-design.md) | How the example apps keep their presentation small and responsive. |
+| [Your app in its own repository](app-repository.md) | Starting an app in a repository of its own: the template, the assistant guides, the framework version pin, and how to run and share it. Includes a prompt for an AI assistant. |
 | [Sketch app design](sketch-app-design.md) | The Tier 2 reference app in full: its coordinate model, its tools, and the rules its implementation is held to. |
 | [Icons](icons.md) | The icon system: Bootstrap Icons, bundled and inlined server-side. |
 | [Example apps](../apps/README.md) | The apps that ship with the program, and what each one demonstrates. |

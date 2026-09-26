@@ -3,7 +3,7 @@ This file is part of Privatium
 README.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-31
-Last Modified: 2026-09-09
+Last Modified: 2026-09-26
 Summary: Overview, quick start and examples for Privatium. The documentation index lives in
          docs/README.md.
 Notes: See README file for documentation and full license information.
@@ -78,7 +78,9 @@ You can run Privatium on Windows, macOS, or Linux. Lua and SQLite are included.
    ```
 
    Refresh the launcher and **myapp** is there. Edit the files in the folder it printed,
-   then refresh again; there is nothing to restart.
+   then refresh again; there is nothing to restart. To keep an app in a git repository
+   of its own, with the assistant guides and a pinned framework version, see
+   [your app in its own repository](docs/app-repository.md).
 
 The example apps are ordinary folders in the same place, so you can edit them, copy them
 or delete them; `./privatium new --examples` brings them back. See

@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/roadmap.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-07
+Last Modified: 2026-09-26
 Summary: Build phases with explicit acceptance criteria. Non-normative. Phases 2 and 3 have plans
          under docs/plans/; later phases have stubs there.
 Notes: See README file for documentation and full license information.
@@ -317,7 +317,7 @@ change belongs in `pv/1` before the app ships.
 
 ## Ongoing, not a phase
 
-`skills/` ships and versions with the code. A change to `spec/` without the matching skill
+`app-skills/` ships and versions with the code. A change to `spec/` without the matching skill
 update is incomplete (`AGENTS.md`). `privatium lint` is what makes the skills enforceable
 rather than advisory, so it lands in Phase 1, not later.
 

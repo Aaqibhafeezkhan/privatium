@@ -2,7 +2,7 @@
 // crates/privatium-core/src/lua/pv.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-06
+// Last Modified: 2026-09-26
 // Summary: The `pv` module of spec/lua-api.md §3: routing (§3.1), reading on the sandboxed connection
 //          (§3.2), writing through the node's log as appends and batches (§3.3), and the rest
 //          of §3.4. Routes and `pv.on` register while app.lua loads; reads and writes run only
@@ -49,7 +49,7 @@ pub(crate) const RESPONSE_FIELD: &str = "pv_response";
 
 /// The module's surface — every `pv.<name>` [`install`] registers, with the section of
 /// `spec/lua-api.md` that specifies it. What `cargo xtask gen-skill-reference` writes
-/// into `skills/privatium-tier1-lua/reference/pv-api.md`, and what a unit test holds
+/// into `app-skills/privatium-tier1-lua/reference/pv-api.md`, and what a unit test holds
 /// `install` to, so the reference cannot name a function the host lacks.
 pub const SURFACE: &[(&str, &str)] = &[
     ("get", "3.1"),
