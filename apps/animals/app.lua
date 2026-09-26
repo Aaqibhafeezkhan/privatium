@@ -2,7 +2,7 @@
 -- apps/animals/app.lua
 -- Author(s): Gabriel Mongefranco
 -- Created: 2026-08-28
--- Last Modified: 2026-09-06
+-- Last Modified: 2026-09-26
 -- Summary: The guess-the-animal game. Demonstrates multi-event atomic writes, recursive SQL, stored
 --          session state, and the HTMX/Alpine boundary.
 -- Notes: See README file for documentation and full license information.
@@ -37,6 +37,17 @@ local function here()
   return pv.get_row('node', id)
 end
 
+-- A game with no tree gets the starter one, so the first visit is already a question.
+--
+-- This is the one write a GET may cause, and it happens once per data folder: the three
+-- events are real rows in the log like any taught animal, which keeps "the tree is the
+-- event log" true from the first screen. Loading `sample/seed.jsonl` from the settings
+-- page is only possible before this runs, because a seed fills an empty log or nothing.
+local function ensure_tree()
+  if tree.root_id() then return end
+  pv.batch(function(tx) tree.plant(tx) end)
+end
+
 -- Answer a board request the way the caller asked for it.
 --
 -- HTMX sets HX-Request, so `req.is_htmx` is true and we return _board.lsp alone —
@@ -58,6 +69,7 @@ local function board(req, extra)
 end
 
 pv.get('/', function()
+  ensure_tree()
   return pv.render('play', { node = here(), stats = tree.stats() })
 end)
 
@@ -79,23 +91,18 @@ pv.post('/start', function(req)
   return board(req)
 end)
 
--- Walk one step down the tree.
+-- Walk one step down the tree. The answer is an allowlist of two values; anything else
+-- is a hand-built request, refused without a write.
 pv.post('/answer', function(req)
   local node = here()
   if not node or node.kind ~= 'q' then return board(req) end
 
-  local next_id = req.form.choice == 'yes' and node.yes_id or node.no_id
-  pv.append('cursor', 'cursor', { node_id = next_id, started = pv.now() })
-  return board(req)
-end)
-
--- Plant the first animal when the tree is empty.
-pv.post('/seed', function(req)
-  local animal = tree.clean(req.form.animal)
-  if not animal then
-    return board(req, { err = 'Name any animal.' })
+  local choice = req.form.choice
+  if choice ~= 'yes' and choice ~= 'no' then
+    return board(req, { err = 'Answer yes or no.' })
   end
-  pv.append('node', { kind = 'a', text = animal })
+  local next_id = choice == 'yes' and node.yes_id or node.no_id
+  pv.append('cursor', 'cursor', { node_id = next_id, started = pv.now() })
   return board(req)
 end)
 
@@ -147,12 +154,14 @@ pv.get('/knowledge', function()
 end)
 
 -- Forgetting is tombstones, never a rewrite. The log still holds every round you
--- ever played; only the materialized tree is emptied. The confirmation step in
--- views/knowledge.lsp is Alpine, because a confirmation is not data.
+-- ever played; only the materialized tree is emptied, and the starter tree is planted
+-- again in the same batch so the game is never left without a question. The
+-- confirmation step in views/knowledge.lsp is Alpine, because a confirmation is not data.
 pv.post('/reset', function()
   pv.batch(function(tx)
     for _, n in ipairs(pv.query('SELECT id FROM node')) do tx.delete('node', n.id) end
     tx.delete('cursor', 'cursor')
+    tree.plant(tx)
   end)
   return pv.redirect(url('/'))
 end)

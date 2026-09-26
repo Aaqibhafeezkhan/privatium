@@ -773,24 +773,22 @@ async fn test_animals_end_to_end() {
     assert!(nojs.contains("revert"), "{nojs}");
     assert!(nojs.contains(".pv-js-only"), "{nojs}");
 
-    // Reset: a tombstone for every node and the cursor, in one batch; the log keeps
-    // every round played.
+    // Reset: a tombstone for every node and the cursor, then the starter tree planted
+    // again, all in one batch; the log keeps every round played.
     let reset = handler
         .handle(posted(&handler, "/a/animals/reset", ""))
         .await;
     assert_eq!(reset.status(), StatusCode::SEE_OTHER);
     let lines = log_lines(&log);
-    assert_eq!(lines.len(), 23);
-    let tombstones = &lines[13..];
+    assert_eq!(lines.len(), 26);
+    let batch = &lines[13..];
+    let ts: BTreeSet<&str> = batch.iter().map(|l| l["ts"].as_str().unwrap()).collect();
+    assert_eq!(ts.len(), 1, "one batch: {batch:?}");
+    let (tombstones, planted) = batch.split_at(10);
     assert!(
         tombstones.iter().all(|l| l["op"] == "del"),
         "{tombstones:?}"
     );
-    let ts: BTreeSet<&str> = tombstones
-        .iter()
-        .map(|l| l["ts"].as_str().unwrap())
-        .collect();
-    assert_eq!(ts.len(), 1, "one batch: {tombstones:?}");
     let deleted: BTreeSet<String> = tombstones
         .iter()
         .filter(|l| l["tbl"] == "node")
@@ -804,16 +802,40 @@ async fn test_animals_end_to_end() {
     every_node.insert(shark_id);
     assert_eq!(deleted, every_node);
     assert_eq!(tombstones.last().unwrap()["tbl"], "cursor");
-    let empty = body_of(handler.handle(get("/a/animals/")).await).await;
-    assert!(empty.contains("I don't know any animals yet."), "{empty}");
-    assert!(empty.contains("0 animals, 0 questions"), "{empty}");
+    assert_starter_tree(planted);
+    let fresh = body_of(handler.handle(get("/a/animals/")).await).await;
+    assert!(fresh.contains("<h1>Does it have legs?</h1>"), "{fresh}");
+    assert!(fresh.contains("2 animals, 1 question<"), "{fresh}");
+    assert_eq!(
+        log_lines(&log).len(),
+        26,
+        "a tree already there is not planted twice"
+    );
+}
+
+/// The three `put` events of the starter tree, in the order `lib/tree.lua` writes them:
+/// the two leaves, then the root question pointing at their minted ids.
+fn assert_starter_tree(events: &[Value]) {
+    assert_eq!(events.len(), 3, "{events:?}");
+    for event in events {
+        assert_eq!(event["op"], "put", "{event}");
+        assert_eq!(event["tbl"], "node", "{event}");
+        assert!(is_ulid(event["id"].as_str().unwrap()), "{event}");
+    }
+    assert_eq!(events[0]["d"], json!({ "kind": "a", "text": "dog" }));
+    assert_eq!(events[1]["d"], json!({ "kind": "a", "text": "fish" }));
+    assert_eq!(events[2]["d"]["kind"], "q");
+    assert_eq!(events[2]["d"]["text"], "Does it have legs?");
+    assert_eq!(events[2]["d"]["yes_id"], events[0]["id"]);
+    assert_eq!(events[2]["d"]["no_id"], events[1]["id"]);
 }
 
 /// Every write in animals as a plain form post with no
-/// `HX-Request`: each answers 303 to the board and the next GET shows the state; the
-/// error branch renders the page with `role="alert"`; every board form carries `method`
-/// and `action` beside `hx-post`; the reset form is a real form with `csrf()`; the
-/// `<noscript>` sheet is linked and reveals what Alpine hides.
+/// `HX-Request`: the first GET plants the starter tree, each write answers 303 to the
+/// board and the next GET shows the state; the error branch renders the page with
+/// `role="alert"`; every board form carries `method` and `action` beside `hx-post`; the
+/// reset form is a real form with `csrf()`; the `<noscript>` sheet is linked and reveals
+/// what Alpine hides.
 #[tokio::test]
 async fn test_animals_works_with_javascript_disabled() {
     let root = tempfile::tempdir().unwrap();
@@ -828,33 +850,44 @@ async fn test_animals_works_with_javascript_disabled() {
     };
     let board = || async { body_of(handler.handle(get("/a/animals/")).await).await };
 
-    let planted = handler
-        .handle(plain("/a/animals/seed", "animal=wombat"))
-        .await;
-    redirected(&planted);
-    assert!(board().await.contains("<h1>Is it a wombat?</h1>"));
+    // The first visit plants the starter tree: three puts, then a question on screen.
+    assert!(board().await.contains("<h1>Does it have legs?</h1>"));
+    assert_starter_tree(&log_lines(&log));
     let started = handler.handle(plain("/a/animals/start", "")).await;
     redirected(&started);
-    assert!(board().await.contains("<h1>Is it a wombat?</h1>"));
+    assert!(board().await.contains("<h1>Does it have legs?</h1>"));
+    let answered = handler
+        .handle(plain("/a/animals/answer", "choice=yes"))
+        .await;
+    redirected(&answered);
+    assert!(board().await.contains("<h1>Is it a dog?</h1>"));
     let taught = handler
         .handle(plain(
             "/a/animals/teach",
-            "animal=penguin&question=Does+it+fly%3F&answer=no",
+            "animal=penguin&question=Does+it+fly%3F&answer=yes",
         ))
         .await;
     redirected(&taught);
+    assert!(
+        board().await.contains("<h1>Does it have legs?</h1>"),
+        "teaching ends the round at the root"
+    );
+    let answered = handler
+        .handle(plain("/a/animals/answer", "choice=yes"))
+        .await;
+    redirected(&answered);
     assert!(board().await.contains("<h1>Does it fly?</h1>"));
     let answered = handler
         .handle(plain("/a/animals/answer", "choice=yes"))
         .await;
     redirected(&answered);
-    assert!(board().await.contains("<h1>Is it a wombat?</h1>"));
+    assert!(board().await.contains("<h1>Is it a penguin?</h1>"));
     let answered = handler
         .handle(plain("/a/animals/answer", "choice=no"))
         .await;
     redirected(&answered);
     assert!(
-        board().await.contains("<h1>Is it a wombat?</h1>"),
+        board().await.contains("<h1>Is it a penguin?</h1>"),
         "a leaf stays a leaf"
     );
 
@@ -907,7 +940,7 @@ async fn test_animals_works_with_javascript_disabled() {
         "{knowledge}"
     );
     let animals = tree.find_all("tbody")[0].find_all("tr").len();
-    assert_eq!(animals, 2, "wombat and penguin: {knowledge}");
+    assert_eq!(animals, 3, "dog, fish and penguin: {knowledge}");
     let toggles: Vec<&a11y::Element> = tree
         .descendants()
         .into_iter()
@@ -952,21 +985,25 @@ async fn test_animals_works_with_javascript_disabled() {
         "{nojs}"
     );
 
-    // Forget, as a plain post; then the error branch, a page with the alert in it.
+    // Forget, as a plain post: back to the first question, the taught animal gone. Then
+    // the error branch, a page with the alert in it: an answer outside the allowlist is
+    // refused without a write.
     let reset = handler.handle(plain("/a/animals/reset", "")).await;
     redirected(&reset);
-    assert!(board().await.contains("I don't know any animals yet."));
+    assert!(board().await.contains("<h1>Does it have legs?</h1>"));
+    let knowledge = body_of(handler.handle(get("/a/animals/knowledge")).await).await;
+    assert!(!knowledge.contains("penguin"), "{knowledge}");
+    assert!(knowledge.contains("<td>dog</td>"), "{knowledge}");
     let before = log_lines(&log).len();
-    let refused = handler.handle(plain("/a/animals/seed", "animal=+")).await;
+    let refused = handler
+        .handle(plain("/a/animals/answer", "choice=maybe"))
+        .await;
     assert_eq!(refused.status(), StatusCode::OK);
     let text = body_of(refused).await;
     assert!(text.starts_with("<!doctype html>"), "{text}");
     assert!(text.contains("role=\"alert\""), "{text}");
-    assert!(text.contains("Name any animal."), "{text}");
-    assert!(
-        text.contains("<h1>I don't know any animals yet.</h1>"),
-        "{text}"
-    );
+    assert!(text.contains("Answer yes or no."), "{text}");
+    assert!(text.contains("<h1>Does it have legs?</h1>"), "{text}");
     assert_eq!(log_lines(&log).len(), before, "nothing written");
 }
 
@@ -2539,13 +2576,16 @@ async fn test_animals_win_and_restart() {
     let handler = handler_for(&root);
     assert_eq!(
         handler.handle(get("/a/animals/won")).await.status(),
-        StatusCode::SEE_OTHER
+        StatusCode::SEE_OTHER,
+        "no tree yet, so nothing to have guessed"
     );
+    handler.handle(get("/a/animals/")).await;
     handler
-        .handle(posted(&handler, "/a/animals/seed", "animal=otter"))
+        .handle(posted(&handler, "/a/animals/answer", "choice=yes"))
         .await;
     let log = log_path(&handler, "animals");
     let before = log_lines(&log);
+    assert_eq!(before.len(), 4, "the starter tree and the cursor on dog");
     let page = body_of(handler.handle(get("/a/animals/won")).await).await;
     assert!(page.contains("<h1>I guessed it!</h1>"));
     assert!(page.contains("Start over"));
@@ -2560,7 +2600,7 @@ async fn test_animals_win_and_restart() {
             .await,
     )
     .await;
-    assert!(restarted.contains("<h1>Is it a otter?</h1>"));
+    assert!(restarted.contains("<h1>Does it have legs?</h1>"));
     assert!(!restarted.contains("I guessed it!"));
     assert_eq!(log_lines(&log).len(), before.len() + 1);
 }

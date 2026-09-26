@@ -2,7 +2,7 @@
 -- apps/animals/lib/tree.lua
 -- Author(s): Gabriel Mongefranco
 -- Created: 2026-08-28
--- Last Modified: 2026-09-03
+-- Last Modified: 2026-09-26
 -- Summary: Queries over the decision tree. Kept out of app.lua so the routes stay readable — the same
 --          split any growing app should make.
 -- Notes: See README file for documentation and full license information.
@@ -28,6 +28,23 @@ local M  = {}
 function M.clean(s)
   s = (s or ''):gsub('^%s+', ''):gsub('%s+$', '')
   return s ~= '' and s or nil
+end
+
+-- The tree every fresh game starts from: one question and one animal on each side. Small on
+-- purpose, so the first round already teaches something, and the first wrong guess grows it.
+M.STARTER = {
+  question = 'Does it have legs?',
+  yes      = 'dog',
+  no       = 'fish',
+}
+
+-- Write the starter tree through `tx`, inside a batch the caller owns. The leaves are
+-- appended first because the question references their minted ids; nothing points at the
+-- question, which is what makes it the root.
+function M.plant(tx)
+  local yes = tx.append('node', { kind = 'a', text = M.STARTER.yes })
+  local no  = tx.append('node', { kind = 'a', text = M.STARTER.no })
+  tx.append('node', { kind = 'q', text = M.STARTER.question, yes_id = yes, no_id = no })
 end
 
 -- The root is the only node nobody points at.

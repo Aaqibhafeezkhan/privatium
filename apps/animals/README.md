@@ -1,7 +1,8 @@
 # animals — Tier 1 at its interesting end
 
 The guess-the-animal game that shipped with every BASIC and Unix system worth using. It
-knows nothing at first and learns one animal per round, forever.
+starts with one question, "Does it have legs?", a dog on the yes side and a fish on the no
+side, and learns one animal per round, forever.
 
 It is here because it forces the framework to prove things `hello` does not.
 
@@ -14,7 +15,7 @@ It is here because it forces the framework to prove things `hello` does not.
 | **Recursive SQL over event-sourced rows** | `lib/tree.lua` → `knowledge()` |
 | **Stored session state** | The `cursor` table — a round survives a reload and continues on another device |
 | **Splitting logic out of routes** | `lib/tree.lua` is `require`d by name |
-| **Tombstones** | `reset` empties the tree; the log keeps every round you played |
+| **Tombstones** | `reset` empties the tree and plants the starter again; the log keeps every round you played |
 | **Accessible forms** | `fieldset`/`legend` for the radio pair, labels on every input |
 | **The HTMX / Alpine boundary** | Both on one screen — see below |
 | **Progressive enhancement** | `app.lua` → `board()` returns a fragment or a redirect |
@@ -91,6 +92,17 @@ Across the reference apps a reader sees all three postures without a comparison
 document: server-owned state (`animals`, HTMX), client-owned ephemeral state (`animals`,
 Alpine), and client-owned everything (`sketch`).
 
+## The starter tree
+
+The first visit to the game finds no tree and writes one: two animals and the question
+that tells them apart, as three ordinary `put` events in one batch. `lib/tree.lua` holds
+the words in `STARTER` and the write in `plant(tx)`. Nothing is special about those rows
+afterwards; the first wrong guess turns a leaf into a question the same way it always has.
+
+**Forget everything**, on the What I know page, tombstones every node and plants the same
+starter tree in the same batch, so the game goes back to its first question rather than
+to an empty screen.
+
 ## The learning step
 
 You land on a leaf. The app guesses "is it a *penguin*?" You say no, and tell it you meant a
@@ -117,11 +129,15 @@ That is only clean when identity is a ULID you control and writes are appends.
 
 ## Sample data
 
-`sample/seed.jsonl` holds seven events — three questions and four animals — so a fresh
-node can play a round before it has taught anything. It is offered on the settings page
-while the app's log is empty and loaded only when you ask (`spec/app-contract.md §9`); the
-events are appended as this node's own, with fresh envelopes. There is no `cursor` row in
-it, so the first round starts at the root.
+`sample/seed.jsonl` holds seven events — three questions and four animals — a larger tree
+than the starter, for seeing the knowledge page and the question paths populated. It is
+offered on the settings page while the app's log is empty and loaded only when you ask
+(`spec/app-contract.md §9`); the events are appended as this node's own, with fresh
+envelopes. There is no `cursor` row in it, so the first round starts at the root.
+
+Load it before you open the game. Opening the game plants the starter tree, and a seed
+populates an empty log or nothing, so once the log holds those three events the offer is
+gone. To try the seed after that, delete the app's `data/animals` folder and start again.
 
 ## Reading your own game history
 
