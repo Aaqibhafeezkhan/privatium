@@ -328,7 +328,10 @@ See <https://www.gnu.org/licenses/fdl-1.3.html>.
         let found = problems("spec/protocol.md", GOOD_DOC, Shape::Full);
         assert!(found.is_empty(), "{found:?}");
 
-        let wrong = GOOD_DOC.replace("GNU Free Documentation License", "GNU General Public License");
+        let wrong = GOOD_DOC.replace(
+            "GNU Free Documentation License",
+            "GNU General Public License",
+        );
         let found = problems("spec/protocol.md", &wrong, Shape::Full);
         assert!(
             found
@@ -361,7 +364,9 @@ See <https://www.gnu.org/licenses/fdl-1.3.html>.
         let bare = GOOD.replace("GNU General Public License", "a licence of some sort");
         let found = problems("crates/privatium-core/src/lib.rs", &bare, Shape::Full);
         assert!(
-            found.iter().any(|problem| problem.contains("General Public")),
+            found
+                .iter()
+                .any(|problem| problem.contains("General Public")),
             "{found:?}"
         );
     }

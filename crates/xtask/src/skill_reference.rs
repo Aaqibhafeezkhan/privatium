@@ -71,7 +71,9 @@ pub fn run(root: &Path, check: bool) -> Result<bool> {
         }
     }
     for path in crate::repo::files(root)? {
-        if path.starts_with("app-skills/") && path.contains("/reference/") && !files.contains_key(&path)
+        if path.starts_with("app-skills/")
+            && path.contains("/reference/")
+            && !files.contains_key(&path)
         {
             drift.push(format!("{path}: not written by the generator"));
         }
