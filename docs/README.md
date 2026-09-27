@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/README.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-06
-Last Modified: 2026-09-26
+Last Modified: 2026-09-27
 Summary: Index of every Privatium document — guides for people running a node, guides for people
          building apps, the normative specification, and decision records.
 Notes: See README file for documentation and full license information.
@@ -82,6 +82,7 @@ Why a choice was made, kept so it is not argued again from scratch.
 | Document | What it covers |
 |---|---|
 | [Branding](branding.md) | The logo, colors, typography and asset pack, and how to use them. |
+| [Project homepage](homepage.md) | Previewing, editing, translating, and hosting the single-page website and its screenshots. |
 | [Naming](naming.md) | The name, the tagline, and the tokens that are load-bearing across the code and the wire format. |
 | [Roadmap](roadmap.md) | What exists, what is planned, and the test that holds each finished item. |
 
