@@ -1,6 +1,6 @@
 # Project:  Privatium™  |  File: .github/workflows/ci.yml
 # Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-# Created:  2026-08-31  |  Modified: 2026-09-08
+# Created:  2026-08-31  |  Modified: 2026-09-27
 # Summary:  The gate: formatting, Clippy, the test suite, the conformance items by name, the
 #           embedded example, the fresh-clone check, the header check, the browser tests,
 #           the generated skill references, the lint corpus, a release build and its
@@ -9,7 +9,9 @@
 #           here, not by an owner. A pull request runs Linux alone and a merge to main runs
 #           all three, so nothing reaches a release untested on a platform while the two
 #           expensive runners stay off the review loop; `ci-full-matrix` on a pull request
-#           asks for all three early. See main README.md for full license information.
+#           asks for all three early. Starting the workflow by hand runs all three too, for
+#           a commit that never had a push run, such as a release commit merged while the
+#           workflow was disabled. See main README.md for full license information.
 
 name: CI
 
@@ -17,6 +19,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # By hand, on any branch: the full matrix, and a run release_tools.py accepts for the
+  # commit at that branch's head.
+  workflow_dispatch:
 
 permissions:
   contents: read

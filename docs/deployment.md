@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/deployment.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-07
+Last Modified: 2026-09-27
 Summary: Topologies, the always-on node, and per-OS firewall behaviour.
 Notes: See README file for documentation and full license information.
 
@@ -223,11 +223,15 @@ notarized packages are not built yet.
 ### 6.1 Publishing binaries
 
 1. Let CI pass on the commit you intend to release on `main`. CI runs on pushes to
-   `main` and pull requests; release builds require a push run for the exact commit.
-   Creating a release tag does not repeat CI.
+   `main` and pull requests; release builds require a run for the exact commit that was
+   either a push to `main` or started by hand. Creating a release tag does not repeat CI.
+   If the commit never had a run, because the CI workflow was disabled or the run was
+   lost, start **CI** from the Actions tab on `main` while that commit is its head, or
+   run `gh workflow run ci.yml --ref main`. A pull request run does not count, since it
+   tested a merge preview rather than the commit itself.
 2. Publish a GitHub release for that commit. The **Release binaries** workflow also
    handles prereleases. Pushing a tag alone does not create a release.
-3. The workflow checks the latest matching push CI run, builds the three binaries
+3. The workflow checks the latest matching CI run, builds the three binaries
    with the pinned Rust toolchain and `Cargo.lock`, smoke-tests them, packages the four
    archives above, and attaches them. It does not repeat the full test suite.
 

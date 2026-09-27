@@ -1,6 +1,6 @@
 # Project:  Privatium™  |  File: .github/scripts/release_tools.py
 # Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-# Created:  2026-09-05  |  Modified: 2026-09-06
+# Created:  2026-09-05  |  Modified: 2026-09-27
 # Summary:  Package a single executable — and for Windows a portable zip holding the
 #           privatium-data folder with the example apps — name every archive a release
 #           carries, and require successful CI for a release commit, waiting for a
@@ -16,6 +16,10 @@ import tarfile
 import time
 import zipfile
 from pathlib import Path
+
+# The CI runs that count for a release: a push to main, or a run started by hand for a
+# commit that never had one. A pull request run tested a merge preview, not the commit.
+RELEASE_CI_EVENTS = ("push", "workflow_dispatch")
 
 # The example apps of apps/README.md, the folders a portable zip carries under
 # privatium-data/apps/ so its launcher is never empty (spec/cli.md §1, §2).
@@ -114,14 +118,16 @@ class PendingCI(Exception):
 
 
 def require_ci(runs, sha):
-    """Refuse unless the latest push CI run for this exact commit completed successfully;
-    a run still queued or in progress is pending rather than refused."""
-    matching = [run for run in runs if run.get("head_sha") == sha and run.get("event") == "push"]
+    """Refuse unless the latest push or manually started CI run for this exact commit
+    completed successfully; a run still queued or in progress is pending rather than
+    refused."""
+    matching = [run for run in runs if run.get("head_sha") == sha and run.get("event") in RELEASE_CI_EVENTS]
     latest = max(matching, key=lambda run: run["id"], default={})
     if latest and latest.get("status") != "completed":
         raise PendingCI("Push CI for the release commit is still running.")
     if latest.get("conclusion") != "success":
-        raise ValueError("Release build refused: let push CI pass for the release commit, then rerun this workflow.")
+        raise ValueError("Release build refused: let CI pass for the release commit (a push to main, or "
+                         "the CI workflow started by hand on its branch), then rerun this workflow.")
 
 
 def wait_for_ci(fetch_runs, sha, sleep=time.sleep, now=time.monotonic, timeout=CI_WAIT_SECONDS):
@@ -166,12 +172,12 @@ def main():
             response = subprocess.check_output([
                 "gh", "api", "--method", "GET", "--paginate", "--slurp",
                 f"repos/{repo}/actions/workflows/ci.yml/runs",
-                "-f", f"head_sha={args.value}", "-f", "event=push", "-f", "per_page=100",
+                "-f", f"head_sha={args.value}", "-f", "per_page=100",
             ], text=True)
             return [run for page in json.loads(response) for run in page["workflow_runs"]]
 
         wait_for_ci(fetch_runs, args.value)
-        print("Latest push CI passed for the release commit.")
+        print("Latest CI run passed for the release commit.")
 
 
 if __name__ == "__main__":
