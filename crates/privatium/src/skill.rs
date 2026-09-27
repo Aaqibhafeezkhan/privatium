@@ -93,7 +93,7 @@ pub fn export(names: &[String], out: Option<&Path>) -> Result<u8> {
     eprintln!(
         "privatium: {written} file(s) written under {} — the skills of {} ({})",
         out.display(),
-        env!("CARGO_PKG_VERSION"),
+        privatium_core::VERSION,
         crate::protocol_claim()
     );
     Ok(0)

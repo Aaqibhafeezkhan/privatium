@@ -2,7 +2,7 @@
 
 # Reference
 
-The pinned reference for `privatium-tier1-lua` (docs/skills.md §3): generated from `privatium-core` 0.2.0 (`pv/1`, `api = 1`) and the specification at the same commit, so what is written here is what this version implements.
+The pinned reference for `privatium-tier1-lua` (docs/skills.md §3): generated from `privatium-core` 0.3 (`pv/1`, `api = 1`) and the specification at the same commit, so what is written here is what this version implements.
 
 - `anti-patterns.md`
 - `lsp-syntax.md`

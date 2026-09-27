@@ -239,7 +239,7 @@ fn generate(root: &Path) -> Result<BTreeMap<String, String>> {
                  `privatium-core` {} (`{PROTOCOL}`, `api = {SUPPORTED_API}`) and the specification at the \
                  same commit, so what is written here is what this version implements.\n\n{list}\n\
                  Regenerate with `cargo xtask gen-skill-reference`; `--check` is the CI gate.\n",
-                env!("CARGO_PKG_VERSION")
+                privatium_core::VERSION
             ),
         );
     }
