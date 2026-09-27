@@ -626,7 +626,7 @@ fn test_new_from_hello_rewrites_slug_and_title() {
     assert!(manifest.contains("title       = \"Greeter\""), "{manifest}");
     assert!(manifest.contains("apps/greeter/app.toml"), "{manifest}");
     let lua = fs::read_to_string(app.join("app.lua")).unwrap();
-    assert!(lua.contains("File: apps/greeter/app.lua"), "{lua}");
+    assert!(lua.contains("-- apps/greeter/app.lua"), "{lua}");
     assert!(!lua.contains("apps/hello/"), "{lua}");
     let skill = fs::read_to_string(app.join("SKILL.md")).unwrap();
     assert!(skill.contains("name: privatium-app-greeter"), "{skill}");

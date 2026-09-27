@@ -1,6 +1,6 @@
 # Project:  Privatium™  |  File: .github/scripts/test_release_tools.py
 # Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-# Created:  2026-09-05  |  Modified: 2026-09-06
+# Created:  2026-09-05  |  Modified: 2026-09-27
 # Summary:  Verify release archive layout and the exact-commit CI prerequisite, including
 #           the wait for a run still in progress.
 #           See main README.md for full license information.
@@ -103,6 +103,8 @@ class ReleaseTests(unittest.TestCase):
     def test_ci_requires_latest_matching_push_to_succeed(self):
         good = dict(id=1, head_sha="a" * 40, event="push", status="completed", conclusion="success")
         require_ci([good], "a" * 40)
+        # A run started by hand for the commit counts the same as a push run.
+        require_ci([dict(good, event="workflow_dispatch")], "a" * 40)
         for runs in [[], [dict(good, head_sha="b" * 40)], [dict(good, event="pull_request")],
                      [dict(good, conclusion="failure")], [good, dict(good, id=2, conclusion="cancelled")]]:
             with self.subTest(runs=runs), self.assertRaises(ValueError):

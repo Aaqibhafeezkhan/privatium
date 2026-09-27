@@ -342,7 +342,7 @@ async fn test_spec_cli_4_from_copy_rewrites_slug_and_title() {
         manifest.contains("File: apps/greeter/app.toml"),
         "{manifest}"
     );
-    assert!(text("app.lua").contains("File: apps/greeter/app.lua"));
+    assert!(text("app.lua").contains("-- apps/greeter/app.lua"));
     assert!(text("views/index.lsp").contains("apps/greeter/views/index.lsp"));
     let skill = text("SKILL.md");
     assert!(skill.contains("name: privatium-app-greeter"), "{skill}");
