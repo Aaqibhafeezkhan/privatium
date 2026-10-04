@@ -1029,10 +1029,14 @@ client delivery, such as a signed native client or an authenticated transport on
 visit, closes the bootstrap gap; using it only for initial pairing does not protect a
 later plain-HTTP visit.
 
-An implementation SHOULD show this sentence on its plain-HTTP pairing screen and on the
-page where paired devices are managed: **“On every visit over plain HTTP, someone who can
-change network traffic can replace this client and read your data and stored device keys.
-Encryption protects against listening, but cannot verify the downloaded client.”**
+An implementation SHOULD show this notice on its plain-HTTP pairing screen and on the
+page where paired devices are managed, in words written for the owner rather than for a
+security reader: **“About your connection: Privatium reaches your devices over your own
+network, without the padlock a website would have. Your data is scrambled while it travels,
+so nobody can listen in. But each time a device opens Privatium this way, someone who can
+tamper with your network could swap the page for a fake one and read your data. Use
+Privatium only on networks you trust.”** The notice MUST say that the exposure applies to
+every visit and that a replaced page can read the owner's data; the wording above does.
 
 A paired device loads a bootstrap document on every full-page navigation (§8.3.1) and
 replaces it with the page it asked for. The bootstrap MUST NOT present the disclosure, or

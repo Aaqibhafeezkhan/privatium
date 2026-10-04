@@ -35,8 +35,10 @@ use crate::wire::Response;
 use axum::http::{StatusCode, Uri};
 
 /// The disclosure of spec/protocol.md §7.7, shown where a device pairs and where paired
-/// devices are managed.
-pub const DISCLOSURE: &str = "On every visit over plain HTTP, someone who can change network traffic can replace this client and read your data and stored device keys. Encryption protects against listening, but cannot verify the downloaded client.";
+/// devices are managed. Written for the owner, not for a security reader: the padlock
+/// stands for the certificate a browser would otherwise check, "scrambled" for the
+/// encrypted channel, and "swap the page for a fake one" for a replaced bootstrap.
+pub const DISCLOSURE: &str = "About your connection: Privatium reaches your devices over your own network, without the padlock a website would have. Your data is scrambled while it travels, so nobody can listen in. But each time a device opens Privatium this way, someone who can tamper with your network could swap the page for a fake one and read your data. Use Privatium only on networks you trust.";
 
 /// Render a bootstrap with the requested path, the public node ID and its display name
 /// only. Query strings are attribute-escaped; neither application content nor a CSRF

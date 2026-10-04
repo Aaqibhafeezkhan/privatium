@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/channel.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: LAN bootstrap isolation, channel framing and authenticated routing.
 // Notes: See README file for documentation and full license information.
 //
@@ -160,8 +160,16 @@ async fn test_spec_9_2_bootstrap_page_carries_no_app_data() {
     assert!(!html.contains("_csrf"));
     assert!(!html.contains("cache/"));
     assert!(!html.contains("identity/"));
-    assert!(html.contains("every visit"));
-    assert!(html.contains("stored device keys"));
+    // The §7.7 notice, in the owner's words: the exposure is every visit, and a replaced
+    // page reads the owner's data.
+    assert!(
+        html.contains("each time a device opens Privatium this way"),
+        "{html}"
+    );
+    assert!(
+        html.contains("swap the page for a fake one and read your data"),
+        "{html}"
+    );
     let findings = common::a11y::check(&html, common::a11y::Unit::Document);
     assert!(findings.is_empty(), "{findings:?}");
 }
