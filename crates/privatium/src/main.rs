@@ -2,7 +2,7 @@
 // crates/privatium/src/main.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-08-31
-// Last Modified: 2026-09-26
+// Last Modified: 2026-10-04
 // Summary: Entry point: spec/cli.md. Bare `privatium` runs a node; `dev`, `new`, `lint`, `skill`,
 //          `snapshot`, `restore` and `pair` are the subcommands this build has; `firewall` is
 //          not built yet, and it parses and says so rather than being absent, so the help text
@@ -47,7 +47,7 @@ fn protocol_claim() -> String {
 
 /// `--version` (`spec/cli.md §1`): the build version and the protocol claim on the first
 /// line, then the project's own facts — product, author, copyright, licence and the two
-/// URLs. The version is the workspace's, in the short form the release tags use
+/// URLs. The version is the workspace's, spelled as the release tags spell it
 /// (`privatium_core::VERSION`). Every value below the first line comes from
 /// `[workspace.package]` through the `CARGO_PKG_*` variables, or from `build.rs` for the
 /// two Cargo has no field for, so nothing here is a second copy of a name or a licence.
