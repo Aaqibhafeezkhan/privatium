@@ -1,6 +1,6 @@
 // Project:  Privatium™  |  File: crates/privatium-core/tests/js/harness.mjs
 // Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-// Created:  2026-09-05  |  Modified: 2026-09-05
+// Created:  2026-09-05  |  Modified: 2026-10-04
 // Summary:  What pv.js needs of a browser, faked for `node --test`: a location, a
 //           navigator, a localStorage that can be told to fail, an EventSource that goes
 //           nowhere, and a fetch that answers from a script and records every request. Each
@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 
 const PV = new URL('../../assets/shell/pv.js', import.meta.url);
 
-/** The bytes of pv.js, for the size assertion the spec makes (spec/data-api.md §5). */
+/** The text of pv.js, for assertions about what it does and does not contain. */
 export function source() { return readFileSync(fileURLToPath(PV), 'utf8'); }
 
 /** An in-memory localStorage; `broken` makes every call throw, as a private window can. */

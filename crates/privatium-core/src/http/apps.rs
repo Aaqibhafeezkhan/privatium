@@ -106,11 +106,12 @@ pub fn no_handler(slug: &str, csp: &str, solo: bool) -> Response {
 
 /// What a Lua handler answered, as a response (`spec/lua-api.md §3.1`). A rendered view
 /// that the app did not frame itself goes inside the framework's page frame, titled by
-/// the app and carrying the CSRF token for htmx (`§4.1`).
+/// the app, listing the items the view added to the menu, and carrying the CSRF token for
+/// htmx (`§4.1`).
 #[must_use]
 pub fn lua_response(
     answer: LuaResponse,
-    title: &str,
+    frame: &shell::Frame,
     csrf_token: &str,
     node_label: &str,
     csp: &str,
@@ -126,14 +127,26 @@ pub fn lua_response(
             *response.status_mut() = StatusCode::NO_CONTENT;
             response
         }
-        LuaResponse::View { html, complete } => {
+        LuaResponse::View {
+            html,
+            complete,
+            menu,
+        } => {
             if complete {
                 headers::with_body(StatusCode::OK, headers::HTML, html)
             } else {
                 let body = String::from_utf8_lossy(&html);
+                let page_menu: Vec<shell::MenuLink> = menu
+                    .into_iter()
+                    .map(|item| shell::MenuLink {
+                        label: item.label,
+                        href: crate::wire::router::url(&frame.mount, &item.path),
+                        icon: item.icon,
+                    })
+                    .collect();
                 headers::html(
                     StatusCode::OK,
-                    shell::app_frame(title, solo, csrf_token, &body, node_label),
+                    shell::app_frame(frame, &page_menu, solo, csrf_token, &body, node_label),
                 )
             }
         }

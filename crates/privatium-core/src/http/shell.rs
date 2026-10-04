@@ -3,11 +3,14 @@
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
 // Last Modified: 2026-10-04
-// Summary: The framework's own pages — launcher, settings, errors — as server-rendered HTML with HTMX
-//          and inlined Bootstrap Icons (docs/architecture.md §2.5, docs/icons.md). No client
-//          framework, no bundler, no inline script or style: every page renders under the
-//          default CSP of spec/protocol.md §9.3 exactly as written, and every page is held to
-//          the PV4xx rules of spec/cli.md §5 by tests/reference.rs.
+// Summary: The framework's own pages — launcher, settings, errors — and the frame a Tier 1 view
+//          renders inside, as server-rendered HTML with HTMX and inlined Bootstrap Icons
+//          (docs/architecture.md §2.5, docs/icons.md). The frame is the standard chrome of
+//          spec/lua-api.md §4.1: a three-zone bar, one menu with the app's items first, and
+//          a footer with a status slot. No client framework, no bundler, no inline script or
+//          style: every page renders under the default CSP of spec/protocol.md §9.3 exactly
+//          as written, and every page is held to the PV4xx rules of spec/cli.md §5 by
+//          tests/reference.rs.
 // Notes: See README file for documentation and full license information.
 //
 // Copyright © 2026 Gabriel Mongefranco
@@ -97,10 +100,134 @@ enum Active {
     None,
 }
 
+/// What the page frame carries for one app (`spec/lua-api.md §4.1`, `spec/app-contract.md
+/// §3`): the title zone, the menu's app items, and the stylesheets and scripts the head
+/// loads on every page. Built from the manifest under the node lock; the asset hashes are
+/// filled in afterwards, off the lock, by [`Frame::hash_assets`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Frame {
+    /// `app.title`, the window title and the centre of the bar.
+    pub title: String,
+    /// `app.icon`, drawn before the title when the manifest declares one.
+    pub icon: Option<String>,
+    /// The mount the title links to: `/a/<slug>/` or `/`.
+    pub mount: String,
+    /// `[[ui.menu]]`, resolved: the app-wide items, in manifest order.
+    pub menu: Vec<MenuLink>,
+    /// `ui.styles`, as the head loads them.
+    pub styles: Vec<FrameAsset>,
+    /// `ui.scripts`, as the head loads them.
+    pub scripts: Vec<FrameAsset>,
+    /// The app's `static/` folder, where the assets above are hashed from.
+    pub static_dir: Option<std::path::PathBuf>,
+}
+
+/// One item of the menu's app section.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MenuLink {
+    /// The text.
+    pub label: String,
+    /// Already resolved through `url()`.
+    pub href: String,
+    /// A vendored icon name, when the item has one.
+    pub icon: Option<String>,
+}
+
+/// One stylesheet or script the frame's head loads for the app.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FrameAsset {
+    /// The file beneath `static/`, as the manifest spells it: `static/forms.js`.
+    pub entry: String,
+    /// Already resolved through `url()`.
+    pub href: String,
+    /// `sha256-…` of the file as it is on disk, or `None` when it could not be read.
+    pub integrity: Option<String>,
+}
+
+impl Frame {
+    /// The frame for an app at `mount`, from its manifest. Asset hashes are not read here:
+    /// call [`Frame::hash_assets`] once off the lock.
+    #[must_use]
+    pub fn for_app(
+        manifest: &crate::app::Manifest,
+        mount: &str,
+        dir: Option<&std::path::Path>,
+    ) -> Self {
+        let asset = |entry: &String| FrameAsset {
+            entry: entry.clone(),
+            href: url(mount, entry),
+            integrity: None,
+        };
+        Self {
+            title: manifest.app.title.clone(),
+            icon: manifest.app.icon.clone(),
+            mount: mount.to_owned(),
+            menu: manifest
+                .ui
+                .menu
+                .iter()
+                .map(|item| MenuLink {
+                    label: item.label.trim().to_owned(),
+                    href: url(mount, &item.path),
+                    icon: item.icon.clone(),
+                })
+                .collect(),
+            styles: manifest.ui.styles.iter().map(asset).collect(),
+            scripts: manifest.ui.scripts.iter().map(asset).collect(),
+            static_dir: dir.map(std::path::Path::to_path_buf),
+        }
+    }
+
+    /// Read each declared asset from the folder and record its `integrity` hash, so the
+    /// page names the bytes it expects and a stale cache is refused. Read on every render
+    /// rather than once at load, because `static/` is edited and served live. A file that
+    /// cannot be read keeps no hash; the browser then reports the missing file itself.
+    pub fn hash_assets(&mut self) {
+        let Some(dir) = self.static_dir.clone() else {
+            return;
+        };
+        let app_dir = dir.parent().map(std::path::Path::to_path_buf);
+        for asset in self.styles.iter_mut().chain(self.scripts.iter_mut()) {
+            let path = app_dir.as_ref().map(|app| app.join(&asset.entry));
+            asset.integrity = path
+                .and_then(|path| std::fs::read(path).ok())
+                .map(|bytes| crate::http::assets::integrity_of(&bytes));
+        }
+    }
+}
+
+/// Everything `page` needs besides the body.
+struct PageSpec<'a> {
+    /// The window title, before ` — Privatium`.
+    title: &'a str,
+    active: Active,
+    /// No launcher to link to: no Apps link in the bar.
+    solo: bool,
+    /// The brand is the page's `<h1>` (the shell's pages) rather than a paragraph (an
+    /// app's frame, where the view supplies the heading).
+    brand_heading: bool,
+    body_attrs: &'a str,
+    node_label: Option<&'a str>,
+    /// The app whose frame this is, with the page's own menu items appended; `None` for
+    /// the shell's pages.
+    app: Option<(&'a Frame, &'a [MenuLink])>,
+}
+
 /// The shell's own page frame. `solo` drops the launcher link: there is no launcher to
 /// link to.
 fn layout(title: &str, active: Active, solo: bool, body: &str) -> String {
-    page(title, active, solo, true, "", body, None)
+    page(
+        &PageSpec {
+            title,
+            active,
+            solo,
+            brand_heading: true,
+            body_attrs: "",
+            node_label: None,
+            app: None,
+        },
+        body,
+    )
 }
 
 /// The frame a Tier 1 view renders inside when it calls no `layout()`
@@ -108,41 +235,52 @@ fn layout(title: &str, active: Active, solo: bool, body: &str) -> String {
 /// with the brand demoted to a paragraph so the view keeps the page's one `<h1>`, and
 /// `hx-headers` on the body so every htmx request beneath the mount carries the CSRF
 /// token — which is what lets an `hx-delete` button, with no form, pass the host's check.
+/// `page_menu` is what the view added with `menu()`, listed after the manifest's items.
 #[must_use]
 pub fn app_frame(
-    title: &str,
+    frame: &Frame,
+    page_menu: &[MenuLink],
     solo: bool,
     csrf_token: &str,
     body: &str,
     node_label: &str,
 ) -> String {
     let attrs = format!(
-        " hx-headers='{{\"X-CSRF-Token\":\"{}\"}}'",
+        " data-pv-mount=\"{}\" hx-headers='{{\"X-CSRF-Token\":\"{}\"}}'",
+        escape(&frame.mount),
         escape(csrf_token)
     );
     page(
-        title,
-        Active::None,
-        solo,
-        false,
-        &attrs,
+        &PageSpec {
+            title: &frame.title,
+            active: Active::None,
+            solo,
+            brand_heading: false,
+            body_attrs: &attrs,
+            node_label: Some(node_label),
+            app: Some((frame, page_menu)),
+        },
         body,
-        Some(node_label),
     )
 }
 
-/// The document around a body: head, header, main, footer. `brand_heading` makes the
-/// brand the page's `<h1>` (the shell's pages) rather than a paragraph (an app's).
-fn page(
-    title: &str,
-    active: Active,
-    solo: bool,
-    brand_heading: bool,
-    body_attrs: &str,
-    body: &str,
-    node_label: Option<&str>,
-) -> String {
-    let mut out = String::with_capacity(body.len() + 2048);
+/// The framework's own pages, in the order the menu lists them.
+const SYSTEM_PAGES: [(&str, &str); 4] = [
+    ("/settings", "Space settings"),
+    ("/settings/apps", "App settings"),
+    ("/settings/data", "Data settings"),
+    ("/settings/devices", "Devices"),
+];
+
+/// The document around a body: head, header, main, footer.
+///
+/// The header is three zones — the brand linking to `/`, the app's title linking to its
+/// mount, and the controls: an Apps link in host mode and the one Menu. The menu lists the
+/// app's items first, then a rule, then the framework's pages; the rule is hidden by the
+/// stylesheet while the app's list is empty, so an item a script appends later shows it.
+/// The footer carries the status slot `chrome.js` and `pv.status()` write to.
+fn page(spec: &PageSpec<'_>, body: &str) -> String {
+    let mut out = String::with_capacity(body.len() + 3072);
     out.push_str("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n");
     out.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     // htmx never evaluates anything: the shell has no `hx-on` and no `js:` values, and the
@@ -154,60 +292,125 @@ fn page(
         "<meta name=\"htmx-config\" content='{\"allowEval\":false,\"allowScriptTags\":false,\
          \"selfRequestsOnly\":true,\"includeIndicatorStyles\":false}'>\n",
     );
-    let _ = writeln!(out, "<title>{} — Privatium</title>", escape(title));
-    let _ = writeln!(
-        out,
-        "<link rel=\"stylesheet\" href=\"{}\" integrity=\"{}\">",
-        crate::http::assets::versioned("shell.css"),
-        crate::http::assets::integrity("shell.css")
-    );
+    let _ = writeln!(out, "<title>{} — Privatium</title>", escape(spec.title));
+    for sheet in ["chrome.css", "shell.css"] {
+        let _ = writeln!(
+            out,
+            "<link rel=\"stylesheet\" href=\"{}\" integrity=\"{}\">",
+            crate::http::assets::versioned(sheet),
+            crate::http::assets::integrity(sheet)
+        );
+    }
     let _ = writeln!(
         out,
         "<script src=\"{}\" integrity=\"{}\" defer></script>",
         crate::http::assets::versioned("htmx.min.js"),
         crate::http::assets::integrity("htmx.min.js")
     );
+    // A module script is deferred by nature; `defer` is written anyway so the rule the
+    // reference tests hold — every script on a page is deferred, so document order is
+    // execution order — reads from the markup alone.
     let _ = writeln!(
         out,
-        "</head>\n<body{body_attrs}>\n<a class=\"pv-skip\" href=\"#main\">Skip to content</a>"
+        "<script type=\"module\" src=\"{}\" integrity=\"{}\" defer></script>",
+        crate::http::assets::versioned("chrome.js"),
+        crate::http::assets::integrity("chrome.js")
     );
-    let (brand_open, brand_close) = if brand_heading {
-        ("<h1>", "</h1>")
+    if let Some((frame, _)) = spec.app {
+        for sheet in &frame.styles {
+            let _ = writeln!(
+                out,
+                "<link rel=\"stylesheet\" href=\"{}\"{}>",
+                escape(&sheet.href),
+                integrity_attr(sheet.integrity.as_deref())
+            );
+        }
+        for script in &frame.scripts {
+            let _ = writeln!(
+                out,
+                "<script src=\"{}\"{} defer></script>",
+                escape(&script.href),
+                integrity_attr(script.integrity.as_deref())
+            );
+        }
+    }
+    let _ = writeln!(
+        out,
+        "</head>\n<body{}>\n<a class=\"pv-skip\" href=\"#main\">Skip to content</a>",
+        spec.body_attrs
+    );
+    let (brand_open, brand_close) = if spec.brand_heading {
+        ("<h1 class=\"pv-brand\">", "</h1>")
     } else {
         ("<p class=\"pv-brand\">", "</p>")
     };
     let logo = crate::http::assets::versioned("privatium-logo-light.svg");
+    let mark = crate::http::assets::versioned("privatium-mark-white.svg");
+    // The wordmark on a wide screen, the square mark on a narrow one: one request either
+    // way, chosen by the browser, so the title zone keeps its room on a phone.
     let _ = write!(
         out,
-        "<header class=\"pv-header\">\n{brand_open}<a href=\"/\"><img class=\"pv-brand-logo\" src=\"{logo}\" alt=\"\" width=\"160\" height=\"34\"><span class=\"pv-visually-hidden\">Privatium</span></a>{brand_close}\n\
-         <nav aria-label=\"Framework\">\n"
+        "<header class=\"pv-header\">\n{brand_open}<a href=\"/\"><picture><source media=\"(max-width: 30rem)\" srcset=\"{mark}\" width=\"34\" height=\"34\"><img class=\"pv-brand-logo\" src=\"{logo}\" alt=\"\" width=\"160\" height=\"34\"></picture><span class=\"pv-visually-hidden\">Privatium</span></a>{brand_close}\n"
     );
-    if !solo {
+    if let Some((frame, _)) = spec.app {
+        let _ = write!(
+            out,
+            "<p class=\"pv-app-title\"><a href=\"{}\">",
+            escape(&url(&frame.mount, ""))
+        );
+        if let Some(name) = &frame.icon {
+            out.push_str(&icon(name));
+            out.push(' ');
+        }
+        let _ = writeln!(out, "<span>{}</span></a></p>", escape(&frame.title));
+    }
+    out.push_str("<nav class=\"pv-controls\" aria-label=\"Framework\">\n");
+    if !spec.solo {
         let _ = writeln!(
             out,
             "<a href=\"/\"{}>{} Apps</a>",
-            current(active == Active::Launcher),
+            current(spec.active == Active::Launcher),
             icon("grid-3x3-gap")
         );
     }
     let _ = write!(
         out,
-        "<details class=\"pv-menu\"><summary aria-label=\"Menu\" title=\"Menu\">{}</summary><nav aria-label=\"All pages\">",
+        "<details class=\"pv-menu\"><summary aria-label=\"Menu\" title=\"Menu\">{}</summary><nav aria-label=\"All pages\">\n<ul id=\"pv-app-menu\" class=\"pv-menu-app\">",
         icon("list")
     );
-    if !solo {
-        out.push_str("<a href=\"/\">Apps</a>");
+    if let Some((frame, page_menu)) = spec.app {
+        for item in frame.menu.iter().chain(page_menu) {
+            let _ = write!(
+                out,
+                "<li><a href=\"{}\">{}{}</a></li>",
+                escape(&item.href),
+                item.icon
+                    .as_deref()
+                    .map(|name| format!("{} ", icon(name)))
+                    .unwrap_or_default(),
+                escape(&item.label)
+            );
+        }
     }
-    out.push_str("<a href=\"/settings\">Space settings</a><a href=\"/settings/apps\">App settings</a><a href=\"/settings/data\">Data settings</a><a href=\"/settings/devices\">Devices</a></nav></details>");
-    out.push_str("</nav>\n</header>\n<main id=\"main\">\n");
+    out.push_str("</ul>\n<hr class=\"pv-menu-rule\">\n<ul class=\"pv-menu-system\">");
+    for (href, label) in SYSTEM_PAGES {
+        let _ = write!(out, "<li><a href=\"{href}\">{label}</a></li>");
+    }
+    out.push_str("</ul></nav></details>\n</nav>\n</header>\n<main id=\"main\">\n");
     out.push_str(body);
     let _ = write!(
         out,
-        "\n</main>\n<footer class=\"pv-footer\"><a href=\"https://github.com/gabrielmongefranco/privatium\">Privatium</a>\n<div class=\"pv-footer-node\"><span>{}</span><a class=\"pv-join\" href=\"/settings/devices\" aria-label=\"Connect a device — opens Devices\" title=\"Connect a device\">{}</a></div></footer>\n</body>\n</html>\n",
-        escape(node_label.unwrap_or("")),
+        "\n</main>\n<footer class=\"pv-footer\"><a href=\"https://github.com/gabrielmongefranco/privatium\">Privatium</a>\n<p id=\"pv-status\" class=\"pv-status\" role=\"status\"></p>\n<div class=\"pv-footer-node\"><span>{}</span><a class=\"pv-join\" href=\"/settings/devices\" aria-label=\"Connect a device — opens Devices\" title=\"Connect a device\">{}</a></div></footer>\n</body>\n</html>\n",
+        escape(spec.node_label.unwrap_or("")),
         icon("qr-code")
     );
     out
+}
+
+/// ` integrity="…"` when a hash is known, nothing otherwise.
+fn integrity_attr(hash: Option<&str>) -> String {
+    hash.map(|hash| format!(" integrity=\"{}\"", escape(hash)))
+        .unwrap_or_default()
 }
 
 fn node_layout(
@@ -219,7 +422,18 @@ fn node_layout(
 ) -> Result<String> {
     let label = crate::http::api::display_name(cx.node)?
         .unwrap_or_else(|| cx.node.id().as_str().to_owned());
-    Ok(page(title, active, solo, true, "", body, Some(&label)))
+    Ok(page(
+        &PageSpec {
+            title,
+            active,
+            solo,
+            brand_heading: true,
+            body_attrs: "",
+            node_label: Some(&label),
+            app: None,
+        },
+        body,
+    ))
 }
 
 fn current(active: bool) -> &'static str {

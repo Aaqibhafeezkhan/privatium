@@ -206,6 +206,80 @@ fn test_spec_3_1_slug_dir_mismatch_refused() {
     assert!(!node.paths().data_dir().join("foo").exists());
 }
 
+/// `spec/app-contract.md §3` — a `[ui]` reference that does not resolve is refused at
+/// load, loud and per app: a script or stylesheet that is not in the folder, a menu
+/// item without a label, a menu path that is not mount-relative. A menu icon the
+/// vendored set lacks is a warning, like the app's own icon, and the app loads.
+#[test]
+fn test_spec_3_a_manifest_with_an_unresolvable_ui_reference_is_refused_at_load() {
+    let root = tempfile::tempdir().unwrap();
+    let mut node = open(&root);
+    let apps = node.paths().apps_dir();
+    let manifest = |extra: &str| format!("{}{extra}", lua_manifest("chromed"));
+    let files: &[(&str, &str)] = &[("app.lua", ""), ("static/app.css", "")];
+
+    for (extra, expected) in [
+        (
+            "[ui]\nscripts = [\"static/missing.js\"]\nstyles = [\"static/app.css\"]\n",
+            "ui.scripts names static/missing.js, which is not in the app folder",
+        ),
+        (
+            "[[ui.menu]]\nlabel = \"  \"\npath = \"/setup\"\n",
+            "ui.menu item 1 needs a label",
+        ),
+        (
+            "[[ui.menu]]\nlabel = \"Setup\"\npath = \"https://example.com/\"\n",
+            "ui.menu item 1 path \"https://example.com/\" must be mount-relative",
+        ),
+        (
+            "[ui]\nstyles = [\"app.css\"]\n",
+            "ui.styles entry \"app.css\" must name a file as static/<name>.css",
+        ),
+    ] {
+        write_app(&apps, "chromed", Some(&manifest(extra)), files);
+        let report = node.load_apps(&[local(&node)]).unwrap();
+        assert!(report.loaded.is_empty(), "{extra}");
+        let failure = report
+            .failed
+            .iter()
+            .find(|failure| failure.folder == "chromed")
+            .unwrap_or_else(|| panic!("{extra}: {report:?}"));
+        assert_eq!(failure.stage, Stage::Validate, "{extra}");
+        assert!(
+            failure.reason.contains(expected),
+            "{extra}: {}",
+            failure.reason
+        );
+        assert!(node.app("chromed").is_none(), "{extra}");
+        let row = sys_app_row(&node, "chromed").unwrap();
+        assert!(
+            row["last_error"].as_str().unwrap().contains(expected),
+            "{row}"
+        );
+    }
+
+    // An unknown menu icon loads with a warning the owner sees, drawn as the fallback.
+    write_app(
+        &apps,
+        "chromed",
+        Some(&manifest(
+            "[[ui.menu]]\nlabel = \"Setup\"\npath = \"/setup\"\nicon = \"no-such-icon\"\n",
+        )),
+        files,
+    );
+    let report = node.load_apps(&[local(&node)]).unwrap();
+    assert!(report.loaded.contains(&"chromed".to_owned()), "{report:?}");
+    assert!(
+        report.warnings.iter().any(|warning| matches!(
+            warning,
+            Warning::UnknownIcon { slug, icon } if slug == "chromed" && icon == "no-such-icon"
+        )),
+        "{:?}",
+        report.warnings
+    );
+    assert_eq!(node.app("chromed").unwrap().manifest().ui.menu.len(), 1);
+}
+
 /// `spec/protocol.md §12` — an app declaring a higher `api` is refused; the row records
 /// it; fixing the manifest clears the row and installs the app.
 #[test]

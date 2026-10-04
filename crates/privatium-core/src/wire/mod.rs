@@ -40,7 +40,8 @@ use crate::config::Mode;
 use crate::http::shell::{Context, Notice, NoticeKind};
 use crate::http::{self, AuthLayer, Csrf, api, apps, assets, headers, shell, skills};
 use crate::lua::{
-    Host, LuaRequest, NodeFacts, RequestCtx, Resolved, RunError, UiSettings, context_in,
+    Host, LuaRequest, LuaResponse, NodeFacts, RequestCtx, Resolved, RunError, UiSettings,
+    context_in,
 };
 use crate::{Error, Node};
 
@@ -620,7 +621,11 @@ impl Handler {
                             };
                             Plan::Lua(Box::new(LuaPlan {
                                 host: Arc::clone(host),
-                                title: app.title().to_owned(),
+                                frame: shell::Frame::for_app(
+                                    app.manifest(),
+                                    mount,
+                                    app.dir().map(|dir| dir.join("static")).as_deref(),
+                                ),
                                 node_label: match api::display_name(&node) {
                                     Ok(name) => {
                                         name.unwrap_or_else(|| node.id().as_str().to_owned())
@@ -795,18 +800,34 @@ impl Handler {
             csrf_token: plan.csrf_token.clone(),
         };
         let host = Arc::clone(&plan.host);
-        let outcome = tokio::task::spawn_blocking(move || host.run(index, lua_request, ctx)).await;
+        let mut frame = plan.frame;
+        // The frame's asset hashes are read from disk on the same blocking thread as the
+        // handler, and only when the answer is a view the frame will wrap.
+        let outcome = tokio::task::spawn_blocking(move || {
+            let answer = host.run(index, lua_request, ctx);
+            if matches!(
+                answer,
+                Ok(LuaResponse::View {
+                    complete: false,
+                    ..
+                })
+            ) {
+                frame.hash_assets();
+            }
+            (answer, frame)
+        })
+        .await;
 
         let response = match outcome {
-            Ok(Ok(answer)) => apps::lua_response(
+            Ok((Ok(answer), frame)) => apps::lua_response(
                 answer,
-                &plan.title,
+                &frame,
                 &plan.csrf_token,
                 &plan.node_label,
                 &plan.csp,
                 solo,
             ),
-            Ok(Err(RunError::Limit { kind, detail })) => {
+            Ok((Err(RunError::Limit { kind, detail }), _)) => {
                 let audit = serde_json::json!({
                     "app": slug,
                     "route": route,
@@ -832,7 +853,7 @@ impl Handler {
             }
             // The browser and the terminal see the same thing: the traceback, and the
             // offending line with its neighbours (`spec/cli.md §3`).
-            Ok(Err(RunError::Lua { message, at })) => {
+            Ok((Err(RunError::Lua { message, at }), _)) => {
                 eprintln!("privatium: {slug}: {route}: {message}");
                 if let Some(at) = &at {
                     eprint!("{}", at.render_text());
@@ -845,7 +866,7 @@ impl Handler {
                     solo,
                 )
             }
-            Ok(Err(error)) => {
+            Ok((Err(error), _)) => {
                 eprintln!("privatium: {slug}: {route}: {error}");
                 apps::lua_failure(
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -1084,8 +1105,8 @@ enum Plan {
 /// Everything a Tier 1 request takes from under the lock.
 struct LuaPlan {
     host: Arc<Host>,
-    /// `app.toml`'s title, for the page frame.
-    title: String,
+    /// What the page frame carries for this app: title, menu items, declared assets.
+    frame: shell::Frame,
     node_label: String,
     csp: String,
     conn: rusqlite::Connection,

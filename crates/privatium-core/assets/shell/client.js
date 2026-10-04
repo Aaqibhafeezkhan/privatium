@@ -242,8 +242,12 @@ function formFailure(error) {
 }
 
 function installNavigation(node) {
+  let leaving = false;
   window.addEventListener('pv:identity-refused', event => showFailure(event.detail));
-  window.addEventListener('pagehide', closeChannel, { once: true });
+  window.addEventListener('pagehide', () => { leaving = true; closeChannel(); }, { once: true });
+  // The channel closed under the page: the footer's status slot says so, in the frame's
+  // words, unless the page is on its way out anyway.
+  window.addEventListener('pv:channel-closed', () => { if (!leaving) { const slot = document.getElementById('pv-status'); if (slot) slot.textContent = 'Connection lost.'; } });
   window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
   document.addEventListener('htmx:beforeRequest', event => {
     if (event.detail.boosted) {

@@ -1,0 +1,189 @@
+/* Project:  Privatium™  |  File: crates/privatium-core/assets/shell/chrome.css
+ * Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+ * Created:  2026-10-04  |  Modified: 2026-10-04
+ * Summary:  The standard chrome every page wears (spec/lua-api.md §4.1): the colour tokens,
+ *           the skip link, the three-zone header with its one menu, the footer with its
+ *           status slot, and nothing else. Every rule is scoped to the chrome's own classes
+ *           so a document an app owns keeps its own body, heading, form and table styles;
+ *           those live in shell.css for the framework's pages. Served at /static/chrome.css
+ *           under the default CSP of spec/protocol.md §9.3, so nothing carries a style=
+ *           attribute. The tokens are checked for contrast by tests/reference.rs (PV406):
+ *           text at 4.5:1, focus and control borders at 3:1, in both colour schemes.
+ *           See main README.md for full license information.
+ */
+
+:root {
+  --pv-bg: #f4f6f8;
+  --pv-fg: #17212b;
+  --pv-muted: #46515f;
+  --pv-line: #c7cdd4;
+  --pv-panel: #ffffff;
+  --pv-accent: #174ea6;
+  --pv-accent-fg: #ffffff;
+  --pv-focus: #174ea6;
+  --pv-warn-bg: #fff6d6;
+  --pv-warn-fg: #6b4e00;
+  --pv-alert-bg: #fde8e8;
+  --pv-alert-fg: #7a1f1f;
+  --pv-ok-bg: #e6f4ea;
+  --pv-ok-fg: #1e5a2d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --pv-bg: #17212b;
+    --pv-fg: #ffffff;
+    --pv-muted: #c5ced9;
+    --pv-line: #657181;
+    --pv-panel: #202b38;
+    --pv-accent: #c6dcff;
+    --pv-accent-fg: #17212b;
+    --pv-focus: #c6dcff;
+    --pv-warn-bg: #3a2f08;
+    --pv-warn-fg: #ffe08a;
+    --pv-alert-bg: #4a1c1c;
+    --pv-alert-fg: #ffb3b3;
+    --pv-ok-bg: #173a22;
+    --pv-ok-fg: #a8e0b5;
+  }
+}
+
+/* The bar is the same dark panel in both schemes, so its own tokens are fixed here: white
+   text on #17212b is 16.3:1, the maize ring and borders are 11.7:1 against it, and the
+   current-page pill inverts the pair. */
+.pv-header {
+  --pv-bar-bg: #17212b;
+  --pv-bar-fg: #ffffff;
+  --pv-bar-accent: #c6dcff;
+  --pv-bar-rule: #8a98ab;
+  --pv-focus: var(--pv-bar-accent);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .25rem 1rem;
+  padding: .2rem max(.75rem, calc((100% - 62rem) / 2));
+  border-bottom: 1px solid var(--pv-line);
+  background: var(--pv-bar-bg);
+  color: var(--pv-bar-fg);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-wrap: anywhere;
+}
+.pv-header a, .pv-footer a { color: inherit; }
+.pv-header .pv-icon, .pv-footer .pv-icon { vertical-align: -.125em; flex-shrink: 0; }
+
+/* The focus ring, for the chrome's own controls in a document that does not load the
+   framework's stylesheet; shell.css draws the same ring on everything else. */
+.pv-skip:focus-visible, .pv-header :focus-visible, .pv-footer :focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 2px;
+}
+
+.pv-skip {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  padding: .5rem 1rem;
+  background: var(--pv-accent);
+  color: var(--pv-accent-fg);
+}
+.pv-skip:focus { left: 0; z-index: 10; }
+
+/* Zone one: the brand, linking to the launcher (or to the app itself in solo mode). */
+.pv-header .pv-brand { grid-column: 1; font-size: 1.125rem; font-weight: 700; margin: 0; }
+.pv-header .pv-brand a { min-height: 44px; min-width: 44px; text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; }
+.pv-brand-logo { display: block; width: 132px; height: auto; }
+
+/* Zone two: the app's title, centred, linking to the app's own first page. A paragraph
+   and not a heading: the view keeps the page's one h1 (PV404). */
+.pv-app-title { grid-column: 2; margin: 0; min-width: 0; text-align: center; font-weight: 600; }
+.pv-app-title a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  max-width: 100%;
+  min-height: 44px;
+  padding: .4rem .5rem;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.pv-app-title a:hover { text-decoration: underline; }
+
+/* Zone three: the Apps link in host mode and the one Menu. */
+.pv-controls { grid-column: 3; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .25rem; }
+.pv-controls > a {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .4rem .7rem;
+  min-height: 44px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.pv-controls > a[aria-current="page"] { background: var(--pv-bar-accent); color: var(--pv-bar-bg); text-decoration: underline; }
+
+/* Native disclosure keeps the menu keyboard-operable without a script. The app's own
+   items come first, then a rule, then the framework's pages; the rule hides itself while
+   the app's list is empty, so an item a script appends later brings it with it. */
+.pv-menu { position: relative; }
+.pv-menu summary { display: flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; padding: .5rem; cursor: pointer; border: 1px solid var(--pv-bar-accent); border-radius: 6px; list-style: none; }
+.pv-menu summary::-webkit-details-marker { display: none; }
+.pv-menu summary .pv-icon { width: 1.5rem; height: 1.5rem; }
+.pv-menu nav { position: absolute; z-index: 5; right: 0; top: 100%; min-width: 12rem; padding: .5rem; background: var(--pv-bar-bg); color: var(--pv-bar-fg); border: 1px solid var(--pv-bar-accent); border-radius: 6px; }
+.pv-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .1rem; }
+.pv-menu nav a, .pv-menu nav button {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  width: 100%;
+  min-height: 44px;
+  padding: .4rem .7rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.pv-menu nav a:hover, .pv-menu nav button:hover { text-decoration: underline; }
+.pv-menu-rule { border: 0; border-top: 1px solid var(--pv-bar-rule); margin: .35rem .5rem; }
+#pv-app-menu:empty + .pv-menu-rule { display: none; }
+
+/* The footer: the project link, the status slot, and the space's name with the way to
+   connect a device. The slot is a live region that stays in the tree while empty, so what
+   is written to it later is announced. */
+.pv-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+  padding: 1rem;
+  border-top: 1px solid var(--pv-line);
+  color: var(--pv-muted);
+  background: var(--pv-bg);
+  font: .875rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.pv-footer > a { display: inline-flex; align-items: center; min-height: 44px; }
+.pv-status { flex: 1 1 12rem; margin: 0; min-width: 0; text-align: center; color: var(--pv-fg); }
+.pv-footer-node { display: flex; align-items: center; gap: .5rem; margin-left: auto; min-width: 0; max-width: 100%; }
+.pv-footer-node > span { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.pv-join { display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; flex-shrink: 0; }
+.pv-join .pv-icon { width: 1.25rem; height: 1.25rem; }
+
+.pv-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* Narrow screens: the wordmark gives way to the square mark the <picture> offers, the
+   title wraps rather than clipping, and every control keeps its 44-pixel target. */
+@media (max-width: 30rem) {
+  .pv-header { gap: .25rem .5rem; padding-left: .5rem; padding-right: .5rem; }
+  .pv-brand-logo { width: 34px; }
+  .pv-app-title { font-size: 1rem; }
+  .pv-app-title a { padding: .4rem .25rem; }
+  .pv-controls > a { padding: .4rem .5rem; }
+  .pv-menu nav { width: min(16rem, calc(100vw - 2rem)); }
+  .pv-status { flex-basis: 100%; order: 1; }
+}

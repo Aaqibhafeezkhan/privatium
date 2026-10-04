@@ -41,6 +41,7 @@ use axum::http::header::{
     REFERRER_POLICY, X_CONTENT_TYPE_OPTIONS,
 };
 use axum::http::{Method, StatusCode};
+use common::a11y::{self, Unit};
 use common::{
     APP, event, hand_append, lua_manifest, repo_apps_dir, ts_offset_secs, write_app, write_web_app,
 };
@@ -1114,4 +1115,301 @@ async fn test_spec_9_3_assets_revalidate_by_etag_and_the_addressed_path_caches_f
         )),
         "{launcher}"
     );
+}
+
+// ---------------------------------------------------------------------------------------
+// spec/lua-api.md §4.1, spec/app-contract.md §3 — the standard chrome around a view
+// ---------------------------------------------------------------------------------------
+
+/// `spec/lua-api.md §4.1` — the frame's header is three zones: the brand linking to `/`,
+/// the app's title with its icon linking to the mount, and the controls; the title is a
+/// paragraph so the view keeps the one `<h1>`; the body names the mount; the head loads
+/// both stylesheets and the chrome script at addressed paths with their hashes. The
+/// shell's own pages keep the brand as their `<h1>` and show no title zone.
+#[tokio::test]
+async fn test_spec_4_1_frame_renders_three_zones_and_the_title_links_to_the_mount() {
+    let root = tempfile::tempdir().unwrap();
+    let handler = handler(&root);
+    let page = body_of(handler.handle(get("/a/hello/")).await).await;
+    assert!(page.contains("<title>Hello — Privatium</title>"), "{page}");
+    assert!(
+        page.contains("<body data-pv-mount=\"/a/hello/\" hx-headers="),
+        "{page}"
+    );
+    let header = page
+        .split("<header class=\"pv-header\">")
+        .nth(1)
+        .and_then(|rest| rest.split("</header>").next())
+        .unwrap();
+    let brand = header.find("<p class=\"pv-brand\"><a href=\"/\">").unwrap();
+    let title = header
+        .find("<p class=\"pv-app-title\"><a href=\"/a/hello/\">")
+        .unwrap();
+    let controls = header
+        .find("<nav class=\"pv-controls\" aria-label=\"Framework\">")
+        .unwrap();
+    assert!(brand < title && title < controls, "{header}");
+    let title_zone = &header[title..controls];
+    assert!(
+        title_zone.contains("<svg"),
+        "the manifest's icon: {title_zone}"
+    );
+    assert!(
+        title_zone.contains("<span>Hello</span></a></p>"),
+        "{title_zone}"
+    );
+    assert!(
+        !title_zone.contains("<h"),
+        "the title is not a heading: {title_zone}"
+    );
+    assert!(
+        header.contains("<picture><source media=\"(max-width: 30rem)\""),
+        "{header}"
+    );
+    assert!(header.contains("<a href=\"/\">"), "{header}");
+    assert!(header.contains("Apps</a>"), "{header}");
+    for asset in ["chrome.css", "shell.css", "chrome.js"] {
+        assert!(
+            page.contains(&format!(
+                "\"{}\" integrity=\"{}\"",
+                assets::versioned(asset),
+                assets::integrity(asset)
+            )),
+            "{asset}: {page}"
+        );
+    }
+    assert!(
+        page.contains("<p id=\"pv-status\" class=\"pv-status\" role=\"status\"></p>"),
+        "{page}"
+    );
+    let findings = a11y::check(&page, Unit::Document);
+    assert!(findings.is_empty(), "{findings:?}");
+
+    let launcher = body_of(handler.handle(get("/")).await).await;
+    assert!(
+        launcher.contains("<h1 class=\"pv-brand\"><a href=\"/\">"),
+        "{launcher}"
+    );
+    assert!(!launcher.contains("pv-app-title"), "{launcher}");
+    assert!(!launcher.contains("data-pv-mount"), "{launcher}");
+    assert!(
+        launcher.contains("<p id=\"pv-status\" class=\"pv-status\" role=\"status\"></p>"),
+        "{launcher}"
+    );
+}
+
+/// `spec/lua-api.md §4.1`, `spec/app-contract.md §3` — the one menu lists the manifest's
+/// `[[ui.menu]]` items, then what the view added with `menu()`, then a rule, then the
+/// framework's four pages in order; the launcher is not among them, because the header
+/// carries the Apps link beside the menu. Paths resolve through `url()`.
+#[tokio::test]
+async fn test_spec_4_1_menu_lists_app_items_then_a_separator_then_system_pages_without_apps() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = root.path().join("apps");
+    write_app(
+        &apps,
+        "menued",
+        Some(&format!(
+            "{}[[ui.menu]]\nlabel = \"Setup\"\npath = \"/setup\"\nicon = \"gear\"\n\
+             [[ui.menu]]\nlabel = \" About \"\npath = \"/about?x=1\"\n",
+            lua_manifest("menued")
+        )),
+        &[
+            (
+                "app.lua",
+                "local pv = require 'privatium'\npv.get('/', function() return pv.render('index') end)\n\
+                 pv.get('/plain', function() return pv.render('plain') end)\n",
+            ),
+            (
+                "views/index.lsp",
+                "<? menu('Print list', '/print') ?><h1>Home</h1>",
+            ),
+            ("views/plain.lsp", "<h1>Plain</h1>"),
+        ],
+    );
+    let handler = handler(&root);
+    let page = body_of(handler.handle(get("/a/menued/")).await).await;
+    let menu = page
+        .split("<ul id=\"pv-app-menu\" class=\"pv-menu-app\">")
+        .nth(1)
+        .and_then(|rest| rest.split("</details>").next())
+        .unwrap();
+    let positions: Vec<usize> = [
+        "<li><a href=\"/a/menued/setup\"><svg",
+        "Setup</a></li>",
+        "<li><a href=\"/a/menued/about?x=1\">About</a></li>",
+        "<li><a href=\"/a/menued/print\">Print list</a></li></ul>",
+        "<hr class=\"pv-menu-rule\">",
+        "<ul class=\"pv-menu-system\"><li><a href=\"/settings\">Space settings</a></li>",
+        "<li><a href=\"/settings/apps\">App settings</a></li>",
+        "<li><a href=\"/settings/data\">Data settings</a></li>",
+        "<li><a href=\"/settings/devices\">Devices</a></li></ul>",
+    ]
+    .iter()
+    .map(|needle| {
+        menu.find(needle)
+            .unwrap_or_else(|| panic!("{needle}\n{menu}"))
+    })
+    .collect();
+    assert!(positions.windows(2).all(|w| w[0] < w[1]), "{menu}");
+    assert!(
+        !menu.contains("href=\"/\""),
+        "no Apps entry in the menu: {menu}"
+    );
+    assert_eq!(
+        page.matches("Apps</a>").count(),
+        1,
+        "the header's Apps link alone"
+    );
+    let findings = a11y::check(&page, Unit::Document);
+    assert!(findings.is_empty(), "{findings:?}");
+
+    // The page item belongs to its page.
+    let plain = body_of(handler.handle(get("/a/menued/plain")).await).await;
+    assert!(plain.contains("About</a></li></ul>"), "{plain}");
+    assert!(!plain.contains("Print list"), "{plain}");
+    // The launcher has the slot, empty, so a script may still fill it.
+    let launcher = body_of(handler.handle(get("/")).await).await;
+    assert!(
+        launcher.contains("<ul id=\"pv-app-menu\" class=\"pv-menu-app\"></ul>"),
+        "{launcher}"
+    );
+}
+
+/// `spec/lua-api.md §4.1` — in solo mode there is no launcher: the bar has no Apps link,
+/// the title links to `/`, and the menu holds the framework's pages alone. The rule
+/// between the two lists is present but hidden by the stylesheet while the app's list
+/// is empty, so an item a script appends later shows it without a page change.
+#[tokio::test]
+async fn test_spec_4_1_solo_mode_frame_has_no_apps_link_and_no_separator_without_app_items() {
+    let root = tempfile::tempdir().unwrap();
+    let handler = solo(&root, "hello");
+    let page = body_of(handler.handle(get("/")).await).await;
+    assert!(
+        page.contains("<body data-pv-mount=\"/\" hx-headers="),
+        "{page}"
+    );
+    assert!(
+        page.contains("<p class=\"pv-app-title\"><a href=\"/\">"),
+        "{page}"
+    );
+    assert!(!page.contains("Apps</a>"), "{page}");
+    assert!(
+        page.contains(
+            "<ul id=\"pv-app-menu\" class=\"pv-menu-app\"></ul>\n<hr class=\"pv-menu-rule\">\n<ul class=\"pv-menu-system\">"
+        ),
+        "{page}"
+    );
+    assert_eq!(page.matches("<li><a href=\"/settings").count(), 4, "{page}");
+    let css = std::str::from_utf8(assets::get("chrome.css").unwrap().bytes).unwrap();
+    assert!(
+        css.contains("#pv-app-menu:empty + .pv-menu-rule { display: none; }"),
+        "the rule hides itself while the app's list is empty"
+    );
+    let findings = a11y::check(&page, Unit::Document);
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
+/// `spec/app-contract.md §3` — `ui.styles` and `ui.scripts` load in the frame's head on
+/// every page, the scripts deferred, each with the hash of the file as it is on disk, so
+/// an edit is served with its new hash on the next request; a fragment request gets no
+/// head at all.
+#[tokio::test]
+async fn test_spec_3_ui_scripts_and_styles_load_in_the_frame_head_with_defer_and_integrity() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = root.path().join("apps");
+    let dir = write_app(
+        &apps,
+        "assetful",
+        Some(&format!(
+            "{}[ui]\nscripts = [\"static/app.js\"]\nstyles = [\"static/app.css\"]\n",
+            lua_manifest("assetful")
+        )),
+        &[
+            (
+                "app.lua",
+                "local pv = require 'privatium'\npv.get('/', function() return pv.render('index') end)\n",
+            ),
+            ("views/index.lsp", "<h1>Home</h1>"),
+            ("static/app.js", "console.log('one');\n"),
+            ("static/app.css", "h1 { margin: 0; }\n"),
+        ],
+    );
+    let handler = handler(&root);
+    let page = body_of(handler.handle(get("/a/assetful/")).await).await;
+    let head = page.split("</head>").next().unwrap();
+    let css_hash = assets::integrity_of(b"h1 { margin: 0; }\n");
+    let js_hash = assets::integrity_of(b"console.log('one');\n");
+    assert!(
+        head.contains(&format!(
+            "<link rel=\"stylesheet\" href=\"/a/assetful/static/app.css\" integrity=\"{css_hash}\">"
+        )),
+        "{head}"
+    );
+    assert!(
+        head.contains(&format!(
+            "<script src=\"/a/assetful/static/app.js\" integrity=\"{js_hash}\" defer></script>"
+        )),
+        "{head}"
+    );
+    assert!(
+        head.find("shell.css").unwrap() < head.find("static/app.css").unwrap(),
+        "the app's sheet comes after the framework's, so its rules win: {head}"
+    );
+
+    // Edited on disk: the next page names the new bytes.
+    fs::write(dir.join("static/app.js"), "console.log('two');\n").unwrap();
+    let again = body_of(handler.handle(get("/a/assetful/")).await).await;
+    assert!(
+        again.contains(&assets::integrity_of(b"console.log('two');\n")),
+        "{again}"
+    );
+    assert!(!again.contains(&js_hash), "{again}");
+
+    // A fragment is the view alone.
+    let mut fragment = get("/a/assetful/");
+    fragment
+        .headers_mut()
+        .insert("hx-request", "true".parse().unwrap());
+    let fragment = body_of(handler.handle(fragment).await).await;
+    assert_eq!(fragment.trim(), "<h1>Home</h1>");
+}
+
+/// `spec/protocol.md §9.3` — the chrome's stylesheet, script and the brand mark are
+/// embedded assets like the rest: an `ETag` at the fixed path, a day's cache at the
+/// addressed one, and the frame names the addressed paths.
+#[tokio::test]
+async fn test_spec_9_3_chrome_assets_are_addressable_by_build_and_carry_an_etag() {
+    let root = tempfile::tempdir().unwrap();
+    let handler = handler(&root);
+    for (name, kind) in [
+        ("chrome.css", "text/css"),
+        ("chrome.js", "text/javascript"),
+        ("privatium-mark-white.svg", "image/svg+xml"),
+    ] {
+        let fixed = handler.handle(get(&format!("/static/{name}"))).await;
+        assert_eq!(fixed.status(), StatusCode::OK, "{name}");
+        assert!(header(&fixed, &CONTENT_TYPE).starts_with(kind), "{name}");
+        assert_eq!(header(&fixed, &CACHE_CONTROL), "no-cache", "{name}");
+        assert_eq!(
+            header(&fixed, &ETAG),
+            format!("\"{}\"", assets::integrity(name)),
+            "{name}"
+        );
+        let addressed = handler.handle(get(&assets::versioned(name))).await;
+        assert_eq!(addressed.status(), StatusCode::OK, "{name}");
+        assert_eq!(
+            header(&addressed, &CACHE_CONTROL),
+            "public, max-age=86400, immutable",
+            "{name}"
+        );
+    }
+    let page = body_of(handler.handle(get("/a/hello/")).await).await;
+    for name in ["chrome.css", "chrome.js", "privatium-mark-white.svg"] {
+        assert!(page.contains(&assets::versioned(name)), "{name}: {page}");
+        assert!(
+            !page.contains(&format!("\"/static/{name}\"")),
+            "{name}: {page}"
+        );
+    }
 }

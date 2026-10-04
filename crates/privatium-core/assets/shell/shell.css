@@ -1,50 +1,16 @@
 /* Project:  Privatium™  |  File: crates/privatium-core/assets/shell/shell.css
  * Authors:  Gabriel Mongefranco (@gabrielmongefranco)
  * Created:  2026-09-03  |  Modified: 2026-10-04
- * Summary:  The shell's only stylesheet — launcher, settings, error pages, and the frame a
- *           Tier 1 view renders inside. Served at /static/shell.css under the default CSP
- *           of spec/protocol.md §9.3, which is why nothing in the shell carries a style=
+ * Summary:  The framework's own pages — launcher, settings, error pages, and the main region
+ *           of the frame a Tier 1 view renders inside: body, headings, forms, tables, cards
+ *           and notices. The colour tokens, the header, the menu and the footer are in
+ *           chrome.css, which every page loads first; this sheet uses those tokens and
+ *           declares none. Served at /static/shell.css under the default CSP of
+ *           spec/protocol.md §9.3, which is why nothing in the shell carries a style=
  *           attribute. System fonts, no icon font (docs/icons.md), visible focus, and
- *           status never carried by colour alone. The tokens below are checked for contrast
- *           by tests/reference.rs (PV406): text at 4.5:1, focus and control borders at 3:1,
- *           in both colour schemes. See main README.md for full license information.
+ *           status never carried by colour alone. See main README.md for full license
+ *           information.
  */
-
-:root {
-  --pv-bg: #f4f6f8;
-  --pv-fg: #17212b;
-  --pv-muted: #46515f;
-  --pv-line: #c7cdd4;
-  --pv-panel: #ffffff;
-  --pv-accent: #174ea6;
-  --pv-accent-fg: #ffffff;
-  --pv-focus: #174ea6;
-  --pv-warn-bg: #fff6d6;
-  --pv-warn-fg: #6b4e00;
-  --pv-alert-bg: #fde8e8;
-  --pv-alert-fg: #7a1f1f;
-  --pv-ok-bg: #e6f4ea;
-  --pv-ok-fg: #1e5a2d;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --pv-bg: #17212b;
-    --pv-fg: #ffffff;
-    --pv-muted: #c5ced9;
-    --pv-line: #657181;
-    --pv-panel: #202b38;
-    --pv-accent: #c6dcff;
-    --pv-accent-fg: #17212b;
-    --pv-focus: #c6dcff;
-    --pv-warn-bg: #3a2f08;
-    --pv-warn-fg: #ffe08a;
-    --pv-alert-bg: #4a1c1c;
-    --pv-alert-fg: #ffb3b3;
-    --pv-ok-bg: #173a22;
-    --pv-ok-fg: #a8e0b5;
-  }
-}
 
 * { box-sizing: border-box; }
 
@@ -62,7 +28,7 @@ body {
 
 a { color: inherit; }
 img { max-width: 100%; height: auto; }
-main, .pv-header, body > footer { overflow-wrap: anywhere; }
+main { overflow-wrap: anywhere; }
 
 /* The focus ring is the scheme's accent — navy on light, maize on dark — so it clears
    3:1 against the page and the panels in both; maize on white did not. */
@@ -92,41 +58,6 @@ main, .pv-header, body > footer { overflow-wrap: anywhere; }
   from { visibility: hidden; }
   to { visibility: visible; }
 }
-
-.pv-skip {
-  position: absolute;
-  left: -999px;
-  top: 0;
-  padding: .5rem 1rem;
-  background: var(--pv-accent);
-  color: var(--pv-accent-fg);
-}
-.pv-skip:focus { left: 0; z-index: 10; }
-
-.pv-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  padding: .2rem max(.75rem, calc((100% - 62rem) / 2));
-  border-bottom: 1px solid var(--pv-line);
-  background: #17212b;
-  color: #ffffff;
-  --pv-focus: #c6dcff;
-}
-.pv-header h1, .pv-header .pv-brand { font-size: 1.125rem; font-weight: 700; margin: 0; }
-.pv-header h1 a, .pv-header .pv-brand a { min-height: 44px; text-decoration: none; display: inline-flex; align-items: center; gap: .5rem; }
-.pv-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .25rem; }
-.pv-header nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  padding: .4rem .7rem;
-  min-height: 44px;
-  border-radius: 6px;
-  text-decoration: none;
-}
-.pv-header nav a[aria-current="page"] { background: #c6dcff; color: #17212b; text-decoration: underline; }
 
 main { width: 100%; max-width: 64rem; margin: 0 auto; padding: clamp(1.5rem, 5vw, 3.5rem) clamp(.75rem, 3vw, 2rem) 3rem; flex: 1; min-width: 0; }
 main h1 { font-size: clamp(1.75rem, 1.3rem + 2vw, 2.75rem); line-height: 1.15; letter-spacing: -.025em; margin: 0 0 1.5rem; text-wrap: balance; }
@@ -286,9 +217,6 @@ main form textarea { min-height: 6rem; }
 main form fieldset { min-width: 0; border: 1px solid var(--pv-muted); border-radius: 6px; padding: .5rem 1rem; margin: 1rem 0; }
 main form button, main form .pv-btn { margin: .75rem .5rem 0 0; }
 
-body > footer { text-align: center; color: var(--pv-muted); font-size: .875rem; padding: 1rem; border-top: 1px solid var(--pv-line); }
-footer a { color: inherit; }
-
 .pv-settings > h2 { font-size: 2rem; letter-spacing: -.02em; }
 .pv-settings .pv-subnav {
   display: grid;
@@ -329,29 +257,12 @@ footer a { color: inherit; }
 
 /* Narrow screens keep full labels and target sizes; space comes from stacking. */
 @media (max-width: 30rem) {
-  .pv-header { gap: .5rem; }
-  .pv-header nav { margin-left: 0; width: 100%; }
   .pv-card { padding: 1rem; }
   .pv-card dl { grid-template-columns: minmax(0, 1fr); }
   .pv-card dd { margin-bottom: .5rem; }
   .pv-launcher li a, .pv-launcher li .pv-unavailable { padding: 1.25rem; }
   .pv-actions > form { flex: 1 1 8rem; }
   .pv-actions > form .pv-btn { width: 100%; margin: 0; }
-}
-
-/* Native disclosure keeps navigation keyboard-accessible without a script. */
-.pv-visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
-.pv-brand-logo { width:132px; height:auto; }
-.pv-menu { position:relative; }
-.pv-menu summary { display:flex; align-items:center; justify-content:center; width:44px; min-height:44px; padding:.5rem; cursor:pointer; border:1px solid #c6dcff; border-radius:6px; list-style:none; }
-.pv-menu summary::-webkit-details-marker { display:none; }
-.pv-menu summary .pv-icon { width:1.5rem; height:1.5rem; }
-.pv-menu nav { position:absolute; z-index:5; right:0; top:100%; min-width:12rem; padding:.5rem; background:#17212b; border:1px solid #c6dcff; border-radius:6px; flex-direction:column; }
-.pv-menu nav a:hover { text-decoration:underline; }
-@media (max-width:30rem) {
-  .pv-header > nav { width:auto; margin-left:auto; }
-  .pv-brand-logo { width:112px; }
-  .pv-menu nav { width:min(16rem, calc(100vw - 2rem)); }
 }
 
 /* The space's name is edited where it is read: the pencil is a disclosure summary, so the
@@ -362,13 +273,6 @@ footer a { color: inherit; }
 .pv-name-edit > summary .pv-icon { width:1.125rem; height:1.125rem; }
 .pv-name-edit > form { margin-top:.5rem; }
 .pv-name-edit input { max-width:100%; }
-
-.pv-footer { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; text-align:left; }
-.pv-footer > a { display:inline-flex; align-items:center; min-height:44px; }
-.pv-footer-node { display:flex; align-items:center; gap:.5rem; margin-left:auto; min-width:0; max-width:100%; }
-.pv-footer-node > span { min-width:0; overflow-wrap:anywhere; text-align:right; }
-.pv-join { display:inline-flex; align-items:center; justify-content:center; width:44px; min-height:44px; flex-shrink:0; }
-.pv-join .pv-icon { width:1.25rem; height:1.25rem; }
 
 /* The pairing screen (spec/protocol.md §7.2) and the code page. The pad is sixteen
    large keys with the label beneath each glyph; the words are big and letter-spaced so

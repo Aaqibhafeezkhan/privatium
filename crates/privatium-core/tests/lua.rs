@@ -2563,6 +2563,96 @@ pv.get('/get', function() return pv.render('get') end)
     }
 }
 
+/// `spec/lua-api.md §4.1` — `menu(label, path[, icon])` adds a link to the page's menu
+/// for that page alone: it appears in the frame after the manifest's items, resolved
+/// through `url()`, with its icon; it does not leak into the next request; a fragment
+/// request carries none of it; a partial may not call it, nor may a view with a label,
+/// path or icon the frame could not render.
+#[tokio::test]
+async fn test_spec_4_1_menu_helper_adds_a_page_item_and_a_partial_may_not_call_it() {
+    let root = tempfile::tempdir().unwrap();
+    configure(&root, LUA_CONFIG);
+    app(
+        &root,
+        "menued",
+        r#"
+local pv = require 'privatium'
+pv.get('/', function() return pv.render('index') end)
+pv.get('/plain', function() return pv.render('plain') end)
+pv.get('/partial', function() return pv.render('partial') end)
+pv.get('/icon', function() return pv.render('icon') end)
+pv.get('/path', function() return pv.render('path') end)
+pv.get('/label', function() return pv.render('label') end)
+"#,
+        &[
+            (
+                "views/index.lsp",
+                "<? menu('Print list', '/print', 'printer') ?><? menu('Export', '/export') ?><h1>Home</h1>",
+            ),
+            ("views/plain.lsp", "<h1>Plain</h1>"),
+            (
+                "views/partial.lsp",
+                "<h1>Partial</h1><?= render('_adds') ?>",
+            ),
+            ("views/_adds.lsp", "<? menu('Sneaky', '/x') ?>"),
+            (
+                "views/icon.lsp",
+                "<? menu('Print', '/print', 'no-such-icon') ?><h1>x</h1>",
+            ),
+            ("views/path.lsp", "<? menu('Print', 'print') ?><h1>x</h1>"),
+            ("views/label.lsp", "<? menu('', '/print') ?><h1>x</h1>"),
+        ],
+    );
+    let handler = handler_for(&root);
+    let page = body_of(handler.handle(get("/a/menued/")).await).await;
+    let menu = page
+        .split("<ul id=\"pv-app-menu\" class=\"pv-menu-app\">")
+        .nth(1)
+        .and_then(|rest| rest.split("</ul>").next())
+        .unwrap();
+    assert!(
+        menu.starts_with("<li><a href=\"/a/menued/print\"><svg"),
+        "{menu}"
+    );
+    assert!(menu.contains("</svg> Print list</a></li>"), "{menu}");
+    assert!(
+        menu.ends_with("<li><a href=\"/a/menued/export\">Export</a></li>"),
+        "{menu}"
+    );
+    assert!(page.contains("<h1>Home</h1>"), "{page}");
+
+    let plain = body_of(handler.handle(get("/a/menued/plain")).await).await;
+    assert!(
+        !plain.contains("Print list") && !plain.contains("Export"),
+        "{plain}"
+    );
+    assert!(
+        plain.contains("<ul id=\"pv-app-menu\" class=\"pv-menu-app\"></ul>"),
+        "{plain}"
+    );
+
+    let fragment = body_of(handler.handle(with_htmx(get("/a/menued/"))).await).await;
+    assert_eq!(fragment, "<h1>Home</h1>");
+
+    for (path, expected) in [
+        ("/a/menued/partial", "menu() belongs in the view"),
+        ("/a/menued/icon", "not in the vendored Bootstrap Icons set"),
+        ("/a/menued/path", "must be mount-relative"),
+        ("/a/menued/label", "the label must be 1 to 40 characters"),
+    ] {
+        let response = handler.handle(get(path)).await;
+        assert_eq!(
+            response.status(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "{path}"
+        );
+        let text = body_of(response).await;
+        assert!(text.contains(expected), "{path}: {text}");
+    }
+    let partial = body_of(handler.handle(get("/a/menued/partial")).await).await;
+    assert!(partial.contains("views/_adds.lsp:1:"), "{partial}");
+}
+
 /// `spec/lua-api.md §4` — a `<?-- --?>` comment is stripped whatever it contains, so the
 /// header block every template carries never reaches the page.
 #[tokio::test]

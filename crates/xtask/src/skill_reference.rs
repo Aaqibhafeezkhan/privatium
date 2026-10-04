@@ -606,7 +606,7 @@ fn rust_api(root: &Path) -> Result<String> {
 
 fn accessibility(root: &Path) -> Result<String> {
     let css_text =
-        crate::repo::read_normalized(&root.join("crates/privatium-core/assets/shell/shell.css"))?;
+        crate::repo::read_normalized(&root.join("crates/privatium-core/assets/shell/chrome.css"))?;
     let schemes = css::root_tokens(&css_text);
     let pairs: [(&str, &str, f64); 16] = [
         ("--pv-fg", "--pv-bg", 4.5),
@@ -645,9 +645,9 @@ fn accessibility(root: &Path) -> Result<String> {
         "# Accessibility rules\n\nThe `PV4xx` rules of `spec/cli.md §5.1` with the WCAG 2.2 success \
          criterion each enforces, from the crate. The linter judges templates and a Tier 2 document; \
          the framework's own pages are held to the same rules by its test suite over their rendered \
-         HTML (`spec/cli.md §5.4`).\n\n{}\n## The framework's colour tokens\n\nFrom `shell.css` at \
-         this version, both schemes, computed with the linter's contrast maths. An app that keeps \
-         to these tokens inherits the floors.\n\n{table}",
+         HTML (`spec/cli.md §5.4`).\n\n{}\n## The framework's colour tokens\n\nFrom `chrome.css` at \
+         this version, both schemes, computed with the linter's contrast maths. Every page loads \
+         that sheet, so an app that keeps to these tokens inherits the floors.\n\n{table}",
         rules_table(
             RULES.iter().filter(|r| r.class == Class::Accessibility),
             true

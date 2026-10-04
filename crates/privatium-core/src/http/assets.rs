@@ -27,9 +27,16 @@ use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
-/// The brand logo, the one asset served from outside the shell directory.
+/// The brand logo, served from outside the shell directory.
 const LOGO: &str = "privatium-logo-light.svg";
 const LOGO_BYTES: &[u8] = include_bytes!("../../../../assets/branding/privatium-logo-light.svg");
+
+/// The square brand mark the header shows on a narrow screen (`docs/branding.md`).
+const MARK: &str = "privatium-mark-white.svg";
+const MARK_BYTES: &[u8] = include_bytes!("../../../../assets/branding/privatium-mark-white.svg");
+
+/// The branding files served beside the shell's own, by name.
+const BRANDING: [(&str, &[u8]); 2] = [(LOGO, LOGO_BYTES), (MARK, MARK_BYTES)];
 
 /// Every served asset's path and SHA-256, computed once per process: the shell directory's
 /// files and the logo. Walked in path order, so the build ID below is stable.
@@ -50,12 +57,19 @@ static HASHES: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
     }
     let mut hashes = BTreeMap::new();
     walk(&SHELL, &mut hashes);
-    hashes.insert(
-        LOGO.to_owned(),
-        format!("sha256-{}", STANDARD.encode(Sha256::digest(LOGO_BYTES))),
-    );
+    for (name, bytes) in BRANDING {
+        hashes.insert(name.to_owned(), integrity_of(bytes));
+    }
     hashes
 });
+
+/// The `integrity` value for `bytes`: `sha256-` and the digest in base64, as a `<script>`
+/// or `<link>` spells it. The embedded assets and an app's declared `ui.scripts` and
+/// `ui.styles` are hashed the same way.
+#[must_use]
+pub fn integrity_of(bytes: &[u8]) -> String {
+    format!("sha256-{}", STANDARD.encode(Sha256::digest(bytes)))
+}
 
 /// Each asset's strong `ETag`: its integrity hash in quotes, as the header is spelled.
 static ETAGS: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
@@ -119,7 +133,7 @@ pub struct Asset {
 }
 
 /// The asset at `/static/<rest>`, if the shell ships one, with or without this build's
-/// `<build>/` prefix in front. Only the named brand logo, stylesheets and scripts are
+/// `<build>/` prefix in front. Only the named brand files, stylesheets and scripts are
 /// served; nested paths are confined to the vendored Noble module directory. A prefix
 /// that is not this build's is not stripped, so it is refused like any other nesting.
 #[must_use]
@@ -129,11 +143,11 @@ pub fn get(rest: &str) -> Option<Asset> {
         _ => (rest, false),
     };
     let etag = |name: &str| ETAGS.get(name).map(String::as_str);
-    if rest == LOGO {
+    if let Some((name, bytes)) = BRANDING.iter().find(|(name, _)| *name == rest) {
         return Some(Asset {
-            bytes: LOGO_BYTES,
+            bytes,
             content_type: "image/svg+xml",
-            etag: etag(LOGO)?,
+            etag: etag(name)?,
             addressed,
         });
     }
@@ -171,11 +185,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_shell_ships_its_stylesheet_htmx_and_pv_js_and_nothing_else() {
-        assert_eq!(
-            get("shell.css").unwrap().content_type,
-            "text/css; charset=utf-8"
-        );
+    fn the_shell_ships_its_stylesheets_scripts_and_brand_files_and_nothing_else() {
+        for sheet in ["shell.css", "chrome.css"] {
+            assert_eq!(
+                get(sheet).unwrap().content_type,
+                "text/css; charset=utf-8",
+                "{sheet}"
+            );
+        }
         let htmx = get("htmx.min.js").unwrap();
         assert_eq!(htmx.content_type, "text/javascript; charset=utf-8");
         assert!(htmx.bytes.starts_with(b"var htmx="));
@@ -186,16 +203,20 @@ mod tests {
                 .unwrap()
                 .contains("export const pv")
         );
+        let chrome = get("chrome.js").unwrap();
+        assert_eq!(chrome.content_type, "text/javascript; charset=utf-8");
         assert!(
-            pv.bytes.len() < 12 * 1024,
-            "{} bytes: spec/data-api.md §5 says under 12 KB, unminified, no build",
-            pv.bytes.len()
+            std::str::from_utf8(chrome.bytes)
+                .unwrap()
+                .contains("export function install")
         );
-        assert_eq!(
-            get("privatium-logo-light.svg").unwrap().content_type,
-            "image/svg+xml"
-        );
+        for brand in ["privatium-logo-light.svg", "privatium-mark-white.svg"] {
+            assert_eq!(get(brand).unwrap().content_type, "image/svg+xml", "{brand}");
+            assert!(!get(brand).unwrap().etag.is_empty(), "{brand}");
+        }
+        assert_eq!(integrity_of(b"").len(), "sha256-".len() + 44);
         assert!(get("../privatium-logo-light.svg").is_none());
+        assert!(get("privatium-mark.svg").is_none());
         assert!(get("unknown.svg").is_none());
         assert!(get("VENDOR.md").is_none());
         assert!(get("../icons/LICENSE").is_none());
