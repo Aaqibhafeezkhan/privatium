@@ -2,7 +2,7 @@
 // crates/privatium-core/src/http/assets.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: /static/* (spec/protocol.md §9.1): the shell's own assets, embedded from assets/shell/ —
 //          stylesheet, htmx, pv.js, and browser session modules.
 // Notes: See README file for documentation and full license information.
@@ -27,21 +27,77 @@ use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
-/// SHA-256 metadata for an embedded asset, computed once per process (§8.3).
+/// The brand logo, the one asset served from outside the shell directory.
+const LOGO: &str = "privatium-logo-light.svg";
+const LOGO_BYTES: &[u8] = include_bytes!("../../../../assets/branding/privatium-logo-light.svg");
+
+/// Every served asset's path and SHA-256, computed once per process: the shell directory's
+/// files and the logo. Walked in path order, so the build ID below is stable.
+static HASHES: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
+    fn walk(dir: &Dir<'static>, into: &mut BTreeMap<String, String>) {
+        for file in dir.files() {
+            into.insert(
+                file.path().to_string_lossy().replace('\\', "/"),
+                format!(
+                    "sha256-{}",
+                    STANDARD.encode(Sha256::digest(file.contents()))
+                ),
+            );
+        }
+        for child in dir.dirs() {
+            walk(child, into);
+        }
+    }
+    let mut hashes = BTreeMap::new();
+    walk(&SHELL, &mut hashes);
+    hashes.insert(
+        LOGO.to_owned(),
+        format!("sha256-{}", STANDARD.encode(Sha256::digest(LOGO_BYTES))),
+    );
+    hashes
+});
+
+/// Each asset's strong `ETag`: its integrity hash in quotes, as the header is spelled.
+static ETAGS: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
+    HASHES
+        .iter()
+        .map(|(path, hash)| (path.clone(), format!("\"{hash}\"")))
+        .collect()
+});
+
+/// SHA-256 metadata for an embedded asset (§8.3), as a `<script>` or `<link>` `integrity`
+/// value. Empty for a name the shell does not ship.
 #[must_use]
 pub fn integrity(name: &str) -> &str {
-    static HASHES: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
-        SHELL
-            .files()
-            .map(|f| {
-                (
-                    f.path().to_string_lossy().into_owned(),
-                    format!("sha256-{}", STANDARD.encode(Sha256::digest(f.contents()))),
-                )
-            })
-            .collect()
-    });
     HASHES.get(name).map_or("", String::as_str)
+}
+
+/// The identifier of this build's asset set: the first sixteen hex digits of the SHA-256
+/// over every served asset's path and hash. It changes whenever any asset changes, which is
+/// what lets the framework's own pages name assets under `/static/<build>/` and let a
+/// browser keep them for a day (`spec/protocol.md §9.3`): a new build is a new path, so
+/// a cached copy can never be served against a bootstrap whose integrity hash it fails.
+#[must_use]
+pub fn build_id() -> &'static str {
+    static ID: LazyLock<String> = LazyLock::new(|| {
+        let mut hasher = Sha256::new();
+        for (path, hash) in HASHES.iter() {
+            hasher.update(path.as_bytes());
+            hasher.update(b"\n");
+            hasher.update(hash.as_bytes());
+            hasher.update(b"\n");
+        }
+        let digest = hasher.finalize();
+        digest[..8].iter().map(|b| format!("{b:02x}")).collect()
+    });
+    ID.as_str()
+}
+
+/// The content-addressed URL of an embedded asset, for the pages the framework itself
+/// renders. Apps keep the fixed `/static/<name>` paths the specification gives them.
+#[must_use]
+pub fn versioned(name: &str) -> String {
+    format!("/static/{}/{name}", build_id())
 }
 
 /// Shell scripts, stylesheets and the Noble import closure. Provenance is not served.
@@ -54,16 +110,31 @@ pub struct Asset {
     pub bytes: &'static [u8],
     /// The `Content-Type` to send it with.
     pub content_type: &'static str,
+    /// The strong `ETag` to send it with: the integrity hash in quotes, so a browser can
+    /// revalidate the fixed path with `If-None-Match` and be answered 304.
+    pub etag: &'static str,
+    /// Whether the request named this build's `/static/<build>/` prefix. Such a path is
+    /// safe to cache for a day, because a different build is a different path.
+    pub addressed: bool,
 }
 
-/// The asset at `/static/<rest>`, if the shell ships one. Only the named brand logo, stylesheets and scripts
-/// are served; nested paths are confined to the vendored Noble module directory.
+/// The asset at `/static/<rest>`, if the shell ships one, with or without this build's
+/// `<build>/` prefix in front. Only the named brand logo, stylesheets and scripts are
+/// served; nested paths are confined to the vendored Noble module directory. A prefix
+/// that is not this build's is not stripped, so it is refused like any other nesting.
 #[must_use]
 pub fn get(rest: &str) -> Option<Asset> {
-    if rest == "privatium-logo-light.svg" {
+    let (rest, addressed) = match rest.strip_prefix(build_id()) {
+        Some(stripped) if stripped.starts_with('/') => (&stripped[1..], true),
+        _ => (rest, false),
+    };
+    let etag = |name: &str| ETAGS.get(name).map(String::as_str);
+    if rest == LOGO {
         return Some(Asset {
-            bytes: include_bytes!("../../../../assets/branding/privatium-logo-light.svg"),
+            bytes: LOGO_BYTES,
             content_type: "image/svg+xml",
+            etag: etag(LOGO)?,
+            addressed,
         });
     }
     if rest.contains('\\')
@@ -87,6 +158,8 @@ pub fn get(rest: &str) -> Option<Asset> {
     Some(Asset {
         bytes: file.contents(),
         content_type,
+        etag: etag(rest)?,
+        addressed,
     })
 }
 
@@ -126,6 +199,40 @@ mod tests {
         assert!(get("unknown.svg").is_none());
         assert!(get("VENDOR.md").is_none());
         assert!(get("../icons/LICENSE").is_none());
+    }
+
+    #[test]
+    fn test_spec_9_3_assets_are_addressable_by_build_and_carry_an_etag() {
+        let id = build_id();
+        assert_eq!(id.len(), 16);
+        assert!(id.bytes().all(|b| b.is_ascii_hexdigit()));
+        assert_eq!(versioned("client.js"), format!("/static/{id}/client.js"));
+
+        let fixed = get("client.js").unwrap();
+        let addressed = get(&format!("{id}/client.js")).unwrap();
+        assert!(!fixed.addressed);
+        assert!(addressed.addressed);
+        assert_eq!(fixed.bytes, addressed.bytes);
+        assert_eq!(fixed.etag, addressed.etag);
+        assert_eq!(fixed.etag, format!("\"{}\"", integrity("client.js")));
+        assert!(
+            get(&format!("{id}/vendor/noble/hashes/sha2.js"))
+                .unwrap()
+                .addressed
+        );
+        assert!(
+            get(&format!("{id}/privatium-logo-light.svg"))
+                .unwrap()
+                .addressed
+        );
+        assert!(!get("privatium-logo-light.svg").unwrap().etag.is_empty());
+
+        // Another build's prefix, a partial prefix and a doubled prefix are all refused.
+        assert!(get("0123456789abcdef/client.js").is_none());
+        assert!(get(&format!("{}/client.js", &id[..15])).is_none());
+        assert!(get(&format!("{id}client.js")).is_none());
+        assert!(get(&format!("{id}/{id}/client.js")).is_none());
+        assert!(get(&format!("{id}/../client.js")).is_none());
     }
 
     #[test]

@@ -2,7 +2,7 @@
 // crates/privatium-core/src/http/headers.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-05
+// Last Modified: 2026-10-04
 // Summary: The headers of spec/protocol.md §9.3 and the small set of response shapes the shell and the
 //          API answer with. Every response leaving core::handle passes through `secure`, so a
 //          403 from the auth layer and a 500 from a failed page carry the same policy a page
@@ -25,8 +25,8 @@
 
 use axum::body::Body;
 use axum::http::header::{
-    ALLOW, CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, HeaderName, HeaderValue, LOCATION,
-    REFERRER_POLICY, X_CONTENT_TYPE_OPTIONS,
+    ALLOW, CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, ETAG, HeaderName, HeaderValue,
+    IF_NONE_MATCH, LOCATION, REFERRER_POLICY, X_CONTENT_TYPE_OPTIONS,
 };
 use axum::http::{Response, StatusCode};
 
@@ -38,6 +38,11 @@ pub const CSP_DEFAULT: &str = "default-src 'self'; script-src 'self'; object-src
 /// `Cache-Control` for the embedded assets under `/static/*` and the skill documents —
 /// the responses `§9.3` exempts because they carry no data. Revalidated, never stale.
 const CACHE_REVALIDATE: &str = "no-cache";
+
+/// `Cache-Control` for an embedded asset named under this build's `/static/<build>/`
+/// prefix (`§9.3`): kept for a day without asking, because a different build is a
+/// different path and so a cached copy can never be stale for the page that named it.
+const CACHE_ADDRESSED: &str = "public, max-age=86400, immutable";
 
 /// `Cache-Control: no-store` — `§9.3`, on every response containing app data.
 const NO_STORE: &str = "no-store";
@@ -91,6 +96,36 @@ pub fn revalidate(response: &mut Response<Body>) {
     response
         .headers_mut()
         .insert(CACHE_CONTROL, HeaderValue::from_static(CACHE_REVALIDATE));
+}
+
+/// The cache headers of an embedded asset (`§9.3`): its strong `ETag`, and either a day's
+/// freshness for a content-addressed path or revalidation for the fixed one.
+pub fn cache_asset(response: &mut Response<Body>, addressed: bool, etag: &str) {
+    let headers = response.headers_mut();
+    if let Ok(value) = HeaderValue::from_str(etag) {
+        headers.insert(ETAG, value);
+    }
+    headers.insert(
+        CACHE_CONTROL,
+        HeaderValue::from_static(if addressed {
+            CACHE_ADDRESSED
+        } else {
+            CACHE_REVALIDATE
+        }),
+    );
+}
+
+/// Whether a request's `If-None-Match` names `etag`, so the asset can be answered 304. A
+/// weak validator prefix is ignored, as RFC 9110 §13.1.2 has it; `*` matches any.
+#[must_use]
+pub fn matches_etag(request_headers: &axum::http::HeaderMap, etag: &str) -> bool {
+    request_headers
+        .get_all(IF_NONE_MATCH)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .map(|tag| tag.trim().trim_start_matches("W/"))
+        .any(|tag| tag == "*" || tag == etag)
 }
 
 /// A response with a body and a content type. `Cache-Control` is left for `secure`.

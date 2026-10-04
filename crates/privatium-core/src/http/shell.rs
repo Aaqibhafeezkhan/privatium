@@ -157,12 +157,14 @@ fn page(
     let _ = writeln!(out, "<title>{} — Privatium</title>", escape(title));
     let _ = writeln!(
         out,
-        "<link rel=\"stylesheet\" href=\"/static/shell.css\" integrity=\"{}\">",
+        "<link rel=\"stylesheet\" href=\"{}\" integrity=\"{}\">",
+        crate::http::assets::versioned("shell.css"),
         crate::http::assets::integrity("shell.css")
     );
     let _ = writeln!(
         out,
-        "<script src=\"/static/htmx.min.js\" integrity=\"{}\" defer></script>",
+        "<script src=\"{}\" integrity=\"{}\" defer></script>",
+        crate::http::assets::versioned("htmx.min.js"),
         crate::http::assets::integrity("htmx.min.js")
     );
     let _ = writeln!(
@@ -174,9 +176,10 @@ fn page(
     } else {
         ("<p class=\"pv-brand\">", "</p>")
     };
+    let logo = crate::http::assets::versioned("privatium-logo-light.svg");
     let _ = write!(
         out,
-        "<header class=\"pv-header\">\n{brand_open}<a href=\"/\"><img class=\"pv-brand-logo\" src=\"/static/privatium-logo-light.svg\" alt=\"\" width=\"160\" height=\"34\"><span class=\"pv-visually-hidden\">Privatium</span></a>{brand_close}\n\
+        "<header class=\"pv-header\">\n{brand_open}<a href=\"/\"><img class=\"pv-brand-logo\" src=\"{logo}\" alt=\"\" width=\"160\" height=\"34\"><span class=\"pv-visually-hidden\">Privatium</span></a>{brand_close}\n\
          <nav aria-label=\"Framework\">\n"
     );
     if !solo {

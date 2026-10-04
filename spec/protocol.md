@@ -1031,12 +1031,12 @@ later plain-HTTP visit.
 
 An implementation SHOULD show this notice on its plain-HTTP pairing screen and on the
 page where paired devices are managed, in words written for the owner rather than for a
-security reader: **“About your connection: Privatium reaches your devices over your own
-network, without the padlock a website would have. Your data is scrambled while it travels,
-so nobody can listen in. But each time a device opens Privatium this way, someone who can
-tamper with your network could swap the page for a fake one and read your data. Use
-Privatium only on networks you trust.”** The notice MUST say that the exposure applies to
-every visit and that a replaced page can read the owner's data; the wording above does.
+security reader: **“Use Privatium only on a network you trust, such as your home Wi-Fi.
+Your data travels between your devices without anyone being able to listen in. But on a
+network you share with strangers, someone could change the pages you open and read your
+data.”** The notice MUST say that someone on the network could change the page and read
+the owner's data, and MUST NOT present the risk as one that ends once a device is paired.
+It need not say "every visit" in so many words; the wording above does not.
 
 A paired device loads a bootstrap document on every full-page navigation (§8.3.1) and
 replaces it with the page it asked for. The bootstrap MUST NOT present the disclosure, or
@@ -1318,6 +1318,16 @@ The manifest is one JSON object:
   response except the framework's own embedded assets under `/static/*` and the skill
   documents under `/skills/*`, neither of which carries any. App responses, the shell's
   pages, and `/api/v1/*` all carry it.
+- An embedded asset at its fixed path, `/static/pv.js` say, carries `Cache-Control:
+  no-cache` and a strong `ETag`, and a request whose `If-None-Match` names that tag is
+  answered `304` with no body. The same asset is also served under a content-addressed
+  prefix, `/static/<build>/<name>`, where `<build>` identifies this build's asset set and
+  changes whenever any asset does; that path carries `Cache-Control: public,
+  max-age=86400, immutable`. The framework's own pages, the bootstrap included, MUST name
+  the assets they load under the content-addressed prefix, so a browser keeps them for a
+  day and a new build is never served a cached copy that fails its integrity hash. Apps
+  keep the fixed paths this specification gives them. A prefix that is not this build's
+  is not a framework asset and falls through as `§9.1` describes.
 - `Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none';
   base-uri 'none'; form-action 'self'; frame-ancestors 'none'` — as written, on every
   response the framework itself renders, which is why the shell keeps its scripts and
