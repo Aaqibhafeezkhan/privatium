@@ -35,10 +35,10 @@ use crate::wire::Response;
 use axum::http::{StatusCode, Uri};
 
 /// The disclosure of spec/protocol.md §7.7, shown where a device pairs and where paired
-/// devices are managed. Written for the owner, not for a security reader: the padlock
-/// stands for the certificate a browser would otherwise check, "scrambled" for the
-/// encrypted channel, and "swap the page for a fake one" for a replaced bootstrap.
-pub const DISCLOSURE: &str = "About your connection: Privatium reaches your devices over your own network, without the padlock a website would have. Your data is scrambled while it travels, so nobody can listen in. But each time a device opens Privatium this way, someone who can tamper with your network could swap the page for a fake one and read your data. Use Privatium only on networks you trust.";
+/// devices are managed. Written for the owner, not for a security reader: "nobody can
+/// listen in" is the encrypted channel, and "change the pages you open" is a replaced
+/// bootstrap, which is the one attack the channel cannot stop.
+pub const DISCLOSURE: &str = "Use Privatium only on a network you trust, such as your home Wi-Fi. Your data travels between your devices without anyone being able to listen in. But on a network you share with strangers, someone could change the pages you open and read your data.";
 
 /// Render a bootstrap with the requested path, the public node ID and its display name
 /// only. Query strings are attribute-escaped; neither application content nor a CSRF
@@ -53,14 +53,16 @@ pub fn bootstrap(uri: &Uri, node: &str, name: &str) -> Response {
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Connect — Privatium</title>
-<link rel="stylesheet" href="/static/shell.css" integrity="{}">
-<script type="module" src="/static/client.js" integrity="{}"></script>
+<link rel="stylesheet" href="{}" integrity="{}">
+<script type="module" src="{}" integrity="{}"></script>
 </head><body data-pv-bootstrap data-path="{}" data-node="{}" data-name="{}">
 <main id="main" tabindex="-1"><h1 class="pv-quiet">Connect to Privatium</h1>
 <p id="pv-connecting" class="pv-quiet" role="status">Connecting to your space.</p>
 <noscript><p>Pairing from another device needs JavaScript. You can use Privatium without JavaScript in a browser on the space itself.</p></noscript>
 "#,
+        assets::versioned("shell.css"),
         assets::integrity("shell.css"),
+        assets::versioned("client.js"),
         assets::integrity("client.js"),
         escape(path),
         escape(node),
