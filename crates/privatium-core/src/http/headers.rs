@@ -91,15 +91,9 @@ pub fn isolate(response: &mut Response<Body>) {
     );
 }
 
-/// Mark a response as one of the two cacheable kinds.
-pub fn revalidate(response: &mut Response<Body>) {
-    response
-        .headers_mut()
-        .insert(CACHE_CONTROL, HeaderValue::from_static(CACHE_REVALIDATE));
-}
-
-/// The cache headers of an embedded asset (`§9.3`): its strong `ETag`, and either a day's
-/// freshness for a content-addressed path or revalidation for the fixed one.
+/// The cache headers of an embedded asset or a skill document (`§9.3`): its strong
+/// `ETag`, and either a day's freshness for a content-addressed path or revalidation for
+/// the fixed one.
 pub fn cache_asset(response: &mut Response<Body>, addressed: bool, etag: &str) {
     let headers = response.headers_mut();
     if let Ok(value) = HeaderValue::from_str(etag) {

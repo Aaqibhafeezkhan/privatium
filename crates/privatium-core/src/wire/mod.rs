@@ -463,11 +463,18 @@ impl Handler {
                 if !get {
                     return headers::method_not_allowed("GET, HEAD");
                 }
-                match skills::skill(&name) {
-                    Some(text) => {
-                        let mut response =
-                            headers::with_body(StatusCode::OK, headers::MARKDOWN, text);
-                        headers::revalidate(&mut response);
+                match skills::skill(&name).zip(skills::etag(&name)) {
+                    Some((text, etag)) => {
+                        let mut response = if headers::matches_etag(request.headers(), etag) {
+                            headers::with_body(
+                                StatusCode::NOT_MODIFIED,
+                                headers::MARKDOWN,
+                                Body::empty(),
+                            )
+                        } else {
+                            headers::with_body(StatusCode::OK, headers::MARKDOWN, text)
+                        };
+                        headers::cache_asset(&mut response, false, etag);
                         response
                     }
                     None => self.not_found(&path),
@@ -477,9 +484,13 @@ impl Handler {
                 if !get {
                     return headers::method_not_allowed("GET, HEAD");
                 }
-                let mut response =
-                    headers::with_body(StatusCode::OK, headers::ZIP, skills::bundle());
-                headers::revalidate(&mut response);
+                let etag = skills::bundle_etag();
+                let mut response = if headers::matches_etag(request.headers(), etag) {
+                    headers::with_body(StatusCode::NOT_MODIFIED, headers::ZIP, Body::empty())
+                } else {
+                    headers::with_body(StatusCode::OK, headers::ZIP, skills::bundle())
+                };
+                headers::cache_asset(&mut response, false, etag);
                 response
             }
             Route::Static { rest } => {

@@ -1318,9 +1318,9 @@ The manifest is one JSON object:
   response except the framework's own embedded assets under `/static/*` and the skill
   documents under `/skills/*`, neither of which carries any. App responses, the shell's
   pages, and `/api/v1/*` all carry it.
-- An embedded asset at its fixed path, `/static/pv.js` say, carries `Cache-Control:
-  no-cache` and a strong `ETag`, and a request whose `If-None-Match` names that tag is
-  answered `304` with no body. The same asset is also served under a content-addressed
+- An embedded asset at its fixed path, `/static/pv.js` say, and each skill document and
+  the bundle under `/skills/*`, carry `Cache-Control: no-cache` and a strong `ETag`, and a
+  request whose `If-None-Match` names that tag is answered `304` with no body. The same asset is also served under a content-addressed
   prefix, `/static/<build>/<name>`, where `<build>` identifies this build's asset set and
   changes whenever any asset does; that path carries `Cache-Control: public,
   max-age=86400, immutable`. The framework's own pages, the bootstrap included, MUST name

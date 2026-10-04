@@ -1074,6 +1074,28 @@ async fn test_spec_9_3_assets_revalidate_by_etag_and_the_addressed_path_caches_f
         "public, max-age=86400, immutable"
     );
 
+    // The skill documents and the bundle revalidate the same way.
+    for path in ["/skills/privatium-overview.md", "/skills/bundle.zip"] {
+        let first = handler.handle(get(path)).await;
+        assert_eq!(first.status(), StatusCode::OK, "{path}");
+        assert_eq!(header(&first, &CACHE_CONTROL), "no-cache", "{path}");
+        let tag = header(&first, &ETAG).to_owned();
+        assert!(tag.starts_with("\"sha256-"), "{path}: {tag}");
+        let mut again = get(path);
+        again
+            .headers_mut()
+            .insert(IF_NONE_MATCH, tag.parse().unwrap());
+        let response = handler.handle(again).await;
+        assert_eq!(response.status(), StatusCode::NOT_MODIFIED, "{path}");
+        assert_eq!(header(&response, &ETAG), tag, "{path}");
+        assert!(
+            to_bytes(response.into_body(), 1024)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+
     // Another build's prefix is refused, never answered from this build's bytes.
     let other = handler.handle(get("/static/0123456789abcdef/pv.js")).await;
     assert_eq!(other.status(), StatusCode::NOT_FOUND);

@@ -144,7 +144,12 @@ substituted node, and the channel protects application data from passive listene
 Integrity pins same-origin external scripts and stylesheets to channel bytes. A remote
 resource allowed by existing app permissions needs a hash in authenticated HTML;
 imported framework and app modules lack that protection. None authenticates a later
-bootstrap. Describe the exposure as every visit, including stored device keys.
+bootstrap. Describe the exposure as every visit, including stored device keys, when you
+write for a developer. The notice the owner sees on the pairing screen is written in plain
+words instead (`spec/protocol.md §7.7`): it tells them to use Privatium only on a network
+they trust, that nobody can listen in, and that on a shared network someone could change
+the pages they open and read their data. If you write that notice for an app of your own,
+keep those facts and never present the risk as ending once a device is paired.
 
 Full-page navigation uses a fresh bootstrap with the destination app's CSP. Form
 responses may remain briefly as bounded, unpolled streams in node RAM. Only an opaque

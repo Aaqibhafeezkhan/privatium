@@ -2,7 +2,7 @@
 // crates/privatium-core/src/http/skills.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-26
+// Last Modified: 2026-10-04
 // Summary: /skills/<name>.md and /skills/bundle.zip (spec/cli.md §6, docs/skills.md §6): the app-skills/
 //          tree of this build, embedded so an owner gets the contract matching the version
 //          they are running. The bundle is a stored (uncompressed) zip written by hand — a
@@ -23,9 +23,12 @@
 // You should have received a copy of the GNU General Public License along
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use include_dir::{Dir, include_dir};
+use sha2::{Digest as _, Sha256};
 
 /// `app-skills/` at the repository root, as of this build: the skills shipped to app
 /// authors, kept apart from `skills/`, which holds the skills for working on this
@@ -57,6 +60,30 @@ pub fn skill(name: &str) -> Option<&'static str> {
     SKILLS
         .get_file(format!("{name}/{SKILL_FILE}"))
         .and_then(|file| file.contents_utf8())
+}
+
+/// The strong `ETag` of `/skills/<name>.md` (`spec/protocol.md §9.3`): the document's
+/// SHA-256 in quotes, computed once per process. `None` when `name` is not a skill.
+#[must_use]
+pub fn etag(name: &str) -> Option<&'static str> {
+    static ETAGS: LazyLock<BTreeMap<String, String>> = LazyLock::new(|| {
+        names()
+            .into_iter()
+            .filter_map(|name| skill(&name).map(|text| (name, quoted_hash(text.as_bytes()))))
+            .collect()
+    });
+    ETAGS.get(name).map(String::as_str)
+}
+
+/// The strong `ETag` of `/skills/bundle.zip`, computed once per process over the bundle.
+#[must_use]
+pub fn bundle_etag() -> &'static str {
+    static ETAG: LazyLock<String> = LazyLock::new(|| quoted_hash(bundle()));
+    ETAG.as_str()
+}
+
+fn quoted_hash(bytes: &[u8]) -> String {
+    format!("\"sha256-{}\"", STANDARD.encode(Sha256::digest(bytes)))
 }
 
 /// Every file under `app-skills/` at its path relative to that folder, slash-separated, sorted —
