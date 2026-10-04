@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/devices.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-06
-// Last Modified: 2026-09-08
+// Last Modified: 2026-10-04
 // Summary: The owner's surfaces through core::handle: the pairing API of spec/protocol.md §9.2 and the
 //          manifest's pair flag, the code page with the §7.7 disclosure, the devices page with
 //          its label and revoke forms, the display-name form of §6.1, the hourly last_seen_at
@@ -335,9 +335,25 @@ async fn test_spec_7_7_plain_http_pairing_page_discloses_the_gap() {
     );
 
     // The bootstrap a phone loads carries the sentence and the pairing screen's markup:
-    // sixteen labelled keys, the word field, the status region.
+    // sixteen labelled keys, the word field, the status region. The sentence sits inside
+    // the pairing section, which stays hidden on a device that is already paired, and the
+    // bootstrap's own heading and status carry the class that keeps them out of sight
+    // for a moment, so a paired device sees no interstitial between pages (§7.7).
     let bootstrap = body_of(h.handle(lan_html("/a/hello/")).await).await;
     assert!(bootstrap.contains(DISCLOSURE));
+    let section_start = bootstrap.find("<section id=\"pv-pair\" hidden").unwrap();
+    let section_end = bootstrap[section_start..].find("</section>").unwrap() + section_start;
+    let disclosure_at = bootstrap.find(DISCLOSURE).unwrap();
+    assert!(
+        section_start < disclosure_at && disclosure_at < section_end,
+        "the disclosure belongs to the pairing screen\n{bootstrap}"
+    );
+    assert_eq!(bootstrap.matches(DISCLOSURE).count(), 1);
+    assert!(bootstrap.contains("<h1 class=\"pv-quiet\">"), "{bootstrap}");
+    assert!(
+        bootstrap.contains("<p id=\"pv-connecting\" class=\"pv-quiet\" role=\"status\">"),
+        "{bootstrap}"
+    );
     assert_eq!(bootstrap.matches("class=\"pv-pad-key\"").count(), 16);
     assert!(bootstrap.contains("<label for=\"pv-words\">"));
     assert!(bootstrap.contains("id=\"pv-pair-status\" role=\"status\""));

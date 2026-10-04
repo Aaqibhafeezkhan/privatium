@@ -2,7 +2,7 @@
 // crates/privatium/tests/cli.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-09-26
+// Last Modified: 2026-10-04
 // Summary: spec/cli.md against the real binary, section by section: the qualified --version (§1) and
 //          the exit codes; the flags, which are exactly the spec's synopsis lines (§1–§9, both
 //          directions); a node on loopback with --port, --solo and --no-discovery (§2); dev
@@ -220,11 +220,7 @@ fn test_spec_cli_1_version_qualifies_protocol() {
     let (code, out, _) = privatium(root.path(), &["--version"]);
     assert_eq!(code, 0);
     let mut lines = out.trim().lines();
-    let shown = format!(
-        "{}.{}",
-        env!("CARGO_PKG_VERSION_MAJOR"),
-        env!("CARGO_PKG_VERSION_MINOR")
-    );
+    let shown = env!("CARGO_PKG_VERSION");
     assert_eq!(
         lines.next().unwrap(),
         format!("privatium {shown} pv/1 (partial: phase 2)")

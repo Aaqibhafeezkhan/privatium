@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/channel.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: LAN bootstrap isolation, channel framing and authenticated routing.
 // Notes: See README file for documentation and full license information.
 //
@@ -25,6 +25,7 @@
 mod common;
 
 use axum::body::to_bytes;
+use privatium_core::http::assets;
 use privatium_core::{AppRoot, Body, Handler, Node, Peer, Request};
 
 fn handler(root: &tempfile::TempDir) -> Handler {
@@ -118,7 +119,7 @@ async fn test_spec_8_4_plain_http_on_the_lan_serves_only_the_bootstrap_set() {
         let r = h.handle(lan("GET", path, "text/html")).await;
         assert_eq!(r.status(), 200, "{path}");
         let body = to_bytes(r.into_body(), 65536).await.unwrap();
-        assert!(String::from_utf8_lossy(&body).contains("/static/client.js"));
+        assert!(String::from_utf8_lossy(&body).contains(&assets::versioned("client.js")));
         assert_eq!(h.handle(lan("POST", path, "text/html")).await.status(), 403);
     }
     for path in [
@@ -126,6 +127,8 @@ async fn test_spec_8_4_plain_http_on_the_lan_serves_only_the_bootstrap_set() {
         "/api/v1/manifest",
         "/static/shell.css",
         "/static/htmx.min.js",
+        &assets::versioned("shell.css"),
+        &assets::versioned("client.js"),
         "/a/sketch/style.css",
         "/a/animals/static/animals.css",
     ] {
@@ -160,8 +163,17 @@ async fn test_spec_9_2_bootstrap_page_carries_no_app_data() {
     assert!(!html.contains("_csrf"));
     assert!(!html.contains("cache/"));
     assert!(!html.contains("identity/"));
-    assert!(html.contains("every visit"));
-    assert!(html.contains("stored device keys"));
+    // The §7.7 notice, in the owner's words: someone on the network could change the
+    // page and read the data, and nothing says the risk ends once a device is paired.
+    assert!(
+        html.contains("someone could change the pages you open and read your data"),
+        "{html}"
+    );
+    assert!(
+        html.contains("Use Privatium only on a network you trust"),
+        "{html}"
+    );
+    assert!(!html.contains("first time"), "{html}");
     let findings = common::a11y::check(&html, common::a11y::Unit::Document);
     assert!(findings.is_empty(), "{findings:?}");
 }
@@ -202,8 +214,8 @@ async fn test_spec_8_3_page_frame_scripts_carry_integrity() {
                 .to_vec(),
         )
         .unwrap();
-        assert!(html.contains("href=\"/static/shell.css\""));
-        assert!(html.contains("src=\"/static/htmx.min.js\""));
+        assert!(html.contains(&format!("href=\"{}\"", assets::versioned("shell.css"))));
+        assert!(html.contains(&format!("src=\"{}\"", assets::versioned("htmx.min.js"))));
         // The frame pins framework assets; the client hashes app assets received
         // through the authenticated channel (spec/protocol.md §8.3).
         for tag in html

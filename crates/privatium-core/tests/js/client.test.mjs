@@ -1,6 +1,6 @@
 // Project:  Privatium™  |  File: crates/privatium-core/tests/js/client.test.mjs
 // Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-// Created:  2026-09-05  |  Modified: 2026-09-06
+// Created:  2026-09-05  |  Modified: 2026-10-04
 // Summary:  Browser channel framing, streaming, cancellation and origin confinement (§8.3).
 //           See main README.md for full license information.
 
@@ -153,6 +153,10 @@ function element(tag) {
     focus() { el.focused = true; },
     querySelector(selector) { return el.children.find(c => selector === '.pv-glyph-label' && c.className === 'pv-glyph-label') || null; },
     get className() { return attrs.class || ''; }, set className(v) { attrs.class = v; },
+    classList: {
+      contains: name => (attrs.class || '').split(/\s+/).includes(name),
+      remove: name => { attrs.class = (attrs.class || '').split(/\s+/).filter(c => c && c !== name).join(' '); },
+    },
     get id() { return attrs.id || ''; }, set id(v) { attrs.id = v; },
     get type() { return attrs.type; }, set type(v) { attrs.type = v; },
     get tabIndex() { return attrs.tabindex; }, set tabIndex(v) { attrs.tabindex = v; },
@@ -172,9 +176,12 @@ function pairingDocument() {
   }
   const section = make('pv-pair', 'section'); section.hidden = true;
   make('pv-chosen', 'output'); make('pv-pair-status', 'p'); make('pv-words', 'input'); make('pv-label', 'input');
-  make('pv-pair-form', 'form'); make('pv-pair-submit', 'button'); make('pv-undo', 'button'); make('pv-clear', 'button'); make('pv-connecting', 'p');
+  make('pv-pair-form', 'form'); make('pv-pair-submit', 'button'); make('pv-undo', 'button'); make('pv-clear', 'button');
+  const heading = make('pv-heading', 'h1'); heading.className = 'pv-quiet';
+  const connecting = make('pv-connecting', 'p'); connecting.className = 'pv-quiet';
   const body = element('body'); body.dataset = { name: 'Study', node: 'k7m2q9xf' };
-  return { body, keys, byId, getElementById: id => byId[id] || null, querySelectorAll: () => keys, createElement: element };
+  const quiet = () => [heading, connecting].filter(el => el.classList.contains('pv-quiet'));
+  return { body, keys, byId, getElementById: id => byId[id] || null, querySelectorAll: selector => selector === '.pv-quiet' ? quiet() : keys, createElement: element };
 }
 
 test('test_spec_7_2_pad_and_word_field_yield_the_same_sixteen_bits', async () => {
@@ -228,6 +235,18 @@ test('test_spec_7_2_pad_and_word_field_yield_the_same_sixteen_bits', async () =>
   doc.byId['pv-words'].value = 'not a code at all';
   assert.equal(await empty.submit(), false);
   assert.match(doc.byId['pv-pair-status'].textContent, /not recognized/);
+});
+
+test('test_spec_7_7_pairing_screen_lifts_the_bootstraps_quiet_delay', async () => {
+  const { pairingScreen } = await import('../../assets/shell/client.js');
+  const doc = pairingDocument();
+  assert.equal(doc.byId['pv-heading'].classList.contains('pv-quiet'), true);
+  pairingScreen({ doc, pair: async () => {} });
+  // A device that has to pair reads the heading now, and the connecting status gives way.
+  assert.equal(doc.byId['pv-heading'].classList.contains('pv-quiet'), false);
+  assert.equal(doc.byId['pv-connecting'].classList.contains('pv-quiet'), false);
+  assert.equal(doc.byId['pv-connecting'].getAttribute('hidden'), '');
+  assert.equal(doc.byId['pv-pair'].hidden, false);
 });
 
 test('test_spec_8_1_refusal_screen_has_no_dismiss', async () => {

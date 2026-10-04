@@ -2,7 +2,7 @@
 // crates/privatium-core/src/app/manifest.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-02
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: app.toml (spec/app-contract.md §3) — the manifest as a type, its validation against §3.1,
 //          protocol §1.1's reserved slugs and §12's api ceiling, and the [permissions] table
 //          of §5.4 with the plain-language widenings it implies.
@@ -180,8 +180,8 @@ pub struct Permissions {
     pub wasm: bool,
     /// `'unsafe-eval'` on `script-src`; some older WASM loaders need it.
     pub eval: bool,
-    /// Additional origins for `script-src`, `img-src` and `connect-src`. "This app
-    /// phones out."
+    /// Additional origins for `script-src`, `img-src` and `connect-src`: the online
+    /// services the app uses, named to the owner as a privacy warning.
     pub remote: Vec<String>,
     /// Ad-hoc read-only SQL through `pv.sql()` (`spec/data-api.md §1`). Not a CSP matter.
     pub sql: bool,
@@ -277,7 +277,7 @@ impl fmt::Display for Widening {
             ),
             Self::Remote(origins) => write!(
                 f,
-                "this app phones out to {} — the one thing this project exists to avoid",
+                "this app uses the following online services: {}",
                 origins.join(", ")
             ),
             Self::Sql => f.write_str("ad-hoc read-only SQL over the app's tables (pv.sql)"),
@@ -697,7 +697,7 @@ mod tests {
         let w = p.widenings();
         assert_eq!(w.len(), 2);
         assert!(
-            w[0].to_string().contains("phones out to https://x"),
+            w[0].to_string() == "this app uses the following online services: https://x",
             "{}",
             w[0]
         );

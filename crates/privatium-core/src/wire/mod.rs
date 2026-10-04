@@ -2,7 +2,7 @@
 // crates/privatium-core/src/wire/mod.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-07
+// Last Modified: 2026-10-04
 // Summary: core::handle(Request) -> Response (ADR 0003): the one entry point for application traffic.
 //          Bodies are streams in both directions. The router is built from Node::mounts(); the
 //          auth layer runs here so every adapter gets it; the §9.3 headers go on every
@@ -463,11 +463,18 @@ impl Handler {
                 if !get {
                     return headers::method_not_allowed("GET, HEAD");
                 }
-                match skills::skill(&name) {
-                    Some(text) => {
-                        let mut response =
-                            headers::with_body(StatusCode::OK, headers::MARKDOWN, text);
-                        headers::revalidate(&mut response);
+                match skills::skill(&name).zip(skills::etag(&name)) {
+                    Some((text, etag)) => {
+                        let mut response = if headers::matches_etag(request.headers(), etag) {
+                            headers::with_body(
+                                StatusCode::NOT_MODIFIED,
+                                headers::MARKDOWN,
+                                Body::empty(),
+                            )
+                        } else {
+                            headers::with_body(StatusCode::OK, headers::MARKDOWN, text)
+                        };
+                        headers::cache_asset(&mut response, false, etag);
                         response
                     }
                     None => self.not_found(&path),
@@ -477,9 +484,13 @@ impl Handler {
                 if !get {
                     return headers::method_not_allowed("GET, HEAD");
                 }
-                let mut response =
-                    headers::with_body(StatusCode::OK, headers::ZIP, skills::bundle());
-                headers::revalidate(&mut response);
+                let etag = skills::bundle_etag();
+                let mut response = if headers::matches_etag(request.headers(), etag) {
+                    headers::with_body(StatusCode::NOT_MODIFIED, headers::ZIP, Body::empty())
+                } else {
+                    headers::with_body(StatusCode::OK, headers::ZIP, skills::bundle())
+                };
+                headers::cache_asset(&mut response, false, etag);
                 response
             }
             Route::Static { rest } => {
@@ -487,10 +498,19 @@ impl Handler {
                     return headers::method_not_allowed("GET, HEAD");
                 }
                 match assets::get(&rest) {
+                    // A browser revalidating the fixed path gets 304 and no bytes; the
+                    // content-addressed path is fresh for a day (`spec/protocol.md §9.3`).
                     Some(asset) => {
-                        let mut response =
-                            headers::with_body(StatusCode::OK, asset.content_type, asset.bytes);
-                        headers::revalidate(&mut response);
+                        let mut response = if headers::matches_etag(request.headers(), asset.etag) {
+                            headers::with_body(
+                                StatusCode::NOT_MODIFIED,
+                                asset.content_type,
+                                Body::empty(),
+                            )
+                        } else {
+                            headers::with_body(StatusCode::OK, asset.content_type, asset.bytes)
+                        };
+                        headers::cache_asset(&mut response, asset.addressed, asset.etag);
                         response
                     }
                     None => return self.solo_static(&rest, request).await,

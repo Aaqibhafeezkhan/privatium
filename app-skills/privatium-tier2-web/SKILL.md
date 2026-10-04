@@ -110,8 +110,8 @@ while disconnected. Re-read state after reconnect and on `resync`.
 - Add a CSRF token, a CORS header or any other credential handling to the API. It is
   same-origin by construction (`spec/data-api.md §2.1`)
 - Construct absolute URLs to other endpoints. A browser client has exactly one origin.
-- Request `permissions.remote` unless the app genuinely must call out. It is the one thing
-  this project exists to avoid, and the installer says so to the owner.
+- Request `permissions.remote` unless the app genuinely must call out. The owner is shown
+  a privacy warning naming every online service the app uses.
 
 ## Storage without SQL
 

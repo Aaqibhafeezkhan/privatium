@@ -3,7 +3,7 @@ This file is part of Privatium
 spec/cli.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-30
-Last Modified: 2026-09-26
+Last Modified: 2026-10-04
 Summary: NORMATIVE. The command-line interface, including the linter that makes the skills system
          enforceable rather than advisory.
 Notes: See README file for documentation and full license information.
@@ -55,12 +55,12 @@ line, then the project's own facts: the product name, the author, the copyright,
 licence, the project URL and the author's site. An implementation that does not satisfy
 every item in `spec/protocol.md §13` MUST qualify the protocol string rather than print a
 bare `pv/1` — for example `pv/1 (partial: phase 1)`. The version is written the way the
-release tags spell it, `major.minor`: releases are numbered by minor, and the third
-number Cargo requires in the manifest stays zero. Only the first line is normative; an implementation MUST
-print it, and the rest is what this one prints:
+release tags spell it, `major.minor.patch`, exactly as the workspace manifest has it. Only
+the first line is normative; an implementation MUST print it, and the rest is what this
+one prints:
 
 ```
-privatium 0.3 pv/1 (partial: phase 2)
+privatium 0.3.1 pv/1 (partial: phase 2)
 Privatium™ is a framework for building small, personal apps that sync across your devices seamlessly without cloud services
 Product:       Privatium
 Author:        Gabriel Mongefranco (@gabrielmongefranco)

@@ -2,7 +2,7 @@
 // crates/privatium-core/src/http/shell.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-08
+// Last Modified: 2026-10-04
 // Summary: The framework's own pages — launcher, settings, errors — as server-rendered HTML with HTMX
 //          and inlined Bootstrap Icons (docs/architecture.md §2.5, docs/icons.md). No client
 //          framework, no bundler, no inline script or style: every page renders under the
@@ -157,12 +157,14 @@ fn page(
     let _ = writeln!(out, "<title>{} — Privatium</title>", escape(title));
     let _ = writeln!(
         out,
-        "<link rel=\"stylesheet\" href=\"/static/shell.css\" integrity=\"{}\">",
+        "<link rel=\"stylesheet\" href=\"{}\" integrity=\"{}\">",
+        crate::http::assets::versioned("shell.css"),
         crate::http::assets::integrity("shell.css")
     );
     let _ = writeln!(
         out,
-        "<script src=\"/static/htmx.min.js\" integrity=\"{}\" defer></script>",
+        "<script src=\"{}\" integrity=\"{}\" defer></script>",
+        crate::http::assets::versioned("htmx.min.js"),
         crate::http::assets::integrity("htmx.min.js")
     );
     let _ = writeln!(
@@ -174,9 +176,10 @@ fn page(
     } else {
         ("<p class=\"pv-brand\">", "</p>")
     };
+    let logo = crate::http::assets::versioned("privatium-logo-light.svg");
     let _ = write!(
         out,
-        "<header class=\"pv-header\">\n{brand_open}<a href=\"/\"><img class=\"pv-brand-logo\" src=\"/static/privatium-logo-light.svg\" alt=\"\" width=\"160\" height=\"34\"><span class=\"pv-visually-hidden\">Privatium</span></a>{brand_close}\n\
+        "<header class=\"pv-header\">\n{brand_open}<a href=\"/\"><img class=\"pv-brand-logo\" src=\"{logo}\" alt=\"\" width=\"160\" height=\"34\"><span class=\"pv-visually-hidden\">Privatium</span></a>{brand_close}\n\
          <nav aria-label=\"Framework\">\n"
     );
     if !solo {
@@ -554,18 +557,27 @@ fn apps_page(cx: &Context<'_>, body: &mut String) -> Result<()> {
         }
         body.push_str("</dl>\n");
 
-        let warnings: Vec<&Warning> = cx
-            .report
-            .warnings
-            .iter()
-            .filter(|w| w.slug() == row.slug)
-            .collect();
-        if !warnings.is_empty() {
+        // Permission widenings read as a privacy warning (`spec/app-contract.md §5.4`);
+        // warnings about the app's shape keep their own box, so the two are not confused.
+        for label in ["Privacy warning", "Load warning"] {
+            let warnings: Vec<&Warning> = cx
+                .report
+                .warnings
+                .iter()
+                .filter(|w| w.slug() == row.slug && w.label() == label)
+                .collect();
+            if warnings.is_empty() {
+                continue;
+            }
             body.push_str("<div class=\"pv-notice pv-notice-warn\">");
             body.push_str(&icon("exclamation-triangle"));
-            body.push_str("<div>Load warnings<ul>");
+            let _ = write!(
+                body,
+                "<div>{label}{}<ul>",
+                if warnings.len() == 1 { "" } else { "s" }
+            );
             for warning in warnings {
-                let _ = write!(body, "<li>{}</li>", escape(&warning.to_string()));
+                let _ = write!(body, "<li>{}</li>", escape(&warning.detail()));
             }
             body.push_str("</ul></div></div>\n");
         }

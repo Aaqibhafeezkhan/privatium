@@ -2,7 +2,7 @@
 // crates/privatium-core/src/app/mod.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-02
-// Last Modified: 2026-09-07
+// Last Modified: 2026-10-04
 // Summary: The app loader — the lifecycle of spec/app-contract.md §8 up to and including mount.
 //          Discovers app folders, refuses per app and loudly (§3.1), keeps sys_app as events
 //          (§3.4), and owns each app's log, store and — for Tier 1 — its Lua host. The node's
@@ -235,6 +235,33 @@ impl Warning {
             | Self::SoloAppNotLoaded { slug }
             | Self::RouteShadowed { slug, .. }
             | Self::UnknownIcon { slug, .. } => slug,
+        }
+    }
+
+    /// The heading the owner reads the warning under, in sentence case. A permission
+    /// widening is a privacy warning, because it says what the app can reach or run
+    /// (`spec/app-contract.md §5.4`); everything else is a load warning about the app's
+    /// own shape.
+    #[must_use]
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Permission { .. } => "Privacy warning",
+            _ => "Load warning",
+        }
+    }
+
+    /// The text without the app's slug, for a surface that already names the app.
+    #[must_use]
+    pub fn detail(&self) -> String {
+        match self {
+            Self::Permission { widening, .. } => widening.to_string(),
+            other => {
+                let text = other.to_string();
+                match text.strip_prefix(&format!("{}: ", other.slug())) {
+                    Some(rest) => rest.to_owned(),
+                    None => text,
+                }
+            }
         }
     }
 }

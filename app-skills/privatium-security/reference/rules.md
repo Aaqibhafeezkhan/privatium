@@ -91,10 +91,12 @@ sql                   = false   # allow ad-hoc read-only SQL via pv.sql()
 cross_origin_isolated = false   # COOP/COEP for SharedArrayBuffer; solo mode only
 ```
 
-Every non-default permission is shown to the owner at install time in plain language.
-`remote` in particular means "this app phones out," which is the one thing this project
-exists to avoid; the installer says so. Each `remote` entry MUST be an origin —
-`http(s)://host[:port]` and nothing more — because it is written into a header verbatim.
+Every non-default permission is shown to the owner at install time in plain language,
+under the heading **Privacy warning**, on the apps settings page and when the node starts.
+`remote` in particular is worded as the online services the app uses, listing each origin:
+"this app uses the following online services: https://example.com". Each `remote` entry
+MUST be an origin — `http(s)://host[:port]` and nothing more — because it is written into
+a header verbatim.
 
 `cross_origin_isolated` is refused at load in host mode: the headers it needs are
 document-level on one origin and would break every other app on the node

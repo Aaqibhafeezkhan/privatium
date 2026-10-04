@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/wire.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-08
+// Last Modified: 2026-10-04
 // Summary: core::handle against spec/protocol.md §9 and ADR 0003 — every route reachable with no
 //          listener, the headers of §9.3 on every response, nothing leaked unauthenticated
 //          (§9.2), solo mode at `/` with the framework prefixes winning (§9.1), Tier 2 served
@@ -37,14 +37,15 @@ use std::pin::Pin;
 
 use axum::body::{HttpBody as _, to_bytes};
 use axum::http::header::{
-    CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, HOST, LOCATION, REFERRER_POLICY,
-    X_CONTENT_TYPE_OPTIONS,
+    CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, ETAG, HOST, IF_NONE_MATCH, LOCATION,
+    REFERRER_POLICY, X_CONTENT_TYPE_OPTIONS,
 };
 use axum::http::{Method, StatusCode};
 use common::{
     APP, event, hand_append, lua_manifest, repo_apps_dir, ts_offset_secs, write_app, write_web_app,
 };
 use privatium_core::app::Warning;
+use privatium_core::http::assets;
 use privatium_core::{AppRoot, Body, Handler, LoadReport, Node, Peer, Request, Response};
 
 /// `spec/protocol.md §9.3`, verbatim.
@@ -337,8 +338,8 @@ async fn test_spec_9_3_headers_present() {
         assert!(!html.contains("<script>"), "{path}: inline script");
         assert!(!html.contains(" style=\""), "{path}: inline style");
         assert!(!html.contains(" onclick="), "{path}: inline handler");
-        assert!(html.contains("/static/htmx.min.js"), "{path}");
-        assert!(html.contains("/static/shell.css"), "{path}");
+        assert!(html.contains(&assets::versioned("htmx.min.js")), "{path}");
+        assert!(html.contains(&assets::versioned("shell.css")), "{path}");
         assert!(html.contains("<html lang=\"en\">"), "{path}");
     }
 }
@@ -1004,4 +1005,113 @@ async fn test_spec_8_4_a_request_from_this_machines_own_address_is_the_owner() {
     assert!(!privatium_core::http::auth::host_names_this_machine(
         "attacker.example"
     ));
+}
+
+/// `spec/protocol.md §9.3`: an embedded asset carries a strong ETag and answers 304 to a
+/// matching `If-None-Match` on its fixed path, and the content-addressed path the
+/// framework's own pages use is fresh for a day. A prefix that is not this build's is
+/// not an asset at all.
+#[tokio::test]
+async fn test_spec_9_3_assets_revalidate_by_etag_and_the_addressed_path_caches_for_a_day() {
+    let root = tempfile::tempdir().unwrap();
+    let handler = handler(&root);
+
+    let fixed = handler.handle(get("/static/pv.js")).await;
+    assert_eq!(fixed.status(), StatusCode::OK);
+    assert_eq!(header(&fixed, &CACHE_CONTROL), "no-cache");
+    let etag = header(&fixed, &ETAG).to_owned();
+    assert_eq!(
+        etag,
+        format!("\"{}\"", assets::integrity("pv.js")),
+        "the ETag is the integrity hash in quotes"
+    );
+
+    for value in [
+        etag.clone(),
+        format!("W/{etag}"),
+        format!("\"other\", {etag}"),
+        "*".into(),
+    ] {
+        let mut request = get("/static/pv.js");
+        request
+            .headers_mut()
+            .insert(IF_NONE_MATCH, value.parse().unwrap());
+        let response = handler.handle(request).await;
+        assert_eq!(response.status(), StatusCode::NOT_MODIFIED, "{value}");
+        assert_eq!(header(&response, &ETAG), etag, "{value}");
+        assert_eq!(header(&response, &CACHE_CONTROL), "no-cache", "{value}");
+        assert!(
+            to_bytes(response.into_body(), 1024)
+                .await
+                .unwrap()
+                .is_empty(),
+            "{value}"
+        );
+    }
+    let mut stale = get("/static/pv.js");
+    stale
+        .headers_mut()
+        .insert(IF_NONE_MATCH, "\"sha256-stale\"".parse().unwrap());
+    assert_eq!(handler.handle(stale).await.status(), StatusCode::OK);
+
+    let addressed = handler.handle(get(&assets::versioned("pv.js"))).await;
+    assert_eq!(addressed.status(), StatusCode::OK);
+    assert_eq!(
+        header(&addressed, &CACHE_CONTROL),
+        "public, max-age=86400, immutable"
+    );
+    assert_eq!(header(&addressed, &ETAG), etag);
+    assert_eq!(
+        header(&addressed, &CONTENT_TYPE),
+        header(&fixed, &CONTENT_TYPE)
+    );
+    let logo = handler
+        .handle(get(&assets::versioned("privatium-logo-light.svg")))
+        .await;
+    assert_eq!(logo.status(), StatusCode::OK);
+    assert_eq!(
+        header(&logo, &CACHE_CONTROL),
+        "public, max-age=86400, immutable"
+    );
+
+    // The skill documents and the bundle revalidate the same way.
+    for path in ["/skills/privatium-overview.md", "/skills/bundle.zip"] {
+        let first = handler.handle(get(path)).await;
+        assert_eq!(first.status(), StatusCode::OK, "{path}");
+        assert_eq!(header(&first, &CACHE_CONTROL), "no-cache", "{path}");
+        let tag = header(&first, &ETAG).to_owned();
+        assert!(tag.starts_with("\"sha256-"), "{path}: {tag}");
+        let mut again = get(path);
+        again
+            .headers_mut()
+            .insert(IF_NONE_MATCH, tag.parse().unwrap());
+        let response = handler.handle(again).await;
+        assert_eq!(response.status(), StatusCode::NOT_MODIFIED, "{path}");
+        assert_eq!(header(&response, &ETAG), tag, "{path}");
+        assert!(
+            to_bytes(response.into_body(), 1024)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    // Another build's prefix is refused, never answered from this build's bytes.
+    let other = handler.handle(get("/static/0123456789abcdef/pv.js")).await;
+    assert_eq!(other.status(), StatusCode::NOT_FOUND);
+    assert_eq!(header(&other, &CACHE_CONTROL), "no-store");
+
+    // The framework's own pages name assets under this build's prefix with integrity.
+    let launcher = body_of(handler.handle(get("/")).await).await;
+    assert!(
+        launcher.contains(&format!("href=\"{}\"", assets::versioned("shell.css"))),
+        "{launcher}"
+    );
+    assert!(
+        launcher.contains(&format!(
+            "src=\"{}\"",
+            assets::versioned("privatium-logo-light.svg")
+        )),
+        "{launcher}"
+    );
 }

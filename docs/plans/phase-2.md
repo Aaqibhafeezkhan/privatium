@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/plans/phase-2.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-05
-Last Modified: 2026-09-06
+Last Modified: 2026-10-04
 Summary: Implementation plan for Phase 2 — other devices on the LAN: cluster identity, session
          cryptography, pairing, the encrypted browser channel, discovery, and the device
          registry. Non-normative. Where this plan and spec/ disagree, spec/ wins and this
@@ -332,12 +332,16 @@ rule applied.*
 
 ## 3. Spec gaps found
 
-Rows 1–35 are fixed. As in
+Rows 1–39 are fixed. As in
 Phase 1, this records what changed and why;
 `cargo xtask gen-skill-reference` ran with the edits.
 
 | # | Was | Proposed | Files | Milestone |
 |---|---|---|---|---|
+| 39 | `§9.3` gave the embedded assets `Cache-Control: no-cache` and nothing to revalidate with, so a browser downloaded the client, the channel code and the hashing library again on every navigation, and the bootstrap stayed on screen for the download | Every embedded asset, skill document and the skill bundle carries a strong `ETag` and answers `304` on its fixed path; the framework's own pages name assets under a content-addressed `/static/<build>/` prefix that is cached for a day, which a new build cannot serve stale because the prefix changes with the asset set | `protocol.md §9.3` | **Fixed**; after M19; `test_spec_9_3_assets_revalidate_by_etag_and_the_addressed_path_caches_for_a_day`, `test_spec_9_3_assets_are_addressable_by_build_and_carry_an_etag` |
+| 38 | The `§7.7` notice was written for a security reader: "plain HTTP", "change network traffic", "replace this client", "stored device keys", "verify the downloaded client". The owner it is shown to found it too technical | The notice is reworded for the owner: use Privatium on a network you trust, nobody can listen in, but on a shared network someone could change the pages and read the data. The spec keeps one requirement, that a changed page can read the data and that the risk is not presented as ending at pairing, and drops the "every visit" wording | `protocol.md §7.7` | **Fixed**; after M19; `test_spec_9_2_bootstrap_page_carries_no_app_data` holds the two facts |
+| 37 | `app-contract.md §5.4` worded the `remote` permission as "this app phones out, the one thing this project exists to avoid", and the loader and the apps settings page repeated it under a heading of "Load warnings". The owner found the sentence untrue of an app that only reads public reference data and beside the point: what matters is which services the app can reach | Every permission widening is a **Privacy warning**, on the apps settings page and at startup; `remote` reads "this app uses the following online services: …" and lists each origin; warnings about an app's shape, such as an unknown icon, stay load warnings | `app-contract.md §5.4`, Tier 2 and security skills, generated `permissions.md` | **Fixed**; after M19; `test_csp_default_blocks_inline_handlers`, `test_spec_cli_5_pv4xx_shell_pages` |
+| 36 | `§7.7` had the disclosure SHOULD-shown on the bootstrap document as well as the pairing screen, so a paired phone read "Connect to Privatium" and the disclosure as a flash between every two pages of every app | The disclosure belongs to the pairing screen and the devices page; the bootstrap MUST NOT present it, or any text of its own, as an interstitial on a paired device's navigation, and SHOULD show nothing until the page arrives. The reference bootstrap keeps its heading and status invisible for 1.5 seconds and the pairing screen lifts that when it has to appear | `protocol.md §7.7`, `docs/security.md §4` | **Fixed**; after M19; `test_spec_7_7_plain_http_pairing_page_discloses_the_gap`, `test_spec_7_7_pairing_screen_lifts_the_bootstraps_quiet_delay` (JavaScript) |
 | 35 | `§8.3` refused a `dev` that is not an active row with an X25519 key; the node's own row is one, and nothing said a node never pairs with itself. Neither `§7.4.2` nor `§8.3` bounded a peer that opens a socket and falls silent | The node's own ID is refused before its hello is answered; a node SHOULD bound the handshake and close a silent peer with nothing counted — ten seconds on `/ws`, thirty on `/ws/pair` in the reference node | `protocol.md §7.4.2, §8.3` | **Fixed**; hardening; `test_spec_8_3_the_nodes_own_row_cannot_open_a_channel`, `test_spec_7_4_a_silent_pairing_peer_is_closed_without_an_attempt` |
 | 34 | `§6.1` keyed discovered nodes on `id` and said nothing about a record whose `id` is not an ID, a name past 63 bytes, a value that is not a slug, or a flood of invented records | A record whose `id` or `cl` is not shaped as an ID is not a `pv/1` record; `nm` is read to 63 bytes; `apps` keeps slugs and the marker alone, to a stated bound; the list of nodes seen is bounded | `protocol.md §6.1` | **Fixed**; hardening; `test_spec_6_1_a_record_off_the_wire_is_validated_and_bounded` |
 | 33 | `§6.4` limited answers per source only; a probe is twelve bytes from an unverified address and an answer a kilobyte, so a flood of spoofed private sources was an amplifier | Nodes SHOULD bound the answers sent in any second across every source and the sources remembered; a known source keeps its answer while strangers are refused | `protocol.md §6.4` | **Fixed**; hardening; `test_spec_6_4_a_probe_storm_is_bounded_by_a_global_budget_and_a_source_cap` |

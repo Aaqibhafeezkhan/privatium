@@ -1,6 +1,6 @@
 // Project:  Privatium™  |  File: crates/privatium-core/assets/shell/client.js
 // Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-// Created:  2026-09-05  |  Modified: 2026-09-06
+// Created:  2026-09-05  |  Modified: 2026-10-04
 // Summary:  Bootstrap rendering, the pairing screen (§7.2), the refusal screen (§8.1),
 //           encrypted HTMX and fresh-document navigation (§8.3).
 //           See main README.md for full license information.
@@ -222,6 +222,9 @@ export function pairingScreen(options = {}) {
   form.addEventListener('submit', event => { event.preventDefault(); controller.submit(); });
   if (!label.value) label.value = suggestedLabel();
   doc.getElementById('pv-connecting')?.setAttribute('hidden', '');
+  // The bootstrap keeps its own text out of sight for a moment so a paired device sees
+  // no interstitial between pages; a device that has to pair needs the heading now.
+  for (const quiet of doc.querySelectorAll('.pv-quiet')) quiet.classList.remove('pv-quiet');
   section.hidden = false;
   say('This device is not paired yet.');
   return controller;
@@ -258,10 +261,25 @@ function installNavigation(node) {
   document.addEventListener('htmx:sendError', () => formFailure(uncertainty()));
 }
 
+/**
+ * Where a form goes, how, and in what encoding, read from the markup's attributes
+ * alone. The `action`, `method` and `enctype` properties are not read, because a
+ * control named `action` (or `method`, `enctype`) shadows the property of the same name
+ * in WebKit, and the property then yields the element instead of the attribute. A
+ * missing `action` means the document's own URL, as the HTML form submission
+ * algorithm has it. `base` is the URL a relative action resolves against.
+ */
+export function formRequest(form, button, base = document.baseURI) {
+  const action = button?.hasAttribute('formaction') ? button.getAttribute('formaction') : form.getAttribute('action');
+  const destination = localUrl(new URL(action ?? '', base).href);
+  const method = (button?.getAttribute('formmethod') || form.getAttribute('method') || 'get').toUpperCase();
+  const encoding = button?.getAttribute('formenctype') || form.getAttribute('enctype') || 'application/x-www-form-urlencoded';
+  return { destination, method, encoding };
+}
+
 async function submit(form, button, node) {
   if (!form) throw new Error('Cannot submit this action. Use a form with an accessible submit button.');
-  const destination = localUrl(button?.hasAttribute('formaction') ? button.formAction : form.action);
-  const method = (button?.getAttribute('formmethod') || form.method || 'get').toUpperCase();
+  const { destination, method, encoding } = formRequest(form, button);
   const values = new FormData(form, button);
   if (method === 'GET') {
     destination.search = new URLSearchParams([...values].map(([key, value]) => [key, typeof value === 'string' ? value : value.name]));
@@ -270,7 +288,6 @@ async function submit(form, button, node) {
   // Check storage before dispatch; a failed handoff must never replay a form (§8.3.1).
   try { sessionStorage.setItem('pv:storage-check', ''); sessionStorage.removeItem('pv:storage-check'); }
   catch { throw new Error('Form was not sent. Enable per-tab browser storage before submitting.'); }
-  const encoding = button?.getAttribute('formenctype') || form.enctype;
   const body = encoding === 'multipart/form-data' ? values : new URLSearchParams([...values].map(([key, value]) => [key, typeof value === 'string' ? value : value.name]));
   const connection = await channel();
   const response = await connection.fetch(destination.href, { method, body, navigation: true });
