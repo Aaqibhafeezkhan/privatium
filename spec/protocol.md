@@ -3,7 +3,7 @@ This file is part of Privatium
 spec/protocol.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-07
+Last Modified: 2026-10-04
 Summary: NORMATIVE. Wire formats, event log, discovery, pairing, session crypto, sync.
 Notes: See README file for documentation and full license information.
 
@@ -1029,10 +1029,17 @@ client delivery, such as a signed native client or an authenticated transport on
 visit, closes the bootstrap gap; using it only for initial pairing does not protect a
 later plain-HTTP visit.
 
-An implementation SHOULD show this sentence on its plain-HTTP pairing screen and
-bootstrap document: **“On every visit over plain HTTP, someone who can change network
-traffic can replace this client and read your data and stored device keys. Encryption
-protects against listening, but cannot verify the downloaded client.”**
+An implementation SHOULD show this sentence on its plain-HTTP pairing screen and on the
+page where paired devices are managed: **“On every visit over plain HTTP, someone who can
+change network traffic can replace this client and read your data and stored device keys.
+Encryption protects against listening, but cannot verify the downloaded client.”**
+
+A paired device loads a bootstrap document on every full-page navigation (§8.3.1) and
+replaces it with the page it asked for. The bootstrap MUST NOT present the disclosure, or
+any other text of its own, as an interstitial on each of those navigations; a pairing
+screen the bootstrap carries MAY show it, since that screen appears only when the device
+holds no pairing. Until the requested page arrives or the pairing screen is needed, the
+bootstrap SHOULD show nothing, so moving between pages looks like moving between pages.
 
 ### 7.8 No verification string
 

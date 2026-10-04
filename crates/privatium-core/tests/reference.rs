@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/reference.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-09-07
+// Last Modified: 2026-10-04
 // Summary: The three reference apps end to end through core::handle with no listener, exactly as their
 //          READMEs describe them: hello (write, amend, break the cache, and the README's own
 //          `echo >>` line run for real), animals (the seed, a round over htmx and over plain
@@ -2296,7 +2296,8 @@ async fn test_spec_cli_5_pv4xx_shell_pages() {
     let apps_page = page("/settings/apps");
     for expected in [
         "Load sample data",
-        "Load warnings",
+        "Privacy warning",
+        "Load warning",
         "ad-hoc read-only SQL",
         "not in the vendored Bootstrap Icons set",
         "Not loaded at startup",

@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/apps.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-02
-// Last Modified: 2026-09-05
+// Last Modified: 2026-10-04
 // Summary: The app loader against spec/app-contract.md §3, §3.1, §5.4, §8 and §9, spec/protocol.md §1.1
 //          and §12, and spec/data-dictionary.md §3.4 — refusal per app and loud, the index as
 //          events, the sandboxed cache, the store the node-level snapshot and restore reopen,
@@ -429,12 +429,14 @@ fn test_csp_default_blocks_inline_handlers() {
         ]
     );
     assert_eq!(report.warnings.len(), 5);
-    assert!(
-        report.warnings[3]
-            .to_string()
-            .contains("phones out to https://cdn.example"),
-        "{}",
-        report.warnings[3]
+    assert_eq!(
+        report.warnings[3].to_string(),
+        "wide: this app uses the following online services: https://cdn.example"
+    );
+    assert_eq!(report.warnings[3].label(), "Privacy warning");
+    assert_eq!(
+        report.warnings[3].detail(),
+        "this app uses the following online services: https://cdn.example"
     );
     assert_eq!(
         sys_app_row(&node, "wide").unwrap()["permissions"],

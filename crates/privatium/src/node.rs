@@ -2,7 +2,7 @@
 // crates/privatium/src/node.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: What every subcommand that touches a node shares: opening it from the two global flags of
 //          spec/cli.md §1, the app roots it loads (the owner's apps/ and, in a checkout, the
 //          repository's example apps as bundled), what a first run is, the load report printed
@@ -131,7 +131,10 @@ pub fn print_report(report: &LoadReport, verbose: bool) {
         eprintln!("privatium: not loaded — {failure}");
     }
     for warning in &report.warnings {
-        eprintln!("privatium: warning — {warning}");
+        eprintln!(
+            "privatium: {} — {warning}",
+            warning.label().to_ascii_lowercase()
+        );
     }
 }
 

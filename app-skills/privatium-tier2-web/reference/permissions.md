@@ -35,10 +35,12 @@ sql                   = false   # allow ad-hoc read-only SQL via pv.sql()
 cross_origin_isolated = false   # COOP/COEP for SharedArrayBuffer; solo mode only
 ```
 
-Every non-default permission is shown to the owner at install time in plain language.
-`remote` in particular means "this app phones out," which is the one thing this project
-exists to avoid; the installer says so. Each `remote` entry MUST be an origin —
-`http(s)://host[:port]` and nothing more — because it is written into a header verbatim.
+Every non-default permission is shown to the owner at install time in plain language,
+under the heading **Privacy warning**, on the apps settings page and when the node starts.
+`remote` in particular is worded as the online services the app uses, listing each origin:
+"this app uses the following online services: https://example.com". Each `remote` entry
+MUST be an origin — `http(s)://host[:port]` and nothing more — because it is written into
+a header verbatim.
 
 `cross_origin_isolated` is refused at load in host mode: the headers it needs are
 document-level on one origin and would break every other app on the node
@@ -57,7 +59,7 @@ From the crate: the plain-language line `spec/app-contract.md §5.4` requires at
 | `inline_script = true` | inline scripts run ('unsafe-inline'): any string injected into a page can execute |
 | `wasm = true` | WebAssembly may be compiled in the page ('wasm-unsafe-eval') |
 | `eval = true` | eval() and the Function constructor run ('unsafe-eval'): any injected string gets a JavaScript engine |
-| `remote = ["https://example.com"]` | this app phones out to https://example.com — the one thing this project exists to avoid |
+| `remote = ["https://example.com"]` | this app uses the following online services: https://example.com |
 | `sql = true` | ad-hoc read-only SQL over the app's tables (pv.sql) |
 | `cross_origin_isolated = true` | cross-origin isolation headers (COOP/COEP) — solo mode only |
 

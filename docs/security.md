@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/security.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-07
+Last Modified: 2026-10-04
 Summary: Threat model, protections, and honest statements of what is not protected.
 Notes: See README file for documentation and full license information.
 
@@ -222,11 +222,12 @@ resource needs a canonical integrity hash of the declared digest length in the
 authenticated HTML; malformed hashes are refused before the resource is loaded. Imported JavaScript
 modules, including framework modules, have no per-import integrity. Neither protection authenticates the next bootstrap.
 
-The plain-HTTP path still needs no domain, account or certificate setup. Its bootstrap
-discloses the risk for every visit, and the pairing screen and the node's code page use
-the same wording. A signed native client or an
-independently authenticated transport on every visit closes this gap; protecting only
-initial pairing does not protect later HTTP loads.
+The plain-HTTP path still needs no domain, account or certificate setup. The pairing
+screen a new device sees and the node's code page both disclose the risk, in the same
+words, and the risk applies to every visit. A paired device sees no notice between pages:
+the bootstrap it loads on each navigation shows nothing of its own until the requested
+page arrives. A signed native client or an independently authenticated transport on every
+visit closes this gap; protecting only initial pairing does not protect later HTTP loads.
 
 ## 5. Why there is no verification screen
 

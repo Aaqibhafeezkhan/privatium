@@ -77,7 +77,7 @@ Every non-default permission is shown to the owner at install:
 | `wasm` / `eval` | A WASM loader requires it |
 | `sql` | The app needs ad-hoc queries rather than named views |
 | `cross_origin_isolated` | Solo mode only; see `privatium-games` |
-| `remote` | **The app phones out.** This is the one thing the project exists to avoid. Expect the owner to refuse. |
+| `remote` | The app uses online services. The owner is shown a privacy warning listing each one, and may refuse. |
 
 Vendor libraries into `web/vendor/`. A CDN is a `remote` permission, an offline failure, and
 an IP leak.

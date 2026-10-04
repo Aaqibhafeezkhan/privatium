@@ -2,7 +2,7 @@
 // crates/privatium-core/src/http/shell.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-08
+// Last Modified: 2026-10-04
 // Summary: The framework's own pages — launcher, settings, errors — as server-rendered HTML with HTMX
 //          and inlined Bootstrap Icons (docs/architecture.md §2.5, docs/icons.md). No client
 //          framework, no bundler, no inline script or style: every page renders under the
@@ -554,18 +554,27 @@ fn apps_page(cx: &Context<'_>, body: &mut String) -> Result<()> {
         }
         body.push_str("</dl>\n");
 
-        let warnings: Vec<&Warning> = cx
-            .report
-            .warnings
-            .iter()
-            .filter(|w| w.slug() == row.slug)
-            .collect();
-        if !warnings.is_empty() {
+        // Permission widenings read as a privacy warning (`spec/app-contract.md §5.4`);
+        // warnings about the app's shape keep their own box, so the two are not confused.
+        for label in ["Privacy warning", "Load warning"] {
+            let warnings: Vec<&Warning> = cx
+                .report
+                .warnings
+                .iter()
+                .filter(|w| w.slug() == row.slug && w.label() == label)
+                .collect();
+            if warnings.is_empty() {
+                continue;
+            }
             body.push_str("<div class=\"pv-notice pv-notice-warn\">");
             body.push_str(&icon("exclamation-triangle"));
-            body.push_str("<div>Load warnings<ul>");
+            let _ = write!(
+                body,
+                "<div>{label}{}<ul>",
+                if warnings.len() == 1 { "" } else { "s" }
+            );
             for warning in warnings {
-                let _ = write!(body, "<li>{}</li>", escape(&warning.to_string()));
+                let _ = write!(body, "<li>{}</li>", escape(&warning.detail()));
             }
             body.push_str("</ul></div></div>\n");
         }

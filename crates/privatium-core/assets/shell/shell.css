@@ -1,6 +1,6 @@
 /* Project:  Privatium™  |  File: crates/privatium-core/assets/shell/shell.css
  * Authors:  Gabriel Mongefranco (@gabrielmongefranco)
- * Created:  2026-09-03  |  Modified: 2026-09-08
+ * Created:  2026-09-03  |  Modified: 2026-10-04
  * Summary:  The shell's only stylesheet — launcher, settings, error pages, and the frame a
  *           Tier 1 view renders inside. Served at /static/shell.css under the default CSP
  *           of spec/protocol.md §9.3, which is why nothing in the shell carries a style=
@@ -78,6 +78,19 @@ main, .pv-header, body > footer { overflow-wrap: anywhere; }
     transition-duration: .01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* The bootstrap's own heading and status stay invisible for the moment a paired device
+   needs to fetch its page through the channel and replace the document, so moving
+   between pages shows no interstitial (spec/protocol.md §7.7). The delay is a zero-length
+   animation, which the reduced-motion rule above leaves in place because it shortens
+   durations and not delays. The elements keep their place in the layout, and they return
+   to view and to the accessibility tree when the delay ends or the pairing screen lifts
+   the class. */
+.pv-quiet { animation: pv-quiet-reveal 0s 1.5s both; }
+@keyframes pv-quiet-reveal {
+  from { visibility: hidden; }
+  to { visibility: visible; }
 }
 
 .pv-skip {
