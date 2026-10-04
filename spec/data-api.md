@@ -3,7 +3,7 @@ This file is part of Privatium
 spec/data-api.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-07
+Last Modified: 2026-10-04
 Summary: NORMATIVE. The HTTP data API that custom-UI (Tier 2) apps build against.
 Notes: See README file for documentation and full license information.
 
@@ -361,8 +361,8 @@ this node has not materialized.
 
 ## 5. The `pv.js` helper
 
-Served at `/static/pv.js`. Under 12 KB, unminified and meant to be read — there is no
-minifier in the runtime path — with no dependencies, no framework, no build step.
+Served at `/static/pv.js`. One unminified file, meant to be read — there is no minifier
+in the runtime path — with no dependencies, no framework, no build step.
 **Optional** on loopback, in a native shell and on an origin `spec/protocol.md §8.2`
 exempts, where every endpoint is plain HTTP and `fetch` works fine. On a plain-HTTP LAN
 origin the API is reachable only through the channel (`§8.3`, `§8.4`) and a plain
@@ -385,10 +385,14 @@ for await (const ev of pv.events({ tbl: 'stroke' })) apply(ev);   // the log, in
 const stop = pv.subscribe(ev => { if (ev.tbl === 'stroke') redraw(ev); });
 pv.on('resync', reload);                       // re-read; the node rebuilt its cache
 
+pv.on('outbox', ({ waiting }) => say(waiting));   // the queue grew or drained (§6)
+pv.status('Saved.');                           // task wording in the page frame's status line
+
 pv.ulid();        // client-side ULID
 pv.node();        // cached /api/node
 pv.url('/path');  // beneath the mount — the only way to build an internal URL
 pv.lam;           // the last high-water mark seen; what a reconnect resumes from
+pv.waiting;       // how many queued changes wait for the node
 ```
 
 `pv.query` and `pv.sql` return plain arrays of objects. `DECIMAL` columns arrive as
@@ -404,8 +408,14 @@ this design exists to prevent. Use a decimal library or integer cents in your ow
   by `EventSource`'s retry, so that `after=` carries the last `lam` seen; it also tracks
   `lam` from every query, so a subscription opened after a query resumes from what the
   query reflected.
-- `pv.on(event, fn)` for `online`, `offline`, `resync` (with the event's data) and
+- `pv.on(event, fn)` for `online`, `offline`, `outbox` (with `{ waiting }`, each time the
+  number of queued entries changes — §6), `resync` (with the event's data) and
   `rejected` (an outbox entry the node refused — §6); it returns an unsubscribe function.
+  The connection and outbox changes are also dispatched on the document as `pv:online`,
+  `pv:offline` and `pv:outbox` events (`spec/app-contract.md §5.2`), so a listener that
+  did not import the helper — the page frame's status line — follows them too.
+- `pv.status(text)` writes `text` into `<p id="pv-status" role="status">` when the page
+  has one (`spec/lua-api.md §4.1`); a page without it gets nothing.
 - `pv.append` returns the response of §2, or `{ queued: true, ids }` when it went to the
   outbox; a put with no `id` is minted one client-side before it is sent or queued, so a
   replay carries the same id. `pv.flush()` replays the outbox now and resolves when the
