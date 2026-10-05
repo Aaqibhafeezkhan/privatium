@@ -329,10 +329,10 @@ README and SKILL explain that the bar and footer are the framework's and how to 
 | 1 | `spec/app-contract.md §3` | Document `[ui]`: `menu`, `scripts`, `styles`, defaults, and the note that an older node refuses a manifest carrying the table | C1 | fixed 2026-10-04 |
 | 2 | `spec/lua-api.md §4.1` | Rewrite "The page around a view" for the three-zone bar, the menu order, and the footer status slot; add `menu(label, path[, icon])` to the helper table | C1 | fixed 2026-10-04 |
 | 3 | `spec/app-contract.md §5.2` | Add `pv.status(text)` and the `outbox` event; replace the size sentence with a description | C1 | fixed 2026-10-04 |
-| 4 | `spec/app-contract.md §3` | Add `chrome = "standard" \| "none"` | C2 | open |
-| 5 | `spec/app-contract.md §5` | Replace "no framework injected" with the owner's wording; state the three anchors, `id="main"`, and the no-second-way-back rule | C2 | open |
-| 6 | `spec/lua-api.md §4.1` | A `layout()` document receives the chrome unless the manifest declines it | C2 | open |
-| 7 | `spec/cli.md §5` | Rows for `PV109`, `PV110`, `PV408` | C2 | open |
+| 4 | `spec/app-contract.md §3` | Add `chrome = "standard" \| "none"` | C2 | fixed 2026-10-04 |
+| 5 | `spec/app-contract.md §5` | Replace "no framework injected" with the owner's wording; state the three anchors, `id="main"`, and the no-second-way-back rule | C2 | fixed 2026-10-04 |
+| 6 | `spec/lua-api.md §4.1` | A `layout()` document receives the chrome unless the manifest declines it | C2 | fixed 2026-10-04 |
+| 7 | `spec/cli.md §5` | Rows for `PV109`, `PV110`, `PV408` | C2 | fixed 2026-10-04 |
 | 8 | `spec/app-contract.md §3` | Add `navigation = "page" \| "swap"`, Tier 1 framed views only | C3 | open |
 | 9 | `spec/protocol.md §8.3.1` | One paragraph: an in-document swap that stays beneath the mount and off the framework prefixes is a fragment request; crossing either needs the fresh document; the scope rule and the boosted redirect follow | C3 | open |
 | 10 | `spec/lua-api.md §4.1` | Under `navigation = "swap"` views carry no script or stylesheet elements; `ui.scripts` and `ui.styles` load in the head; focus moves to the new heading | C3 | open |
@@ -471,27 +471,47 @@ and its mark links out.
 
 **Named tests.**
 
-- `tests/apps.rs::test_spec_5_standard_chrome_is_inserted_at_the_three_anchors_of_a_web_document`
-- `tests/apps.rs::test_spec_5_chrome_none_serves_the_document_byte_for_byte`
-- `tests/apps.rs::test_spec_5_a_document_without_an_anchor_is_served_untouched_with_a_load_warning`
-- `tests/apps.rs::test_spec_4_1_a_layout_owned_lua_document_receives_the_chrome`
-- `tests/apps.rs::test_spec_5_inserted_chrome_keeps_the_apps_own_policy_headers`
-- `tests/lint.rs::test_spec_5_pv109_requires_the_anchors_and_the_main_id_under_standard_chrome`
-- `tests/lint.rs::test_spec_5_pv110_reports_a_ui_reference_that_does_not_resolve`
-- `tests/lint.rs::test_spec_5_pv408_reports_a_second_way_back_under_standard_chrome`
+- `tests/wire.rs::test_spec_5_standard_chrome_is_inserted_at_the_three_anchors_of_a_web_document`
+- `tests/wire.rs::test_spec_5_chrome_none_serves_the_document_byte_for_byte`
+- `tests/wire.rs::test_spec_5_a_document_without_an_anchor_is_served_untouched_with_a_load_warning`
+- `tests/wire.rs::test_spec_4_1_a_layout_owned_lua_document_receives_the_chrome`
+- `tests/wire.rs::test_spec_5_inserted_chrome_keeps_the_apps_own_policy_headers`
+- `tests/wire.rs::test_spec_5_chrome_anchors_match_tags_case_insensitively_and_name_the_missing_one`
+- `tests/lint.rs::test_lint_rule_pv109_passes` and `_fails`, `test_lint_rule_pv110_passes`
+  and `_fails`, `test_lint_rule_pv408_passes` and `_fails`, through the corpus table every
+  rule is held by.
 - `tests/reference.rs`: pantry and sketch lint clean; pantry's served document carries the
   chrome; sketch's does not.
 - `tests/js/sketch.test.mjs::test_spec_5_the_mark_links_to_apps_in_host_mode_and_settings_in_solo_mode`
 
+The serving tests live in `tests/wire.rs` beside the request helpers, as C1's did, and
+the lint tests take the names the corpus macro gives every rule. (Amended 2026-10-04.)
+
+Three decisions were made while implementing, and the spec says each:
+
+- `PV110` has one severity, error, like every rule. `scripts` or `styles` on a Tier 2
+  app is therefore an error, not the warning §2.4 and §2.7 first said: nothing would ever
+  load the file, so the entry is a mistake to fix, not advice.
+- The missing-anchor load warning is for Tier 2 documents, checked over every `.html`
+  under `web/` at load. A `layout()` document is rendered at request time, so the lint
+  (`PV109`) is what names its missing anchor; the serve path serves it untouched.
+- Sketch's two exits share one module, `web/exit.js`, so the mark and the menu entry
+  cannot disagree and a test can hold the rule without a document. That is the one
+  change beyond §2.8's list. (Amended 2026-10-04.)
+
 **Checklist.**
 
-- [ ] Named tests green; all gates green.
+- [x] Named tests green; all gates green.
 - [ ] Pantry in the browser: bar and footer present, skip link lands in its main region,
       its status messages appear in the footer slot, one `<h1>`, no second way back.
+      The rendered document is held by the tests; the landing and the announcement need
+      a person, recorded as pending in `docs/compliance.md`.
 - [ ] Sketch in the browser: no bar, no footer, the mark is a link with a visible focus
       ring and a 44-pixel target, and every drawing interaction behaves as before.
+      Pending likewise.
 - [ ] The pantry page at 320 pixels and 200% zoom reflows without horizontal scroll.
-- [ ] `docs/compliance.md` updated with the manual checks and the date.
+      Pending likewise.
+- [x] `docs/compliance.md` updated with the manual checks and the date.
 
 ### C3 — Swap navigation for framed Tier 1 apps
 

@@ -6,8 +6,9 @@ description: Write Tier 2 Privatium apps with your own HTML, CSS, JavaScript, or
 # Privatium Tier 2 — Custom Web UI
 
 You write the front end; the framework serves it and handles storage, sync, auth, and
-encryption. `web/index.html` is served at the app's mount point. You supply the whole UI.
-On the LAN, the bootstrap loads it through the encrypted channel and pins external
+encryption. `web/index.html` is served at the app's mount point. You supply the page;
+the framework puts the bar and footer every app shares around it, unless you turn them
+off. On the LAN, the bootstrap loads it through the encrypted channel and pins external
 scripts and stylesheets with integrity hashes (`spec/protocol.md §8.3`).
 
 ```
@@ -55,11 +56,39 @@ every origin. It is one unminified file, meant to be read — open it. A view ma
 not read is refused, and elsewhere the placeholder is NULL. `sys.v_app_nav` and the other
 `sys.v_*` views are readable through `pv.sql`.
 
-`pv.status(text)` writes into `<p id="pv-status" role="status">`, the footer status line
-of the framework's page frame, where the framework also says when the node is offline,
-back, or still sending queued changes. A document you write yourself has that element
-only if you draw it; do, if your page queues writes, and keep task wording short and
-free of technical detail — the slot is a live region a screen reader reads out.
+## The bar and footer
+
+Your HTML document is served with the standard chrome inserted at three anchors
+(`spec/app-contract.md §5`): before `</head>`, the chrome's stylesheet and script, same
+origin, hashed; after your opening `<body>` tag, the skip link and the bar — the
+Privatium mark linking to the launcher, your `app.title` and `app.icon` in the centre
+linking to your first page, an Apps link and the one Menu; before your `</body>`, the
+footer with the status slot. Nothing else in your document changes, and every other file
+under `web/` is served as it is.
+
+What that asks of your document:
+
+- The three anchors — `</head>`, `<body>`, `</body>` — and `<main id="main">`, where the
+  skip link lands (`PV109`). A document missing an anchor is served bare, and the owner
+  sees a load warning naming the file and the tag.
+- One `<h1>`, yours, inside `main`. The title in the bar is a paragraph.
+- No link of your own to the launcher or settings (`PV408`): the bar is the way back.
+- Task wording through `pv.status('Saved.')`, which writes `<p id="pv-status"
+  role="status">` in the footer — short, plain, on a change of state, never a stream of
+  progress. The framework writes the connection wording there itself (offline, back,
+  N changes waiting, all sent); do not repeat it.
+- Menu items the app always has go in `[[ui.menu]]` in `app.toml` (`label`,
+  mount-relative `path`, optional `icon`). A script-driven action — download, print —
+  is a `<li>` with a link or a labelled button that your script appends to
+  `<ul id="pv-app-menu">`; the separator before the framework's pages shows by itself.
+- Your stylesheet still governs your page. The chrome's rules are scoped to its own
+  classes and define only `--pv-*` tokens on `:root`.
+
+To own the whole window, set `[ui] chrome = "none"` in `app.toml`. The document is then
+served byte for byte and the bar, the footer, the status slot and the Apps link are all
+yours to draw — a way back included. `apps/sketch` declines, because a drawing surface
+fills the window, and links the Privatium mark in its own rail to the launcher instead;
+`apps/pantry` takes the chrome and shows what to remove.
 
 Full-page transitions create fresh documents with the destination app's declared CSP
 and fresh module initialization. A full-page form's response can wait in node memory
@@ -87,9 +116,12 @@ while disconnected. Re-read state after reconnect and on `resync`.
   `pv.on('resync')` by re-reading — a `del` arrives as an event like a `put`
 - Vendor libraries into `web/vendor/`; never load from a CDN
 - Send the API JSON if you `fetch` it yourself — a POST is read only as `application/json`
-- Write the whole document: `<html lang>`, a `<title>`, one `<h1>`, a `<main>`, a labelled
-  `<nav>`, a zoomable viewport (never `user-scalable=no`), your own
-  `prefers-reduced-motion` guard. The channel supplies transport, not your UI.
+- Write a complete document: `<html lang>`, a `<title>`, `<head>` and `<body>` with
+  their closing tags, one `<h1>`, `<main id="main">`, a zoomable viewport (never
+  `user-scalable=no`), your own `prefers-reduced-motion` guard. The chrome supplies the
+  bar, the footer and the status line; the channel supplies transport; the rest is your UI.
+  Under `chrome = "none"` the labelled `<nav>`, the way back and the status region are
+  yours too.
 - Size a `<canvas>` in CSS and match its backing store to
   `clientWidth × devicePixelRatio` in a resize handler, with `ctx.setTransform(r, 0, 0,
   r, 0, 0)` — sizing from `innerWidth` draws past the viewport on every HiDPI display,
@@ -176,7 +208,8 @@ Full matrix with reasoning: `docs/frameworks.md`.
 ```bash
 privatium new <slug> --tier web   # app.toml, web/index.html, web/app.js importing pv.js
 privatium dev --app <slug>        # static files are served fresh; no restart, no build
-privatium lint apps/<slug>        # index.html is held to PV401–PV407 as a whole document
+privatium lint apps/<slug>        # index.html is held to PV401–PV408 as a whole document,
+                                  # and to PV109 unless app.toml says chrome = "none"
 ```
 
 Spec: `spec/data-api.md`; `reference/pv-js.md` here lists what `pv.js` exports at this

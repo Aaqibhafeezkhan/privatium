@@ -156,6 +156,89 @@ pv.get('/', function()
 end)
 ```
 
+## `PV109` — A document under the standard chrome has </head>, <body>, </body> and a main region with id="main"
+
+error · `spec/app-contract.md §5`
+
+**Wrong** (`apps/_lint/fail/PV109/pv109bad/web/index.html`):
+
+```html
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lint</title>
+<body>
+<main>
+  <h1>Lint</h1>
+  <p id="out" role="status"></p>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
+```
+
+**Right** (`apps/_lint/pass/PV109/pv109ok/web/index.html`):
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lint</title>
+</head>
+<body>
+<main id="main">
+  <h1>Lint</h1>
+  <p id="out" role="status"></p>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
+```
+
+## `PV110` — Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path
+
+error · `spec/app-contract.md §3`
+
+**Wrong** (`apps/_lint/fail/PV110/pv110bad/app.toml`):
+
+```toml
+[app]
+slug    = "pv110bad"
+title   = "Lint PV110"
+version = "1.0.0"
+api     = 1
+tier    = "lua"
+
+[ui]
+scripts = ["static/missing.js"]
+
+[[ui.menu]]
+label = "Setup"
+path  = "setup"
+```
+
+**Right** (`apps/_lint/pass/PV110/pv110ok/app.toml`):
+
+```toml
+[app]
+slug    = "pv110ok"
+title   = "Lint PV110"
+version = "1.0.0"
+api     = 1
+tier    = "lua"
+
+[ui]
+scripts = ["static/app.js"]
+styles  = ["static/app.css"]
+
+[[ui.menu]]
+label = "Setup"
+path  = "/setup"
+```
+
 ## `PV205` — Declared [permissions] beyond the defaults carry a justifying comment
 
 warn · `spec/app-contract.md §5.4`
@@ -401,6 +484,51 @@ body { color: var(--fg); background: var(--bg); }
 :focus-visible { outline: 3px solid var(--accent); }
 ```
 
+## `PV408` — No second way back — under the standard chrome the app draws no link of its own to the launcher or the settings pages
+
+warn · `spec/app-contract.md §5`
+
+**Wrong** (`apps/_lint/fail/PV408/pv408bad/web/index.html`):
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lint</title>
+</head>
+<body>
+<main id="main">
+  <h1>Lint</h1>
+  <p id="out" role="status"></p>
+  <p><a href="/">Apps</a> <a href="/settings">Settings</a> <a id="exit">Back</a></p>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
+```
+
+**Right** (`apps/_lint/pass/PV408/pv408ok/web/index.html`):
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lint</title>
+</head>
+<body>
+<main id="main">
+  <h1>Lint</h1>
+  <p id="out" role="status"></p>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
+```
+
 ## `PV501` — Slug ≤ 15 characters when nav.advertise = true (DNS-SD label limit)
 
 error · `spec/protocol.md §6.1`
@@ -471,15 +599,19 @@ error · `spec/app-contract.md §5.1`
 ```html
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lint</title>
-<main>
+</head>
+<body>
+<main id="main">
   <h1>Lint</h1>
   <p id="out" role="status"></p>
 </main>
 <script src="https://cdn.example.com/lib.min.js"></script>
 <script type="module" src="app.js"></script>
+</body>
 </html>
 ```
 
@@ -488,14 +620,18 @@ error · `spec/app-contract.md §5.1`
 ```html
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lint</title>
-<main>
+</head>
+<body>
+<main id="main">
   <h1>Lint</h1>
   <p id="out" role="status"></p>
 </main>
 <script type="module" src="app.js"></script>
+</body>
 </html>
 ```
 

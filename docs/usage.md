@@ -29,6 +29,10 @@ This page says what each part does, so you can move between apps, find an app's 
 actions, and read the status line when your phone loses the network. It is written for
 anyone using a node, with no programming needed.
 
+An app that needs the whole window, such as the Sketch drawing app, can turn the bar and
+footer off. Such an app draws its own way back; in Sketch it is the Privatium mark at the
+top of the tool rail, and the Apps entry in its menu.
+
 ### The bar at the top
 
 The bar has three parts, left to right.

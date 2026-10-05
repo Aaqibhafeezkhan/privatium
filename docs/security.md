@@ -291,6 +291,13 @@ Therefore:
   `/api/v1/pair` or submit the devices page's forms, as the owner could. That is one more
   reason to treat an app folder as code you chose to run, not a boundary the framework
   draws for you.
+- The bar and footer the node inserts into a Tier 2 document (`spec/app-contract.md §5`)
+  change nothing about that document's policy. The two pieces it adds to the head are the
+  chrome's own stylesheet and script, served from the node's `/static/` with their
+  integrity hashes, so the app's `default-src 'self'` admits them as it stands and no
+  permission widens. Nothing inline is added and nothing from another origin. The
+  inserted markup is the node's, rendered from the app's manifest with every value
+  escaped, and the document between the anchors is served as the app wrote it.
 
 ## 8. Revocation
 

@@ -106,6 +106,7 @@ Copy `data/` and you have copied everything.
 
 | What you see | What it teaches |
 |---|---|
+| **The bar and the footer** | Not the app's: the framework inserts them around the page (`spec/app-contract.md §5`). The page writes the three anchors and `<main id="main">` for them (`PV109`), draws no way back of its own (`PV408`), and says what happened through `pv.status`, in the footer's status line. Set `[ui] chrome = "none"` in `app.toml` to own the whole window instead, as `sketch` does. |
 | **Shelf map** | One `<h1>` and headings in order (`PV404`), and a labelled control for each shelf (`PV401`). Which shelf is open is `localStorage`, never an event. |
 | **Add batch form** | A `<label for>` on every field (`PV402`) and the icon choice inside `fieldset`/`legend` (`PV403`). Errors are rendered in place, the client checks first and the node checks again from the DDL, and the batch row and its first change go in **one** `pv.append` — which is what `PV306` is about. |
 | **Batch list** | A real `<table>` with `<th scope="col">` (`PV407`). The columns are **stored on**, days in and use by; the balance beside them is a view's `decimal_sum`, not a column, and it is set large because it is what you came to read. Narrow screens drop the columns that say least rather than scrolling sideways. |
@@ -124,6 +125,8 @@ Copy `data/` and you have copied everything.
 - **Notifications.** "Expiring soon" is a list you open. There is no background job in
   Tier 2 and no scheduler in `pv/1`; a reminder is a Tier 3 capability.
 - **A dedupe table, a transaction id, an acknowledgement.** ULIDs make a replay idempotent.
+- **A way back, or a status line of its own.** The bar links to the launcher and the
+  footer carries the status slot; the app writes into it and draws neither.
 - **A graphics library, a build step, a vendored dependency.** Four ES modules and a
   stylesheet.
 
@@ -133,7 +136,7 @@ Copy `data/` and you have copied everything.
 |---|---|
 | `app.toml` | The manifest, with every permission at its default and said out loud |
 | `schema.sql` | Three tables, two indexes, seven views, each view with the grain it returns |
-| `web/index.html` | The page: the work, the rail, every form field labelled, the icon sprite |
+| `web/index.html` | The page: the work, the rail, every form field labelled, the icon sprite — served with the framework's bar and footer around it |
 | `web/app.js` | Boot, the queries, and what each control does |
 | `web/views.js` | Everything drawn, with `createElement` and `textContent` |
 | `web/forms.js` | Reading the forms, and saying what is wrong with them in place |

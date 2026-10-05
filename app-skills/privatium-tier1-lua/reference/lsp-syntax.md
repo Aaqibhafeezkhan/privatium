@@ -132,10 +132,17 @@ pages and cannot know whose menu it would be adding to. The items last for one r
 
 `layout('base')` replaces the frame with `views/base.lsp`, which runs after the view
 with the same ctx plus `content`, the rendered view, and then owns the whole document —
-`<?= content ?>` places it, and the framework adds nothing. `layout` is for the view
-`pv.render` named; a partial calling it is an error. A request htmx makes (`HX-Request`
-present, `HX-Boosted` absent) gets the view's output alone, since htmx swaps it into an
-element: that is how `pv.render('_board', ctx)` answers `req.is_htmx`.
+`<?= content ?>` places it. The document receives the standard chrome at its three
+anchors, exactly as a Tier 2 document does (`spec/app-contract.md §5`): the chrome's
+stylesheet and script before `</head>`, the skip link and the header after the opening
+`<body>`, the footer before `</body>`, with nothing else changed — unless the manifest
+sets `[ui] chrome = "none"`, in which case the framework adds nothing. A layout's
+document therefore writes the three anchors and a `<main id="main">`, draws no second way
+back, and supplies the CSRF token itself as said above, since the frame's `hx-headers`
+is not inserted. `layout` is for the view `pv.render` named; a partial calling it is an
+error. A request htmx makes (`HX-Request` present, `HX-Boosted` absent) gets the view's
+output alone, since htmx swaps it into an element, and never the chrome: that is how
+`pv.render('_board', ctx)` answers `req.is_htmx`.
 
 **Names in a template.** The ctx table's keys are bare names; a name absent from the ctx
 is the sandbox global of that name — `ipairs`, `os.date`, `icon` — or `nil` when there is

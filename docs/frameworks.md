@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/frameworks.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-26
+Last Modified: 2026-10-04
 Summary: Which frameworks, libraries and engines work inside Privatium, which do not, and why.
          Selection criteria are explicit and testable.
 Notes: See README file for documentation and full license information.
@@ -81,8 +81,10 @@ license, unsandboxed Lua — see `spec/lua-api.md §1.1`).
 
 ## 4. Tier 2 — your own `web/`
 
-The framework serves your directory and injects nothing. Anything that produces static
-files works. The table is about *fit*, not permission.
+The framework serves your directory as you wrote it, adding only the shared bar and
+footer around an HTML page unless your manifest turns them off (`spec/app-contract.md
+§5`). Anything that produces static files works. The table is about *fit*, not
+permission.
 
 ### 4.1 Good fits
 

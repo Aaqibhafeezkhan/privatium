@@ -16,6 +16,8 @@ The rule table of `privatium lint` as the crate holds it — `spec/cli.md §5.1`
 | `PV106` | error | Every table in schema.sql has id VARCHAR PRIMARY KEY | schema.sql, through the engine's catalog | `spec/app-contract.md §4.5` |
 | `PV107` | error | schema.sql contains only CREATE TABLE, CREATE VIEW, CREATE INDEX and comments | schema.sql, one statement at a time under the engine's authorizer | `spec/app-contract.md §4.5` |
 | `PV108` | error | No UNIQUE constraint or index beyond id's primary key | schema.sql, through the engine's catalog | `spec/app-contract.md §4.5` |
+| `PV109` | error | A document under the standard chrome has </head>, <body>, </body> and a main region with id="main" | web/**/*.html, the views a layout() owns | `spec/app-contract.md §5` |
+| `PV110` | error | Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path | app.toml, static/ | `spec/app-contract.md §3` |
 
 ## Security
 
@@ -54,6 +56,7 @@ The rule table of `privatium lint` as the crate holds it — `spec/cli.md §5.1`
 | `PV405` | warn | No status conveyed by colour alone | 1.4.1 Use of Color | templates, web/ HTML | `spec/cli.md §5.1` |
 | `PV406` | warn | Declared colour tokens meet 4.5:1 body / 3:1 large and UI | 1.4.3 Contrast (Minimum), 1.4.11 Non-text Contrast | static/*.css, web/**/*.css | `spec/cli.md §5.1` |
 | `PV407` | warn | Tabular data uses <table> with <th scope>, not a grid of divs | 1.3.1 Info and Relationships | templates, web/ HTML | `spec/cli.md §5.1` |
+| `PV408` | warn | No second way back — under the standard chrome the app draws no link of its own to the launcher or the settings pages | 3.2.3 Consistent Navigation | templates, web/ HTML and JavaScript | `spec/app-contract.md §5` |
 
 ## Portability
 

@@ -144,6 +144,7 @@ order     = 10
 advertise = true               # advertise a DNS-SD subtype
 
 [ui]
+chrome  = "standard"           # "standard" (default) | "none"; §5
 scripts = ["static/app.js"]    # loaded in the page frame's head on every page, deferred
 styles  = ["static/app.css"]   # loaded in the page frame's head on every page
 
@@ -163,8 +164,13 @@ order, before the framework's own pages; a view adds page-specific items with th
 spelled `static/<name>.js` and `static/<name>.css`; the frame loads them in its head on
 every page it renders for the app, in the order written, the scripts deferred and each
 with the hash of the file as served, so a view carries no `<script>` or `<link>` of its
-own for what the whole app needs. They apply to a Tier 1 view rendered inside the frame.
-Every default is the frame as it renders for an app that declares nothing.
+own for what the whole app needs. They apply to a Tier 1 view rendered inside the frame;
+an app that owns its document loads its own assets, and the linter refuses `scripts` and
+`styles` on a Tier 2 app, where nothing would ever load them (`spec/cli.md §5.1`,
+`PV110`). `chrome` says whether a document the app owns — every HTML document a Tier 2
+app serves, and a Tier 1 view that calls `layout()` — receives the standard chrome, the
+bar and footer of `§5`; `"standard"` is the default and `"none"` serves the document as
+written. Every default is the frame as it renders for an app that declares nothing.
 
 The manifest parser refuses a key it does not know, so a node built before this table
 existed refuses a manifest that carries `[ui]`. An app that adopts the table depends on a
@@ -360,8 +366,36 @@ apps/<slug>/
 ```
 
 `web/index.html` is served at the app's mount point. Everything under `web/` is served
-as-is. There is no build step imposed and no framework injected — if you want a build step,
-run it yourself and commit the output.
+as it is, except that an HTML document receives the standard chrome, described next.
+There is no build step imposed — if you want a build step, run it yourself and commit the
+output.
+
+**The standard chrome.** The framework never forces anything into an app's page: the top
+bar and footer every app shares (`spec/lua-api.md §4.1`) are on by default and are turned
+off in the app's manifest with `[ui] chrome = "none"` (`§3`). Under the default, the node
+buffers each `text/html` document it serves from `web/` — the entry document, and any
+other HTML page under the folder — and inserts three pieces at three anchors: before
+`</head>`, the chrome's stylesheet and script at their content-addressed paths with their
+integrity hashes; after the first `<body …>` tag, the skip link and the header, with the
+app's title and its `[[ui.menu]]` items, in host or solo form; before the last `</body>`,
+the footer with the status slot. The anchors are matched by tag, case-insensitively, and
+nothing else in the document changes: the `<body>` tag keeps its attributes, the app's
+own `<link>` and `<script>` elements stay where they are, and the document's `<title>`
+is its own. A Tier 1 view that owns its document with `layout()` receives the same three
+pieces the same way (`spec/lua-api.md §4.1`). Every other file under `web/` streams as it
+is, and a `Range` or `HEAD` request for a document is answered from the file.
+
+A document that takes the chrome MUST have the three anchors and a main region with
+`id="main"`, which the skip link targets, and MUST NOT draw its own link to the launcher
+or to the framework's settings pages, since the bar carries both and a second way back
+is one more control to learn (`spec/cli.md §5.1`, `PV109`, `PV408`). It writes its task
+wording into the footer's slot through `pv.status()` (`§5.2`) rather than drawing a
+status line of its own. When a document lacks an anchor, the node serves it untouched
+and records a load warning at load that names the file and the missing tag, so the
+owner reads why the bar is missing (`§3.1`). The chrome's assets are same-origin, so the
+app's own policy admits them and no permission widens (`§5.4`). `apps/pantry` takes the
+chrome; `apps/sketch` declines it, because a drawing surface wants the whole window, and
+its own mark is its way back.
 
 ### 5.1 What you can use
 
