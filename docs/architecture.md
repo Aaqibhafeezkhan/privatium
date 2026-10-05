@@ -131,7 +131,8 @@ the space's name with the way to connect a device.
 A document the app owns gets the same bar and footer by insertion rather than by
 rendering around it. That is every HTML document a Tier 2 app serves from `web/`, and a
 Tier 1 view that calls `layout()`. The node buffers the document — the entry page, not
-an asset; everything else under `web/` streams — finds three anchors by tag, and puts
+an asset; everything else under `web/` streams — finds three anchors by tag, skipping
+any written inside an HTML comment, and puts
 three pieces at them: the chrome's stylesheet and script before `</head>`, the skip link
 and the header after the opening `<body>` tag, the footer before the last `</body>`.
 The header is the one the frame would draw for that app, with its title and its
@@ -156,6 +157,31 @@ on the document, and imports nothing, so an app's own copy of `pv.js` and the fr
 never disagree. An app writes its own task wording into the same line with
 `pv.status()`. The contract is `spec/lua-api.md §4.1` and `spec/app-contract.md §3` and
 `§5.2`.
+
+#### Moving between pages
+
+By default every link and form in a Tier 1 app loads a fresh page, bar and all. An app
+that sets `[ui] navigation = "swap"` asks for something smoother: the frame's main region
+carries `hx-boost`, so a link or form inside it fetches the next page with htmx, and the
+frame swaps only that page's `<main>` into the current one. The bar and footer never
+move, the screen does not flash, the window title and address bar follow the page, the
+menu's app items arrive with it, and focus lands on the new page's heading. The node
+renders exactly what it would for a fresh load; a boosted request is a page request, and
+`req.is_htmx` is false for it. The back button reloads the page you return to, because
+htmx's history cache is off and no page is copied into browser storage.
+
+The line a swap may not cross is the app's mount. A document carries one app's security
+policy and one set of loaded scripts, and swapping HTML into it cannot change either, so a
+page from another app, from the launcher, or from the framework's own `/settings`,
+`/api`, `/skills`, `/static` or `/ws` always gets a fresh document under its own policy.
+One function, `inScope` in `chrome.js`, draws that line. The frame applies it on loopback
+and plain HTTPS; on the encrypted channel `client.js` imports the same function and
+applies it before it bridges a request, sending an in-scope request over the channel like
+any htmx fragment and following its redirect as a boosted request. Scripts are the other
+constraint: htmx never runs a script that arrives in swapped content, so an app with swap
+navigation lists its scripts and stylesheets under `[ui]`, the frame's head loads them
+once, and the lint refuses one in a view (`PV111`). The contract is `spec/lua-api.md §4.1`
+and `spec/protocol.md §8.3.1`; `apps/animals` is the worked example.
 
 Icons are Bootstrap Icons, vendored as raw SVGs and inlined at render (`docs/icons.md`).
 No icon font, no CDN, no runtime sprite fetch — which also means no additions to the
@@ -221,7 +247,8 @@ A full-page transition opens a fresh bootstrap document with the destination app
 permissions. An already-produced form response can wait briefly as a bounded stream
 in node memory while that document reconnects. Only a response reference crosses in
 per-tab storage; consuming it does not repeat the write (`spec/protocol.md §8.3.1`).
-HTMX fragments and the data API stay on the current channel.
+HTMX fragments, in-document page swaps beneath the app's mount, and the data API stay on
+the current channel.
 
 ## 3. Component map
 

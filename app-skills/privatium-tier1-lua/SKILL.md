@@ -78,16 +78,71 @@ Helpers in every template: `render`, `layout`, `menu`, `icon`, `url`, `fmt.date`
 - The one `<h1>` is per *rendered page*, not per file (`PV404`): a page and its partials
   together carry exactly one, so it may live in the partial htmx swaps — `_board.lsp` has
   it, `play.lsp` does not. Every state of the view supplies one, the empty state included.
-- A request htmx makes gets the view's output alone, so `pv.render('_board', ctx)` from a
-  `req.is_htmx` branch is a fragment swap; `render('_board', ctx)` includes it in a page.
+- A request htmx makes for a fragment gets the view's output alone, so
+  `pv.render('_board', ctx)` from a `req.is_htmx` branch is a fragment swap;
+  `render('_board', ctx)` includes it in a page. Use a fragment when one part of a page
+  changes and the rest stays, as the animals board does. `req.is_htmx` is false for a
+  boosted request, which is htmx navigating to a whole page.
 - `static/` is served at `url('/static/...')` beneath the mount; put CSS and vendored JS
   there, and name the ones every page needs in `[ui]` rather than linking them from a
   view. The frame's own stylesheets come first, so yours win.
-- Anything a script hides must be reachable with scripts off. Link a sheet from
-  `<noscript>` — `<noscript><link rel="stylesheet" href="<?= url('/static/nojs.css') ?>"></noscript>`
-  — that reverts `x-cloak` and hides `.pv-js-only`, the buttons whose only job is
-  toggling client state; `apps/animals` is the worked example. An external sheet, not an
-  inline `<style>`: the default CSP has no `style-src`.
+- Anything a script hides must be reachable with scripts off. Put the rules in your
+  stylesheet under `@media (scripting: none) { … }`: revert `x-cloak` and hide
+  `.pv-js-only`, the buttons whose only job is toggling client state; `apps/animals` is
+  the worked example. Not an inline `<style>`, which the default CSP has no `style-src`
+  for, and not a `<noscript>` stylesheet link, which a swapped page delivers live.
+
+## Moving between pages
+
+`[ui] navigation = "swap"` in `app.toml` makes your app's pages change inside one
+document: a link or form in the page fetches the next page, and the frame swaps only its
+`<main>` in, so the bar never moves and nothing flashes. Turn it on when people move
+between your pages often, on a phone, and the flash between them is noticeable. Leave the
+default, `"page"`, when your pages rarely change or a view owns its document with
+`layout()`.
+
+What the frame does, so your app need not: it boosts the main region, keeps the request
+inside your mount and off `/settings`, `/api`, `/skills`, `/static` and `/ws` — anything
+else is a fresh page, as before — follows a form's redirect inside the document, takes the
+new page's window title, refreshes the menu's app items, disables a form's submit button
+while it is out, scrolls to the top, and focuses the page's `autofocus` field or else its
+`<h1>`. The back button reloads the page you return to. Your routes do not change: a
+boosted request is answered with the whole page, and `req.is_htmx` is false for it.
+
+What changes for you: a swapped page runs no `<script>` and loads no `<link
+rel="stylesheet">` of its own. Name every script and stylesheet in `[ui] scripts` and
+`[ui] styles`, which the frame's head loads once, and write scripts that never assume a
+fresh page. The linter refuses a `<script>` or stylesheet link in a view of a swap app
+(`PV111`). A link to a page whose view calls `layout()` carries `hx-boost="false"`, so it
+opens as its own document.
+
+```toml
+[ui]
+navigation = "swap"
+styles     = ["static/app.css"]
+scripts    = ["static/app.js"]
+```
+
+```js
+// static/app.js — loaded once; pages come and go beneath it.
+// Delegate from the document: it works for every page that is ever swapped in.
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-copy]');
+  if (button) navigator.clipboard.writeText(button.dataset.copy);
+});
+
+// Or set up what needs an element on each new page, once per element.
+document.addEventListener('htmx:load', event => {
+  for (const chart of event.detail.elt.querySelectorAll('[data-chart]:not([data-ready])')) {
+    chart.dataset.ready = '';
+    drawChart(chart);
+  }
+});
+```
+
+`htmx:load` fires for the first page and for every swapped one, so the guard attribute
+is what stops an element from being set up twice. A script that does its work at the top
+level, once, works on the first page and silently never again.
 - Save a file, refresh: `views/*.lsp`, `app.lua`, `lib/`, `schema.sql` and `app.toml` are
   reloaded on the next request, no restart. A save that does not load is the error page,
   with the line, until the next save loads.
@@ -124,6 +179,8 @@ Guard callbacks against append loops as you do for local events.
 
 ## MUST NOT
 
+- Put a `<script>` or a `<link rel="stylesheet">` in a view of an app with
+  `navigation = "swap"` — list it in `[ui]` (`PV111`)
 - Concatenate values into SQL
 - Call `io`, `os.execute`, `os.getenv`, `os.setlocale`, `debug`, `load`, `dofile` — all removed
 - Write `INSERT`/`UPDATE`/`DELETE` — reads are SQL, writes are `pv.append`/`pv.delete`

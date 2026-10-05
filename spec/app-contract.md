@@ -144,9 +144,10 @@ order     = 10
 advertise = true               # advertise a DNS-SD subtype
 
 [ui]
-chrome  = "standard"           # "standard" (default) | "none"; §5
-scripts = ["static/app.js"]    # loaded in the page frame's head on every page, deferred
-styles  = ["static/app.css"]   # loaded in the page frame's head on every page
+chrome     = "standard"        # "standard" (default) | "none"; §5
+navigation = "page"            # "page" (default) | "swap"; Tier 1 framed views only
+scripts    = ["static/app.js"] # loaded in the page frame's head on every page, deferred
+styles     = ["static/app.css"] # loaded in the page frame's head on every page
 
 [[ui.menu]]
 label = "Setup"                # REQUIRED  1 to 40 characters
@@ -170,11 +171,19 @@ an app that owns its document loads its own assets, and the linter refuses `scri
 `PV110`). `chrome` says whether a document the app owns — every HTML document a Tier 2
 app serves, and a Tier 1 view that calls `layout()` — receives the standard chrome, the
 bar and footer of `§5`; `"standard"` is the default and `"none"` serves the document as
-written. Every default is the frame as it renders for an app that declares nothing.
+written. `navigation` says how a framed Tier 1 view reaches the app's next page:
+`"page"`, the default, loads a fresh document for every link and form; `"swap"` fetches
+the next page and swaps its main region into the current document, under a bar that does
+not move (`spec/lua-api.md §4.1`, `spec/protocol.md §8.3.1`). It applies to the page frame
+alone, so a Tier 2 app, which owns its document, MUST NOT declare `"swap"`; the node refuses
+to load one that does, and the linter reports it (`PV110`). Every default is the frame as
+it renders for an app that declares nothing.
 
 The manifest parser refuses a key it does not know, so a node built before this table
-existed refuses a manifest that carries `[ui]`. An app that adopts the table depends on a
-release that has it, and says so where it pins the framework version it is linted against.
+existed refuses a manifest that carries `[ui]`, and one built before a key of the table
+existed refuses a manifest that sets that key. An app that adopts the table or a key of it
+depends on a release that has it, and says so where it pins the framework version it is
+linted against.
 
 ### 3.1 Validation
 
@@ -182,7 +191,7 @@ A node MUST refuse to load an app and MUST record `app.load_failed` when the slu
 reserved or malformed, when it collides with an installed app, when `api` exceeds what
 the framework implements, or when a `[ui]` reference does not resolve: a script or
 stylesheet that is not in the folder, a menu item without a label, or a menu path that is
-not mount-relative. A menu icon the vendored set lacks is drawn as the fallback glyph and
+not mount-relative. It MUST also refuse `navigation = "swap"` on a Tier 2 app. A menu icon the vendored set lacks is drawn as the fallback glyph and
 reported as a load warning, like `app.icon`.
 
 Folders are discovered from the owner's `<data-root>/apps/` before any bundled `apps/`
@@ -379,7 +388,8 @@ other HTML page under the folder — and inserts three pieces at three anchors: 
 integrity hashes; after the first `<body …>` tag, the skip link and the header, with the
 app's title and its `[[ui.menu]]` items, in host or solo form; before the last `</body>`,
 the footer with the status slot. The anchors are matched by tag, case-insensitively, and
-nothing else in the document changes: the `<body>` tag keeps its attributes, the app's
+a tag written inside an HTML comment is not an anchor, so a comment may name the tags
+without receiving the chrome. Nothing else in the document changes: the `<body>` tag keeps its attributes, the app's
 own `<link>` and `<script>` elements stay where they are, and the document's `<title>`
 is its own. A Tier 1 view that owns its document with `layout()` receives the same three
 pieces the same way (`spec/lua-api.md §4.1`). Every other file under `web/` streams as it

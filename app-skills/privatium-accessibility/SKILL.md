@@ -46,10 +46,11 @@ of them are.
   directs the owner to the browser on the node (`spec/protocol.md §8.4`).
 - Every Tier 1 write works without JavaScript on loopback. `hx-post` sits beside `method`/`action`; a
   handler answers a fragment to htmx and a redirect to a plain post.
-- What Alpine hides must still be reachable: link a stylesheet from `<noscript>` that
-  reverts `x-cloak` and hides the buttons whose only job is toggling Alpine state
-  (`apps/animals/static/nojs.css`). An external sheet — an inline `<style>` in
-  `<noscript>` is blocked by the default CSP.
+- What Alpine hides must still be reachable: in your stylesheet, an
+  `@media (scripting: none)` block reverts `x-cloak` and hides the buttons whose only job
+  is toggling Alpine state (`apps/animals/static/animals.css`). Not an inline `<style>`,
+  which the default CSP blocks, and not a `<noscript>` stylesheet link, which a swapped
+  page delivers live with scripting on.
 
 **Structure**
 - One `<h1>` per rendered page — the view with its partials inside the page frame, or
@@ -87,7 +88,13 @@ of them are.
   is one more control to learn. Write status through `pv.status()` rather than a second
   live region. An app that declines the chrome owns all of this itself — its own way
   back, its own `role="status"` — and `apps/sketch` shows what that costs.
-
+- Under swap navigation (`[ui] navigation = "swap"`) a new page arrives without a page
+  load, so the frame does what a load would: it moves focus to the page's `autofocus`
+  field, or else its `<h1>`, or else the main region, so a screen reader announces where
+  you are and Tab starts inside the page; it takes the window title from the new page;
+  and it scrolls to the top. Keep your side of that: the one `<h1>` in every state of
+  every page, since it is what focus lands on, a distinct `<title>` per page if a view
+  sets one, and `autofocus` only where a fresh load would want it too.
 **Language and clarity**
 - Set `lang` on the document
 - Plain language. Short sentences. Say "due in 3 days," not "T-minus 72h."

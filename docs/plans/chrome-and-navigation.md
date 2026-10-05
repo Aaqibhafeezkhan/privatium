@@ -64,7 +64,9 @@ cargo build --release --locked -p privatium
 ```
 
 The live client test in `crates/privatium/tests/channel.rs` needs Node 22 or newer for a
-global `WebSocket`; on an older Node, skip it by name and say so in the pull request.
+global `WebSocket`. On Node 20 run it with `NODE_OPTIONS=--experimental-websocket`, which
+supplies the same global; on anything older, skip it by name and say so in the pull
+request.
 
 Commit messages and pull request text are plain English, in complete sentences, with no
 co-author trailer and no tool or model name anywhere (`AGENTS.md §1, §13`).
@@ -333,12 +335,13 @@ README and SKILL explain that the bar and footer are the framework's and how to 
 | 5 | `spec/app-contract.md §5` | Replace "no framework injected" with the owner's wording; state the three anchors, `id="main"`, and the no-second-way-back rule | C2 | fixed 2026-10-04 |
 | 6 | `spec/lua-api.md §4.1` | A `layout()` document receives the chrome unless the manifest declines it | C2 | fixed 2026-10-04 |
 | 7 | `spec/cli.md §5` | Rows for `PV109`, `PV110`, `PV408` | C2 | fixed 2026-10-04 |
-| 8 | `spec/app-contract.md §3` | Add `navigation = "page" \| "swap"`, Tier 1 framed views only | C3 | open |
-| 9 | `spec/protocol.md §8.3.1` | One paragraph: an in-document swap that stays beneath the mount and off the framework prefixes is a fragment request; crossing either needs the fresh document; the scope rule and the boosted redirect follow | C3 | open |
-| 10 | `spec/lua-api.md §4.1` | Under `navigation = "swap"` views carry no script or stylesheet elements; `ui.scripts` and `ui.styles` load in the head; focus moves to the new heading | C3 | open |
-| 11 | `spec/cli.md §5` | Row for `PV111` | C3 | open |
+| 8 | `spec/app-contract.md §3` | Add `navigation = "page" \| "swap"`, Tier 1 framed views only | C3 | fixed 2026-10-04 |
+| 9 | `spec/protocol.md §8.3.1` | One paragraph: an in-document swap that stays beneath the mount and off the framework prefixes is a fragment request; crossing either needs the fresh document; the scope rule and the boosted redirect follow | C3 | fixed 2026-10-04 |
+| 10 | `spec/lua-api.md §4.1` | Under `navigation = "swap"` views carry no script or stylesheet elements; `ui.scripts` and `ui.styles` load in the head; focus moves to the new heading | C3 | fixed 2026-10-04 |
+| 11 | `spec/cli.md §5` | Row for `PV111` | C3 | fixed 2026-10-04 |
 | 12 | `spec/protocol.md §9.3` | Verify the new assets need no text change; they are embedded assets at fixed and addressed paths like the rest | C1 | verified 2026-10-04, no change needed |
 | 13 | `spec/data-api.md §5` | The normative copy of the size sentence; replace it, and add `pv.status`, `pv.waiting`, the `outbox` event and the document events | C1 | fixed 2026-10-04 |
+| 14 | `spec/lua-api.md §3.1` | `req.is_htmx` is true only for a fragment request: `HX-Request` present and `HX-Boosted` absent. A boosted request is a page request, and a route that branches on `is_htmx` must render its page for the swap to take from | C3 | fixed 2026-10-04 |
 
 ---
 
@@ -436,9 +439,10 @@ than in `tests/apps.rs` as first written; the load refusal stays in `tests/apps.
 - [x] Keyboard only: skip link, brand, title, Apps, Menu, every menu item, footer links, in
       that order (verified from document order; the visible ring in a browser is a pending
       row in `docs/compliance.md`).
-- [ ] 320 CSS pixels wide: no horizontal scroll; the title wraps; both controls visible.
-      Needs a person in a browser; recorded as pending in `docs/compliance.md`.
-- [ ] 200% zoom: the same. Pending likewise.
+- [x] 320 CSS pixels wide: no horizontal scroll; the title wraps; both controls visible.
+      Measured in headless Firefox by `tests/browser/swap-and-reflow.mjs` on 2026-10-04.
+- [x] 200% zoom: the same, measured at the 640 CSS pixel viewport a 1280-pixel window
+      shows at 200%.
 - [ ] A screen reader reads the status slot once per connection change and not on load.
       The write count is held by the named test; the announcement is pending a person.
 - [x] `apps/hello` and `apps/animals` render unchanged apart from the centered title.
@@ -509,8 +513,9 @@ Three decisions were made while implementing, and the spec says each:
 - [ ] Sketch in the browser: no bar, no footer, the mark is a link with a visible focus
       ring and a 44-pixel target, and every drawing interaction behaves as before.
       Pending likewise.
-- [ ] The pantry page at 320 pixels and 200% zoom reflows without horizontal scroll.
-      Pending likewise.
+- [x] The pantry page at 320 pixels and 200% zoom reflows without horizontal scroll.
+      Measured by the browser script on 2026-10-04, which also found and led to the fix
+      of the bar landing inside pantry's header comment.
 - [x] `docs/compliance.md` updated with the manual checks and the date.
 
 ### C3 — Swap navigation for framed Tier 1 apps
@@ -550,22 +555,68 @@ Animals adopts it.
 - `tests/js/navigation.test.mjs::test_spec_8_3_1_solo_mode_scope_excludes_the_framework_prefixes_only`
 - `tests/js/navigation.test.mjs::test_spec_8_3_1_a_boosted_post_follows_its_redirect_with_the_boosted_header`
 - `tests/js/client.test.mjs::test_spec_8_3_1_after_a_swap_focus_lands_on_the_new_heading_and_the_menu_follows`
-- `tests/apps.rs::test_spec_4_1_swap_navigation_marks_main_boosted_and_the_body_with_its_mount`
+- `tests/wire.rs::test_spec_4_1_swap_navigation_marks_main_boosted_and_the_body_with_its_mount`
 - `tests/apps.rs::test_spec_3_navigation_swap_is_refused_for_a_web_app_at_load`
-- `tests/lint.rs::test_spec_5_pv111_reports_a_script_or_stylesheet_in_a_view_of_a_swap_app`
+- `tests/lint.rs::test_spec_4_1_pv111_reports_a_script_or_stylesheet_in_a_view_of_a_swap_app`,
+  and `test_lint_rule_pv111_passes` and `_fails` through the corpus table
 - `tests/reference.rs`: animals lint clean under swap; a boosted GET of `/knowledge` is a
   full page whose `#main` holds the view.
 
+The page-rendering test lives in `tests/wire.rs` beside the request helpers, as C1's and
+C2's did, and the `PV111` test takes the section its rule cites, `spec/lua-api.md §4.1`.
+The menu following the page is held there too, by the out-of-band attribute and the page
+item in a boosted response; the client test holds that the response reaches htmx whole.
+(Amended 2026-10-04.)
+
+Five decisions were made while implementing, and the spec says each:
+
+- The frame does not put `hx-target`, `hx-select` and `hx-swap` on `<main>` as §2.6 first
+  showed. htmx inherits them, so every fragment form inside the page — the animals board
+  among them — would have taken `#main` from its fragment and replaced the wrong element.
+  `<main>` carries `hx-boost` alone, and `chrome.js` sets the target, the selection and
+  the swap in `htmx:beforeSwap` for a swap request only. The submit control is held by
+  `chrome.js` in the same way rather than by `hx-disabled-elt`, which would log an error
+  for every boosted link that has no button to find.
+- `req.is_htmx` is false for a boosted request (row 14). Without it the animals routes,
+  which answer `is_htmx` with a fragment, would have answered a page change with a
+  fragment.
+- The scope rule also keeps the mount's own `api/` and `static/` out of a swap: they are
+  the data API and the app's files, not pages, and in solo mode they are the framework
+  prefixes already. A swap response without a main region is not swapped, and a page
+  answered with an error status is.
+- After a swap, focus goes to the page's `autofocus` field when it has one, as a fresh
+  load would, before the `<h1>`; the teach form is the case.
+- Animals keeps its no-JavaScript rules as an `@media (scripting: none)` block in
+  `animals.css` rather than a `<noscript>` link. A swapped page is parsed with scripting
+  off, so a link inside `<noscript>` would arrive as a live stylesheet with JavaScript on;
+  `nojs.css` is removed with `_assets.lsp`. htmx's history cache is turned off in every
+  frame's config, not only on the channel, so no page is copied into browser storage on
+  any path.
+
+A browser run found a C2 defect the tests had missed: pantry's header comment names
+`</head>`, `<body>` and `</body>`, and the anchors were matched inside it, so the bar was
+inserted into the comment and never drawn. Anchors now skip HTML comments
+(`spec/app-contract.md §5`), and the pantry test holds the bar after the comment. The
+browser run, in headless Firefox over WebDriver BiDi against a loopback node, also
+checked the swap end to end and the reflow rows; `docs/compliance.md` records what it
+covered and what still needs a person.
+
 **Checklist.**
 
-- [ ] Named tests green; all gates green.
+- [x] Named tests green; all gates green, except the live channel test, which needs
+      Node 22 and runs in CI.
 - [ ] Animals on a phone over the LAN: play, knowledge, teach and back again, with no flash
-      and the bar fixed; the back button reloads to the right page.
-- [ ] A screen reader announces the new page heading after each change.
-- [ ] A link to `/settings` from inside an app page is a full navigation.
-- [ ] Teaching an animal, a non-GET form, lands on the redirect target inside the document
-      with the right URL in the address bar.
-- [ ] `docs/compliance.md` updated with the manual checks and the date.
+      and the bar fixed; the back button reloads to the right page. The swap, the
+      redirect and the history setting are held by the tests; the absence of a flash
+      needs a person, recorded as pending in `docs/compliance.md`.
+- [ ] A screen reader announces the new page heading after each change. Focus placement
+      is held by the client test; the announcement is pending a person.
+- [x] A link to `/settings` from inside an app page is a full navigation (the scope
+      tests, on both transports).
+- [x] Teaching an animal, a non-GET form, lands on the redirect target inside the document
+      with the right URL in the address bar. Held by the navigation test, and measured on
+      loopback by the browser script.
+- [x] `docs/compliance.md` updated with the manual checks and the date.
 
 ---
 

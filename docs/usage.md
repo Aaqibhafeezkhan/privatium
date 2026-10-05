@@ -83,10 +83,22 @@ The footer has three parts.
 A screen reader reads the status line out loud when it changes, without moving you off
 what you were doing.
 
+### Moving between pages
+
+Some apps change pages without reloading the whole screen. The Animals game is one. When
+you tap a link or send a form, only the middle of the page changes: the bar and footer
+stay where they are, and the screen does not flash white. The page's title, the address
+bar and the app's Menu items follow along, and the keyboard and screen reader start at
+the new page's heading.
+
+Two things work as they always do. The back button takes you to the page before, reloaded
+fresh. Leaving the app — for the launcher, Settings, or another app — loads a whole new
+page.
+
 ### Conclusion
 
 You now know how to get back to the launcher from anywhere, where an app keeps its extra
-actions, and what each status message means. To add a device, open Devices from the
+actions, what each status message means, and why some apps change pages without a flash. To add a device, open Devices from the
 footer or from the Menu. To understand what is protected while you are offline, read the
 security page.
 

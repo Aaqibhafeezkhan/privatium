@@ -44,7 +44,9 @@ bar and footer inserted at three anchors — `</head>`, the opening `<body>`, `<
 unless `app.toml` says `[ui] chrome = "none"`, which an app with its own full-window
 interface (a canvas, a game) does. An app adds its own items to the menu through `[ui]`
 in `app.toml` and the `menu()` template helper, writes its own task status through
-`pv.status()`, and never draws a second way back or a second menu (`PV408`). The details
+`pv.status()`, and never draws a second way back or a second menu (`PV408`). A Tier 1 app
+can also set `[ui] navigation = "swap"`, so its pages change inside one document under a
+bar that never moves; the swap never crosses the app's mount. The details
 are in `privatium-tier1-lua`, `privatium-tier2-web`, `spec/lua-api.md §4.1` and
 `spec/app-contract.md §5`.
 

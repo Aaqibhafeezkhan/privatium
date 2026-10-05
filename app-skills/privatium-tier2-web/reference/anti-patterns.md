@@ -198,7 +198,7 @@ error · `spec/app-contract.md §5`
 </html>
 ```
 
-## `PV110` — Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path
+## `PV110` — Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path, navigation = "swap" is for a Tier 1 app
 
 error · `spec/app-contract.md §3`
 
@@ -237,6 +237,28 @@ styles  = ["static/app.css"]
 [[ui.menu]]
 label = "Setup"
 path  = "/setup"
+```
+
+## `PV111` — A view of an app with navigation = "swap" carries no <script> or <link rel="stylesheet">; they belong in ui.scripts and ui.styles
+
+error · `spec/lua-api.md §4.1`
+
+**Wrong** (`apps/_lint/fail/PV111/pv111bad/views/index.lsp`):
+
+```html
+<link rel="stylesheet" href="<?= url('/static/app.css') ?>">
+<script defer src="<?= url('/static/app.js') ?>"></script>
+
+<h1>Lint</h1>
+<p><a href="<?= url('/more') ?>">More</a></p>
+```
+
+**Right** (`apps/_lint/pass/PV111/pv111ok/views/index.lsp`):
+
+```html
+<h1>Lint</h1>
+<p>The frame's head loads the stylesheet and the script named in app.toml, once.</p>
+<p><a href="<?= url('/more') ?>">More</a></p>
 ```
 
 ## `PV205` — Declared [permissions] beyond the defaults carry a justifying comment
