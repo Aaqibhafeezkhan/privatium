@@ -142,16 +142,42 @@ license     = "GPL-3.0-or-later"
 [nav]
 order     = 10
 advertise = true               # advertise a DNS-SD subtype
+
+[ui]
+scripts = ["static/app.js"]    # loaded in the page frame's head on every page, deferred
+styles  = ["static/app.css"]   # loaded in the page frame's head on every page
+
+[[ui.menu]]
+label = "Setup"                # REQUIRED  1 to 40 characters
+path  = "/setup"               # REQUIRED  mount-relative; resolved through url()
+icon  = "gear"                 # Bootstrap Icons filename; see docs/icons.md
 ```
 
-Everything below `[app]` and `[nav]` depends on the tier. A Tier 2 app's manifest can be
-this and nothing more.
+Everything below `[app]` and `[nav]` is optional. A Tier 2 app's manifest can be the two
+tables and nothing more.
+
+`[ui]` describes what the framework's page frame carries for the app (`spec/lua-api.md
+§4.1`). `[[ui.menu]]` entries are app-wide links the frame's menu lists first, in manifest
+order, before the framework's own pages; a view adds page-specific items with the
+`menu()` helper. `scripts` and `styles` name files beneath the app's `static/` folder,
+spelled `static/<name>.js` and `static/<name>.css`; the frame loads them in its head on
+every page it renders for the app, in the order written, the scripts deferred and each
+with the hash of the file as served, so a view carries no `<script>` or `<link>` of its
+own for what the whole app needs. They apply to a Tier 1 view rendered inside the frame.
+Every default is the frame as it renders for an app that declares nothing.
+
+The manifest parser refuses a key it does not know, so a node built before this table
+existed refuses a manifest that carries `[ui]`. An app that adopts the table depends on a
+release that has it, and says so where it pins the framework version it is linted against.
 
 ### 3.1 Validation
 
 A node MUST refuse to load an app and MUST record `app.load_failed` when the slug is
-reserved or malformed, when it collides with an installed app, or when `api` exceeds what
-the framework implements.
+reserved or malformed, when it collides with an installed app, when `api` exceeds what
+the framework implements, or when a `[ui]` reference does not resolve: a script or
+stylesheet that is not in the folder, a menu item without a label, or a menu path that is
+not mount-relative. A menu icon the vendored set lacks is drawn as the fallback glyph and
+reported as a load warning, like `app.icon`.
 
 Folders are discovered from the owner's `<data-root>/apps/` before any bundled `apps/`
 (`spec/data-dictionary.md §3.4` defines the two), and by name within each. When two folders
@@ -369,8 +395,24 @@ await pv.append([
 pv.subscribe(ev => redraw(ev));
 ```
 
-`pv` is a script of under 12 KB, unminified, served by the framework at `/static/pv.js`.
-It is optional — the endpoints are plain HTTP and you can `fetch` them yourself.
+`pv` is served by the framework at `/static/pv.js`: one unminified file with no
+dependencies and no build step, meant to be read. It is optional — the endpoints are plain
+HTTP and you can `fetch` them yourself.
+
+Besides the data calls, the helper reports its own state. `pv.on('online' | 'offline',
+fn)` fires when the node becomes reachable or stops being; `pv.on('outbox', fn)` fires
+with `{ waiting }` each time the number of queued changes changes; `pv.waiting` is that
+number now. The same changes are dispatched on the document as `pv:online`,
+`pv:offline` and `pv:outbox` (with `detail.waiting`) events, which is how the page
+frame's status slot follows them without importing the helper, and how two copies of
+the helper on one page do not disagree.
+
+`pv.status(text)` writes task wording — "Saved.", "3 items added." — into the frame's
+status slot, the `<p id="pv-status" role="status">` in the footer (`spec/lua-api.md
+§4.1`), so assistive technology announces it without a focus change. The framework
+writes connection wording into the same slot, on a change of state only; the last writer
+wins. A document without the slot gets nothing from the call, and may draw its own
+element of that id to receive both.
 
 ### 5.3 Storage without SQL
 

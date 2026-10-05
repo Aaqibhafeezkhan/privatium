@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/architecture.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-28
-Last Modified: 2026-09-07
+Last Modified: 2026-10-04
 Summary: Explanatory architecture overview. Non-normative; see spec/ for the contract.
 Notes: See README file for documentation and full license information.
 
@@ -117,6 +117,27 @@ HTMX is roughly 14KB.
 This is a decision about the framework, not a rule imposed on apps. A Tier 2 app serves its
 own `web/` directory and may use Canvas, WebGL, WASM, Three.js, Chart.js, or React if it
 wants — at its own weight cost, which is the app author's call.
+
+#### The chrome every page shares
+
+The node renders the same bar and footer around the launcher, the settings pages and
+every Tier 1 view that does not own its document. The bar has three zones: the Privatium
+mark linking to the launcher, the app's title and icon linking to the app's first page,
+and the controls, an Apps link and one Menu. The menu lists the app's own items first,
+from `[ui]` in its manifest and from the `menu()` template helper, then a rule, then the
+framework's settings pages. The footer holds a link to the project, a status line, and
+the space's name with the way to connect a device.
+
+Two embedded assets carry it. `chrome.css` holds the colour tokens and the rules for the
+header, menu, footer and skip link, scoped to their own classes so a document an app
+owns keeps its own styles; `shell.css` holds the framework's page styles and declares no
+tokens of its own. `chrome.js` writes the footer's status line when the connection
+changes or when `pv.js` reports queued changes, in the framework's words and once per
+change; it listens for the browser's own events and for the events `pv.js` dispatches
+on the document, and imports nothing, so an app's own copy of `pv.js` and the frame
+never disagree. An app writes its own task wording into the same line with
+`pv.status()`. The contract is `spec/lua-api.md §4.1` and `spec/app-contract.md §3` and
+`§5.2`.
 
 Icons are Bootstrap Icons, vendored as raw SVGs and inlined at render (`docs/icons.md`).
 No icon font, no CDN, no runtime sprite fetch — which also means no additions to the

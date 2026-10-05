@@ -2,13 +2,13 @@
 // crates/privatium-core/src/lua/lsp.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: LSP templates (spec/lua-api.md §4). The compiler turns views/<name>.lsp — HTML with <? ?>,
 //          <?= ?>, <?raw ?> and <?-- --?> — into a Lua chunk plus a line map, so a traceback
 //          names the .lsp line the author wrote. The compiled source is shared by every VM of
 //          an app and swapped as one snapshot when a file changes; the loaded chunk is cached
 //          per VM by generation; each render runs the chunk with a fresh environment holding
-//          the ctx keys and the template-only helpers render, layout and csrf, falling through
+//          the ctx keys and the template-only helpers render, layout, menu and csrf, falling through
 //          to the request-scoped environment handlers use.
 // Notes: See README file for documentation and full license information.
 //
@@ -37,7 +37,7 @@ use mlua::chunk::ChunkMode;
 use mlua::{Function, Lua, Table, Value};
 
 use crate::lua::html::{self, Html};
-use crate::lua::{VmData, sandbox};
+use crate::lua::{PageMenuItem, VmData, sandbox};
 
 // ---------------------------------------------------------------------------------------
 // The compiler
@@ -585,6 +585,7 @@ const STR_KEY: &str = "pv.tpl.str";
 const CONCAT_KEY: &str = "pv.tpl.concat";
 const RENDER_KEY: &str = "pv.tpl.render";
 const LAYOUT_KEY: &str = "pv.tpl.layout";
+const MENU_KEY: &str = "pv.tpl.menu";
 const CSRF_KEY: &str = "pv.tpl.csrf";
 const ASSIGN_KEY: &str = "pv.tpl.assign";
 
@@ -607,6 +608,7 @@ pub(crate) fn install(lua: &Lua) -> mlua::Result<()> {
     )?;
     lua.set_named_registry_value(RENDER_KEY, lua.create_function(render)?)?;
     lua.set_named_registry_value(LAYOUT_KEY, lua.create_function(layout)?)?;
+    lua.set_named_registry_value(MENU_KEY, lua.create_function(menu)?)?;
     lua.set_named_registry_value(CSRF_KEY, lua.create_function(csrf)?)?;
     lua.set_named_registry_value(ASSIGN_KEY, lua.create_function(sandbox::assign_global)?)?;
     Ok(())
@@ -664,7 +666,7 @@ fn data_mut(lua: &Lua) -> mlua::Result<mlua::AppDataRefMut<'_, VmData>> {
 }
 
 /// The environment one render runs in (`spec/lua-api.md §4.1`, §5): the ctx keys, the
-/// three template-only helpers, `content` for a layout, then the request-scoped
+/// four template-only helpers, `content` for a layout, then the request-scoped
 /// environment handlers use — so `url`, `icon`, `fmt`, `t`, `pv`, the app's baseline and
 /// the request's scratch are all one lookup away, and a bare assignment lands in the
 /// scratch like a handler's would.
@@ -678,6 +680,7 @@ fn render_env(lua: &Lua, ctx: Option<&Table>, content: Option<Html>) -> mlua::Re
     }
     env.raw_set("render", lua.named_registry_value::<Function>(RENDER_KEY)?)?;
     env.raw_set("layout", lua.named_registry_value::<Function>(LAYOUT_KEY)?)?;
+    env.raw_set("menu", lua.named_registry_value::<Function>(MENU_KEY)?)?;
     env.raw_set("csrf", lua.named_registry_value::<Function>(CSRF_KEY)?)?;
     if let Some(content) = content {
         env.raw_set("content", content)?;
@@ -735,25 +738,30 @@ fn render_view(
 }
 
 /// `pv.render(view, ctx)` fulfilled: the body, then the layout the view asked for, if
-/// any. Returns the HTML and whether the app supplied the whole document.
+/// any. Returns the HTML, whether the app supplied the whole document, and the menu items
+/// the view added for the page.
 pub(crate) fn render_response(
     lua: &Lua,
     view: &str,
     ctx: Option<Table>,
-) -> mlua::Result<(String, bool)> {
+) -> mlua::Result<(String, bool, Vec<PageMenuItem>)> {
     {
         let mut data = data_mut(lua)?;
         data.render_depth = 0;
         data.layout = None;
+        data.menu.clear();
     }
     let body = render_view(lua, "pv.render", view, ctx.as_ref(), None)?;
-    let layout = data_mut(lua)?.layout.take();
+    let (layout, menu) = {
+        let mut data = data_mut(lua)?;
+        (data.layout.take(), std::mem::take(&mut data.menu))
+    };
     match layout {
         Some(name) => {
             let html = render_view(lua, "layout", &name, ctx.as_ref(), Some(Html(body)))?;
-            Ok((html, true))
+            Ok((html, true, menu))
         }
-        None => Ok((body, false)),
+        None => Ok((body, false, menu)),
     }
 }
 
@@ -778,6 +786,43 @@ fn layout(lua: &Lua, name: String) -> mlua::Result<()> {
         ));
     }
     data.layout = Some(name);
+    Ok(())
+}
+
+/// `menu(label, path[, icon])` — add a link to the page's menu, listed before the
+/// framework's own pages for this page alone (`§4.1`). Like `layout`, it belongs to the
+/// view `pv.render` named: a partial is included from several pages and cannot know
+/// which page's menu it would be adding to. The path is mount-relative and the frame
+/// resolves it through `url()`; the icon, when given, is a vendored icon name.
+fn menu(lua: &Lua, (label, path, icon): (String, String, Option<String>)) -> mlua::Result<()> {
+    let label = label.trim().to_owned();
+    let chars = label.chars().count();
+    if chars == 0 || chars > crate::app::manifest::MAX_MENU_LABEL_CHARS {
+        return Err(mlua::Error::runtime(format!(
+            "menu: the label must be 1 to {} characters, found {chars}",
+            crate::app::manifest::MAX_MENU_LABEL_CHARS
+        )));
+    }
+    if !crate::app::manifest::is_mount_relative(&path) {
+        return Err(mlua::Error::runtime(format!(
+            "menu: path {path:?} must be mount-relative — begin with a single / and name no \
+             scheme; the frame resolves it with url()"
+        )));
+    }
+    if let Some(icon) = &icon
+        && !crate::icons::exists(icon)
+    {
+        return Err(mlua::Error::runtime(format!(
+            "menu: icon {icon:?} is not in the vendored Bootstrap Icons set (docs/icons.md)"
+        )));
+    }
+    let mut data = data_mut(lua)?;
+    if data.render_depth != 1 {
+        return Err(mlua::Error::runtime(
+            "menu() belongs in the view pv.render named, not in a partial",
+        ));
+    }
+    data.menu.push(PageMenuItem { label, path, icon });
     Ok(())
 }
 

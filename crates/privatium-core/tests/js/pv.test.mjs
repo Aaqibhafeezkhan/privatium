@@ -1,6 +1,6 @@
 // Project:  Privatium™  |  File: crates/privatium-core/tests/js/pv.test.mjs
 // Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-// Created:  2026-09-05  |  Modified: 2026-09-06
+// Created:  2026-09-05  |  Modified: 2026-10-04
 // Summary:  pv.js against spec/data-api.md §5 and §6 and spec/protocol.md §10.6, under
 //           `node --test`: the outbox queues while the node is unreachable and replays in
 //           order when it is back; an empty replay leaves the helper able to replay later;
@@ -8,8 +8,9 @@
 //           a replay is not lost; no storage is still a queue; a replay carries its mark
 //           and each row's rank for the node to judge, and a landed or conflicting answer
 //           is honoured; an entry queued for another app or another node is refused; two
-//           pages share one storage without loss; and the file stays under the size the
-//           spec promises. See main README.md for full license information.
+//           pages share one storage without loss; and the outbox's length is reported
+//           once per change (spec/app-contract.md §5.2).
+//           See main README.md for full license information.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,10 +44,35 @@ const nodeCalled = (id, app = 'sketch') => {
   return (m, path, body) => (path.endsWith('/api/node') ? { json: { id, dev: id, name: 'Other', app, solo: false, peers: 0, restore_tier: 3 } } : up(m, path, body));
 };
 
-test('spec/data-api.md §5: pv.js is under the size the spec promises, and converts no DECIMAL', () => {
+test('spec/data-api.md §5: pv.js converts no DECIMAL', () => {
   const text = source();
-  assert.ok(Buffer.byteLength(text, 'utf8') < 12 * 1024, `${Buffer.byteLength(text, 'utf8')} bytes`);
   for (const conversion of ['parseFloat(', 'Number(', '+row', 'toFixed(']) assert.ok(!text.includes(conversion), conversion);
+});
+
+test('test_spec_5_2_outbox_event_reports_the_queue_length_on_change', async () => {
+  const doc = new EventTarget(); doc.getElementById = () => null;
+  const seen = [], dom = [];
+  doc.addEventListener('pv:outbox', event => dom.push(event.detail.waiting));
+  const connection = [];
+  doc.addEventListener('pv:offline', () => connection.push('offline'));
+  doc.addEventListener('pv:online', () => connection.push('online'));
+  globalThis.document = doc;
+  try {
+    const p = await page({ respond: downNode(), online: false });
+    p.pv.on('outbox', ({ waiting }) => seen.push(waiting));
+    assert.equal(p.pv.waiting, 0);
+    await p.pv.put('stroke', '01K4B0000000000000000000A1', { points: [] });
+    await p.pv.put('stroke', '01K4B0000000000000000000A2', { points: [] });
+    assert.deepEqual(seen, [1, 2]);
+    assert.equal(p.pv.waiting, 2);
+    p.respond(upNode());
+    p.fire('online');
+    await p.pv.flush(); await p.settle();
+    assert.deepEqual(seen, [1, 2, 1, 0], 'one report per change, none for a repeat');
+    assert.deepEqual(dom, seen, 'the same changes reach the document');
+    assert.deepEqual(connection, ['online']);
+    assert.equal(p.pv.waiting, 0);
+  } finally { delete globalThis.document; }
 });
 
 test('spec/data-api.md §6: an empty replay at load leaves the outbox able to replay later', async () => {

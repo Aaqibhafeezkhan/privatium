@@ -52,8 +52,8 @@ pub mod seed;
 
 pub use csp::Csp;
 pub use manifest::{
-    MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, Permissions, RESERVED_SLUGS,
-    SUPPORTED_API, Tier, Widening,
+    MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, MenuItem, Permissions,
+    RESERVED_SLUGS, SUPPORTED_API, Tier, Ui, Widening,
 };
 pub use seed::{SEED_PATH, SeedError, SeedEvent};
 
@@ -1485,6 +1485,13 @@ impl Node {
             };
             return Err(refused_with(Stage::Tier, error.to_string()));
         }
+        // `§3`: a script or stylesheet the frame would load on every page must exist, or
+        // every page of the app would carry a request that fails. Refused here, loud,
+        // rather than discovered as a missing file in the browser.
+        manifest
+            .ui
+            .check_files(&candidate.dir)
+            .map_err(|error| refused_with(Stage::Validate, error.to_string()))?;
 
         let schema = match fs::read_to_string(candidate.dir.join(SCHEMA_FILE)) {
             Ok(sql) if sql.trim().is_empty() => Schema::empty(),
@@ -1521,13 +1528,18 @@ impl Node {
         if manifest.nav.advertise && slug.len() > MAX_ADVERTISED_SLUG {
             warnings.push(Warning::SlugTooLongToAdvertise { slug: slug.clone() });
         }
-        if let Some(icon) = &manifest.app.icon
-            && !crate::icons::exists(icon)
+        // An icon the set lacks is drawn as the fallback glyph, so the app loads and the
+        // owner is told — for the launcher's icon and for each menu item's alike.
+        for icon in std::iter::once(&manifest.app.icon)
+            .chain(manifest.ui.menu.iter().map(|item| &item.icon))
+            .flatten()
         {
-            warnings.push(Warning::UnknownIcon {
-                slug: slug.clone(),
-                icon: icon.clone(),
-            });
+            if !crate::icons::exists(icon) {
+                warnings.push(Warning::UnknownIcon {
+                    slug: slug.clone(),
+                    icon: icon.clone(),
+                });
+            }
         }
         // `§8`, tier 1: load `app.lua` in a sandboxed VM and register its routes — in
         // every VM of the pool, identically (`docs/plans/phase-1.md §2.4`). A load that

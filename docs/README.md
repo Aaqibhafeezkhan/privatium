@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/README.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-06
-Last Modified: 2026-09-27
+Last Modified: 2026-10-04
 Summary: Index of every Privatium document — guides for people running a node, guides for people
          building apps, the normative specification, and decision records.
 Notes: See README file for documentation and full license information.
@@ -29,6 +29,7 @@ For anyone running a node and using apps on it. No programming needed.
 
 | Document | What it covers |
 |---|---|
+| [Using your apps](usage.md) | What the bar at the top and the footer at the bottom of every app do: the Apps link, the Menu, and the status line. |
 | [Backup and restore](backup-and-restore.md) | How to save your data and get it back. Written to be usable under stress, by someone who is not a developer. |
 | [Connectivity](connectivity.md) | How each kind of device reaches your node, and what each route costs you. |
 | [Deployment](deployment.md) | Running a node on an always-on machine, and what each operating system's firewall does. |
@@ -85,6 +86,7 @@ Why a choice was made, kept so it is not argued again from scratch.
 | [Project homepage](homepage.md) | Previewing, editing, translating, and hosting the single-page website and its screenshots. |
 | [Naming](naming.md) | The name, the tagline, and the tokens that are load-bearing across the code and the wire format. |
 | [Roadmap](roadmap.md) | What exists, what is planned, and the test that holds each finished item. |
+| [Compliance](compliance.md) | The security and accessibility posture as evidence: the controls in place, the tests that hold them, the contrast figures, and the manual checks with their dates. |
 
 ---
 

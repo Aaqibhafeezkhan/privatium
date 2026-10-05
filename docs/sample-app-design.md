@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/sample-app-design.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-06
-Last Modified: 2026-09-26
+Last Modified: 2026-10-04
 Summary: How the reference apps keep their presentation small and responsive.
 Notes: See README file for documentation and full license information.
 
@@ -25,10 +25,14 @@ You do not need a build step or a new library to change their appearance.
 
 The shell uses neutral white and slate surfaces with dark text and blue actions.
 The supplied wordmark remains in the header; the website's lilac and ivory palette
-is not used for application surfaces. A hamburger button, labelled Menu for assistive technology, uses a native
-disclosure to expose all shell
-pages. Every shell header uses the same compact padding and 44-pixel navigation targets.
-Apps remains a shortcut; Settings is available in the menu.
+is not used for application surfaces. The header is three zones: the wordmark on the
+left, linking to the launcher; the app's title and icon in the centre, linking to the
+app's first page, as a paragraph rather than a heading; and the Apps link with a
+hamburger button on the right. The button, labelled Menu for assistive technology, uses
+a native disclosure. It lists the app's own items first, from its manifest and from the
+`menu()` template helper, then a rule, then the settings pages. Every shell header uses
+the same compact padding and 44-pixel navigation targets. On a narrow screen the
+wordmark gives way to the square mark so the title keeps its room.
 
 Hello and Animals inherit the shell's colors, form controls and focus rings. Their
 own styles use those color tokens, so they follow the shell's light and dark modes.
@@ -160,8 +164,9 @@ Shell availability notices use end-user language such as “coming soon”, with
 phase numbers or implementation milestones. Technical detail stays in the documentation.
 
 The shell footer links to the repository on the left and displays this space’s name
-(or its ID when unnamed) on the right. The QR icon is a placeholder linking to Space
-settings until the connection interface is available.
+(or its ID when unnamed) on the right, beside a QR icon that opens Devices. Between
+them sits the status line, a live region that is empty until the connection changes or
+an app writes a short message of its own through `pv.status()`.
 
 UI wording calls a node a “space” and uses “connect” for the connection action.
 Protocol names, stored fields and routes keep their existing technical names.

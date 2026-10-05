@@ -39,8 +39,10 @@ for await (const ev of pv.events({ tbl: 'stroke' })) apply(ev);   // the log, in
 const stop = pv.subscribe(ev => { if (ev.tbl === 'stroke') redraw(ev); });
 pv.on('resync', reload);   // the node rebuilt its cache: re-read
 pv.on('offline', () => …);  pv.on('online', () => …);  pv.on('rejected', e => …);
+pv.on('outbox', ({ waiting }) => …);   // the queue grew or drained; pv.waiting is the count now
+pv.status('Saved.');       // task wording in the frame's footer status line, if the page has one
 
-pv.ulid();  pv.url('/path');  pv.node();  pv.lam;  pv.online;
+pv.ulid();  pv.url('/path');  pv.node();  pv.lam;  pv.online;  pv.waiting;
 ```
 
 `pv.js` is optional on loopback, in a native shell and on an HTTPS origin, where every
@@ -48,10 +50,16 @@ endpoint is plain HTTP under `/a/<slug>/api/` (`/api/` in solo mode). On a plain
 origin the API is reachable only through the encrypted channel the page holds
 (`spec/protocol.md §8.3`), a plain `fetch` of it is refused, and `pv.js` is the way — it
 uses the channel when there is one and `fetch` otherwise, so your code is the same on
-every origin. It is under 12 KB, unminified and meant to be read — open it. A view may read
+every origin. It is one unminified file, meant to be read — open it. A view may read
 `$name` placeholders, bound from the query string of `/api/q/<view>`; a key the view does
 not read is refused, and elsewhere the placeholder is NULL. `sys.v_app_nav` and the other
 `sys.v_*` views are readable through `pv.sql`.
+
+`pv.status(text)` writes into `<p id="pv-status" role="status">`, the footer status line
+of the framework's page frame, where the framework also says when the node is offline,
+back, or still sending queued changes. A document you write yourself has that element
+only if you draw it; do, if your page queues writes, and keep task wording short and
+free of technical detail — the slot is a live region a screen reader reads out.
 
 Full-page transitions create fresh documents with the destination app's declared CSP
 and fresh module initialization. A full-page form's response can wait in node memory

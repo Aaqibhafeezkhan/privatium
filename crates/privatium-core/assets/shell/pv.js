@@ -1,11 +1,14 @@
 /*
  * Project:  Privatium™  |  File: crates/privatium-core/assets/shell/pv.js
  * Authors:  Gabriel Mongefranco (@gabrielmongefranco)
- * Created:  2026-09-03  |  Modified: 2026-09-06
+ * Created:  2026-09-03  |  Modified: 2026-10-04
  * Summary:  The data API helper of spec/data-api.md §5, served at /static/pv.js. Uses the
  *           encrypted channel when present. Queued writes carry their high-water mark,
  *           observed row ranks, app and node; the node judges replay against the log
- *           (spec/protocol.md §10.6). DECIMAL stays a string.
+ *           (spec/protocol.md §10.6). DECIMAL stays a string. Connection and outbox
+ *           changes are reported twice over: to pv.on() handlers, and as pv:online,
+ *           pv:offline and pv:outbox events on the document, which the page frame's
+ *           status slot listens for (spec/app-contract.md §5.2).
  *           See main README.md for full license information.
  */
 const MOUNT = (() => {
@@ -33,11 +36,33 @@ const subscribers = new Set();
 function emit(event, data) {
   for (const fn of handlers[event] || []) { try { fn(data); } catch (e) { console.error(e); } }
 }
+// The same change as a DOM event, for a listener that did not import this module — the
+// frame's status slot — and for a second copy of the helper on the same page.
+function announce(name, detail) {
+  const doc = globalThis.document;
+  if (doc?.dispatchEvent && typeof CustomEvent === 'function') doc.dispatchEvent(new CustomEvent(name, { detail }));
+}
 function setOnline(online) {
   if (state.online === online) return;
   state.online = online;
   emit(online ? 'online' : 'offline');
+  announce(online ? 'pv:online' : 'pv:offline');
   if (online) flush();
+}
+// How many entries wait, reported when the number changes: after a write is queued, after
+// each entry is sent or refused, and when another page's entries are adopted.
+let reported = 0;
+function notifyOutbox() {
+  if (queue.length === reported) return;
+  reported = queue.length;
+  emit('outbox', { waiting: reported });
+  announce('pv:outbox', { waiting: reported });
+}
+// Task wording in the footer's status slot, for the app (spec/app-contract.md §5.2). The
+// framework writes connection wording there the same way; the last writer wins.
+function status(text) {
+  const slot = globalThis.document?.getElementById?.('pv-status');
+  if (slot) slot.textContent = String(text ?? '');
 }
 function noteLam(lam) { if (typeof lam === 'number' && lam > state.lam) state.lam = lam; }
 function url(path) { return MOUNT + String(path == null ? '' : path).replace(/^\/+/, ''); }
@@ -105,6 +130,7 @@ function adopt() {
     const d = Array.from(last, c => ALPHABET.indexOf(c));
     lastMs = d.slice(0, 10).reduce((n, v) => n * 32 + v, 0); lastTail = d.slice(10);
   }
+  notifyOutbox();
 }
 adopt();
 // The POST body: the events, and the node and the app they are for when known (§2).
@@ -132,7 +158,7 @@ function flush() {
         if (e instanceof PvOffline || e.status >= 500 || e.status === 429 || e.status === 408) break;
         emit('rejected', { id: entry.id, events: entry.events, error: e });   // refused: nothing to retry
       }
-      forget(entry); queue.shift();
+      forget(entry); queue.shift(); notifyOutbox();
     }
   })();
   flushing = run;
@@ -156,7 +182,7 @@ async function append(events) {
   // Queued as it will be sent, each row with the rank the page saw for it, if any (§5).
   const carried = list.map(ev => { const base = seen.get(ev.tbl + '/' + ev.id); return base ? { ...ev, base } : ev; });
   const entry = { id: ulid(), lam: state.lam, app: state.app, node: state.nodeId, events: carried };
-  queue.push(entry); persist(entry);
+  queue.push(entry); persist(entry); notifyOutbox();
   if (state.online) flush();
   return { queued: true, appended: 0, ids };
 }
@@ -242,12 +268,13 @@ addEventListener('offline', () => setOnline(false));
 if (state.online) node().catch(() => {}).then(flush);   // learn the app and the node, then replay what waited
 
 export const pv = {
-  query, sql, get, events, append, subscribe, ulid, node, url, flush,
+  query, sql, get, events, append, subscribe, ulid, node, url, flush, status,
   put: (tbl, id, d) => append([{ op: 'put', tbl, id, d }]),
   del: (tbl, id) => append([{ op: 'del', tbl, id }]),
   on(event, fn) { (handlers[event] ||= []).push(fn); return () => { handlers[event] = handlers[event].filter(f => f !== fn); }; },
   get online() { return state.online; },
   get lam() { return state.lam; },
   get mount() { return MOUNT; },
+  get waiting() { return queue.length; },
 };
 export default pv;

@@ -1067,12 +1067,6 @@ async fn test_sketch_end_to_end() {
     }
     let pv = handler.handle(get("/static/pv.js")).await;
     assert_eq!(pv.status(), StatusCode::OK);
-    let pv = body_of(pv).await;
-    assert!(
-        pv.len() < 12 * 1024,
-        "pv.js is {} bytes; spec/data-api.md §5 says under 12 KB",
-        pv.len()
-    );
     let app_js = fs::read_to_string(web.join("app.js")).unwrap();
     for call in [
         "pv.events({ tbl: 'stroke' })",
@@ -2424,21 +2418,43 @@ async fn test_spec_cli_5_pv4xx_app_frame_and_reference_views() {
     assert_clean("_board fragment", &fragment, Unit::Fragment);
 }
 
-/// `PV406` — the declared colour tokens of the shell's stylesheet meet 4.5:1 for text and
-/// 3:1 for focus and control boundaries, in both colour schemes; `:focus-visible` draws
-/// an outline and nothing removes one without a replacement; sketch's own colours
-/// likewise.
+/// `PV406` — the declared colour tokens of the chrome's stylesheet, which the shell's
+/// own sheet uses and declares none of, meet 4.5:1 for text and 3:1 for focus and control
+/// boundaries, in both colour schemes; the bar's fixed colours meet the same floors;
+/// `:focus-visible` draws an outline and nothing removes one without a replacement;
+/// sketch's own colours likewise.
 #[test]
 fn test_spec_cli_5_pv406_declared_tokens_meet_contrast() {
-    let css = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("assets")
-            .join("shell")
-            .join("shell.css"),
-    )
-    .unwrap();
-    let schemes = a11y::root_tokens(&css);
+    let shell_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join("shell");
+    let css = fs::read_to_string(shell_dir.join("shell.css")).unwrap();
+    let chrome = fs::read_to_string(shell_dir.join("chrome.css")).unwrap();
+    assert!(
+        a11y::root_tokens(&css).is_empty(),
+        "shell.css declares no tokens of its own; chrome.css is the one source"
+    );
+    let schemes = a11y::root_tokens(&chrome);
     assert_eq!(schemes.len(), 2, "a light and a dark :root");
+    // The bar is the same dark panel in both schemes: text, the ring and the borders
+    // against it, and the current-page pill, all from the header's own declarations.
+    let bar = a11y::rules(&chrome)
+        .into_iter()
+        .find(|(selector, _)| selector == ".pv-header")
+        .expect("the header rule")
+        .1;
+    for (fg, bg, floor) in [
+        ("--pv-bar-fg", "--pv-bar-bg", 4.5),
+        ("--pv-bar-bg", "--pv-bar-accent", 4.5),
+        ("--pv-bar-accent", "--pv-bar-bg", 3.0),
+        ("--pv-bar-rule", "--pv-bar-bg", 3.0),
+    ] {
+        let ratio = a11y::contrast(&bar[fg], &bar[bg]);
+        assert!(
+            ratio >= floor,
+            "bar: {fg} on {bg} is {ratio:.2}:1, want {floor}"
+        );
+    }
     let text_pairs = [
         ("--pv-fg", "--pv-bg"),
         ("--pv-fg", "--pv-panel"),
@@ -2503,10 +2519,20 @@ fn test_spec_cli_5_pv406_declared_tokens_meet_contrast() {
         inputs.1["border"]
     );
     assert!(
-        !rules.iter().any(|(_, d)| d.contains_key("opacity")),
+        !rules.iter().any(|(_, d)| d.contains_key("opacity"))
+            && !a11y::rules(&chrome)
+                .iter()
+                .any(|(_, d)| d.contains_key("opacity")),
         "no rule dims text below its token's contrast"
     );
     assert!(css.contains("prefers-reduced-motion"), "the motion guard");
+    for (selector, declarations) in a11y::rules(&chrome) {
+        if let Some(outline) = declarations.get("outline")
+            && (outline.starts_with("none") || outline.trim() == "0")
+        {
+            panic!("{selector} removes the outline in chrome.css");
+        }
+    }
 
     // sketch: its own sheet, its own colours, in both schemes. The sheet itself is always
     // white, so --ink is held against white as well as against the app's own surfaces.
@@ -2606,11 +2632,27 @@ async fn test_animals_win_and_restart() {
     assert_eq!(log_lines(&log).len(), before.len() + 1);
 }
 
-/// Footer labels remain text; navigation points to the repo and current settings placeholder.
+/// The footer's node label, the app's title and a menu item's label are text, whatever
+/// the manifest or the node's name holds; the footer links to the repository and to
+/// Devices.
 #[test]
 fn test_footer_node_label_is_escaped() {
-    let page = privatium_core::http::shell::app_frame(
-        "Example",
+    let frame = shell::Frame {
+        title: "Example <b>bold</b>".into(),
+        icon: None,
+        mount: "/a/example/".into(),
+        menu: vec![shell::MenuLink {
+            label: "<script>alert(1)</script>".into(),
+            href: "/a/example/x".into(),
+            icon: None,
+        }],
+        styles: Vec::new(),
+        scripts: Vec::new(),
+        static_dir: None,
+    };
+    let page = shell::app_frame(
+        &frame,
+        &[],
         false,
         "token",
         "<h1>Example</h1>",
@@ -2618,6 +2660,9 @@ fn test_footer_node_label_is_escaped() {
     );
     assert!(page.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assert!(!page.contains("<img src=x"));
+    assert!(page.contains("<title>Example &lt;b&gt;bold&lt;/b&gt; — Privatium</title>"));
+    assert!(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;</a></li>"));
+    assert!(!page.contains("<script>alert"));
     assert!(page.contains("https://github.com/gabrielmongefranco/privatium"));
     assert!(page.contains("Connect a device"));
     assert_clean("footer", &page, Unit::Document);

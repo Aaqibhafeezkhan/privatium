@@ -16,7 +16,7 @@ The `PV4xx` rules of `spec/cli.md §5.1` with the WCAG 2.2 success criterion eac
 
 ## The framework's colour tokens
 
-From `shell.css` at this version, both schemes, computed with the linter's contrast maths. An app that keeps to these tokens inherits the floors.
+From `chrome.css` at this version, both schemes, computed with the linter's contrast maths. Every page loads that sheet, so an app that keeps to these tokens inherits the floors.
 
 | Pair | Floor | Light | Dark |
 |---|---|---|---|

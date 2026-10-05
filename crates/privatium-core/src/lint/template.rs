@@ -219,7 +219,9 @@ fn emit_html(body: &str) -> String {
                 };
             }
             "csrf" => return "<input type=\"hidden\" name=\"_csrf\" value=\"x\">".into(),
-            "render" => return String::new(),
+            // `render` places a partial the page walk follows separately; `menu` adds a
+            // link to the frame's menu and emits nothing into the page.
+            "render" | "menu" => return String::new(),
             _ => {}
         }
     }

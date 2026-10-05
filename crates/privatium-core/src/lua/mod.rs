@@ -2,7 +2,7 @@
 // crates/privatium-core/src/lua/mod.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: The Lua host (spec/lua-api.md): one pool of sandboxed VMs per Tier 1 app, every VM loading
 //          app.lua identically so the router can hold (method, pattern, index) from VM 0
 //          (§2.4); one request holds one VM on a blocking thread with a read-only connection
@@ -181,9 +181,23 @@ pub enum LuaResponse {
         html: Vec<u8>,
         /// Whether to serve it as it is rather than inside the framework's frame.
         complete: bool,
+        /// The items the view added to the page's menu with `menu()`, in call order.
+        menu: Vec<PageMenuItem>,
     },
     /// `nil`: 204.
     NoContent,
+}
+
+/// One `menu(label, path[, icon])` call from a view (`spec/lua-api.md §4.1`): a link the
+/// page frame lists in its menu for this page alone, before the framework's own pages.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PageMenuItem {
+    /// The link's text, as the view gave it.
+    pub label: String,
+    /// Mount-relative, as the view gave it; the frame resolves it through `url()`.
+    pub path: String,
+    /// A Bootstrap Icons file name, when the view gave one.
+    pub icon: Option<String>,
 }
 
 /// Where in the app's source an error points: the first `file:line` of a traceback that
@@ -396,6 +410,8 @@ pub(crate) struct VmData {
     pub render_depth: u32,
     /// The layout the view asked for, applied when the view returns.
     pub layout: Option<String>,
+    /// The menu items the view added with `menu()`, returned with the view.
+    pub menu: Vec<PageMenuItem>,
 }
 
 struct Vm {
@@ -655,6 +671,7 @@ impl Host {
             views: None,
             render_depth: 0,
             layout: None,
+            menu: Vec::new(),
         });
         pv::install(&lua).map_err(|error| error.to_string())?;
         lsp::install(&lua).map_err(|error| error.to_string())?;
@@ -777,6 +794,7 @@ impl Vm {
             data.views = Some(views);
             data.render_depth = 0;
             data.layout = None;
+            data.menu.clear();
         }
         let result = body(&self.lua);
         // Take the context back whatever happened: the connection closes here, and a
@@ -788,6 +806,7 @@ impl Vm {
             data.batch = None;
             data.views = None;
             data.layout = None;
+            data.menu.clear();
             data.ctx.take()
         });
         drop(taken);
@@ -897,10 +916,11 @@ fn response_of(lua: &Lua, value: &Value, fragment: bool) -> mlua::Result<LuaResp
                 Some("render") => {
                     let view: String = table.raw_get("view")?;
                     let ctx: Option<Table> = table.raw_get("ctx")?;
-                    let (html, layouted) = lsp::render_response(lua, &view, ctx)?;
+                    let (html, layouted, menu) = lsp::render_response(lua, &view, ctx)?;
                     Ok(LuaResponse::View {
                         html: html.into_bytes(),
                         complete: layouted || fragment,
+                        menu,
                     })
                 }
                 _ => Err(mlua::Error::runtime(

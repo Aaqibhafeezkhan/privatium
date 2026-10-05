@@ -47,8 +47,8 @@ end)
 | `<?raw expr ?>` | Emit unescaped — every use is a review trigger |
 | `<?-- ... --?>` | Comment |
 
-Helpers in every template: `render`, `layout`, `icon`, `url`, `fmt.date`, `fmt.money`,
-`fmt.rel`, `csrf`, `t`.
+Helpers in every template: `render`, `layout`, `menu`, `icon`, `url`, `fmt.date`,
+`fmt.money`, `fmt.rel`, `csrf`, `t`.
 
 - `<?= ?>` escapes every string. `icon()`, `csrf()` and `render()` return an HTML value
   that passes as it is — write `<?= icon('gear') ?>`, never `<?raw icon('gear') ?>`.
@@ -57,16 +57,32 @@ Helpers in every template: `render`, `layout`, `icon`, `url`, `fmt.date`, `fmt.m
 - The ctx keys are bare names: `pv.render('index', { fills = ... })` makes `fills` visible.
   A name not in the ctx is the Lua global of that name, so never key a ctx by a builtin —
   `error`, `type`, `select`, `table`. Use `err` for a message.
-- A view with no `layout()` renders inside the framework's page frame (title, stylesheet,
-  htmx, header, `<main>`): write the page's one `<h1>` and the content, nothing more. To
-  own the document, call `layout('base')` and put `<?= content ?>` in `views/base.lsp`.
+- A view with no `layout()` renders inside the framework's page frame, the bar and
+  footer every app shares: the Privatium mark on the left (the launcher), your app's
+  title and icon in the centre (your first page), and on the right the Apps link and the
+  one Menu. The menu lists your app's items first, then the framework's settings pages.
+  The footer carries a status line the framework writes when the connection changes.
+  Write the page's one `<h1>` and the content, nothing more; the title in the bar is not
+  a heading. To own the document, call `layout('base')` and put `<?= content ?>` in
+  `views/base.lsp`.
+- Put what the whole app needs in `app.toml`, not in a view: `[ui] styles = ["static/app.css"]`
+  and `scripts = ["static/app.js"]` load once in the head of every framed page, in
+  order, deferred, each with the hash of the file as served. An `[[ui.menu]]` entry
+  (`label`, mount-relative `path`, optional `icon`) is a menu item on every page; a view
+  adds one for its own page with `<? menu('Print list', '/print', 'printer') ?>` before
+  its markup. A load refuses a script or stylesheet that is not in the folder, a menu item
+  without a label, and a path that is not mount-relative, so a typo is found at start-up
+  and not in the browser. A node older than the `[ui]` table refuses a manifest that
+  carries it: pin the framework version your app is linted against and raise it when
+  you adopt the table.
 - The one `<h1>` is per *rendered page*, not per file (`PV404`): a page and its partials
   together carry exactly one, so it may live in the partial htmx swaps — `_board.lsp` has
   it, `play.lsp` does not. Every state of the view supplies one, the empty state included.
 - A request htmx makes gets the view's output alone, so `pv.render('_board', ctx)` from a
   `req.is_htmx` branch is a fragment swap; `render('_board', ctx)` includes it in a page.
 - `static/` is served at `url('/static/...')` beneath the mount; put CSS and vendored JS
-  there.
+  there, and name the ones every page needs in `[ui]` rather than linking them from a
+  view. The frame's own stylesheets come first, so yours win.
 - Anything a script hides must be reachable with scripts off. Link a sheet from
   `<noscript>` — `<noscript><link rel="stylesheet" href="<?= url('/static/nojs.css') ?>"></noscript>`
   — that reverts `x-cloak` and hides `.pv-js-only`, the buttons whose only job is

@@ -4,8 +4,9 @@
 // Created: 2026-09-02
 // Last Modified: 2026-10-04
 // Summary: app.toml (spec/app-contract.md §3) — the manifest as a type, its validation against §3.1,
-//          protocol §1.1's reserved slugs and §12's api ceiling, and the [permissions] table
-//          of §5.4 with the plain-language widenings it implies.
+//          protocol §1.1's reserved slugs and §12's api ceiling, the [permissions] table of
+//          §5.4 with the plain-language widenings it implies, and the [ui] table: the menu
+//          items, scripts and stylesheets the page frame carries for the app.
 // Notes: See README file for documentation and full license information.
 //
 // Copyright © 2026 Gabriel Mongefranco
@@ -57,6 +58,14 @@ pub const RESERVED_SLUGS: [&str; 10] = [
 
 /// `title` is at most this many characters (`§3`).
 pub const MAX_TITLE_CHARS: usize = 40;
+
+/// A menu item's `label` is at most this many characters (`§3`): the menu is a narrow
+/// column, and a label longer than the app's own title would not fit it.
+pub const MAX_MENU_LABEL_CHARS: usize = 40;
+
+/// The folder beneath the app that `ui.scripts` and `ui.styles` name files in, and the
+/// prefix each entry is spelled with (`§3`).
+pub const UI_ASSET_DIR: &str = "static/";
 
 /// The longest slug DNS-SD can carry as a subtype label (`spec/protocol.md §6.1`).
 pub const MAX_ADVERTISED_SLUG: usize = 15;
@@ -118,6 +127,40 @@ pub struct Manifest {
     /// `[permissions]` (`§5.4`).
     #[serde(default)]
     pub permissions: Permissions,
+    /// `[ui]` (`§3`): what the page frame carries for this app.
+    #[serde(default)]
+    pub ui: Ui,
+}
+
+/// `[ui]` (`spec/app-contract.md §3`). Every key is optional and every default is the
+/// frame as it renders for an app that declares nothing.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct Ui {
+    /// `[[ui.menu]]`: app-wide links the page frame's menu lists before the framework's
+    /// own pages, in this order.
+    pub menu: Vec<MenuItem>,
+    /// Scripts beneath `static/` the frame loads in its head on every page, deferred, in
+    /// this order. Spelled `static/<file>.js`.
+    pub scripts: Vec<String>,
+    /// Stylesheets beneath `static/` the frame loads in its head on every page, in this
+    /// order. Spelled `static/<file>.css`.
+    pub styles: Vec<String>,
+}
+
+/// One `[[ui.menu]]` entry: a link the frame renders for the app.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MenuItem {
+    /// The link's text. REQUIRED, 1 to 40 characters.
+    pub label: String,
+    /// Mount-relative, beginning with `/`, resolved through `url()` so the same manifest
+    /// works in host and solo mode. REQUIRED.
+    pub path: String,
+    /// A Bootstrap Icons file name (`docs/icons.md`), drawn before the label. Checked
+    /// against the vendored set where the shell renders it; here it is only carried.
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 /// `[app]`. The five REQUIRED keys have no default; the rest are optional.
@@ -371,6 +414,55 @@ pub enum ManifestError {
     )]
     CrossOriginIsolatedInHostMode,
 
+    /// A `[[ui.menu]]` entry without a usable label.
+    #[error(
+        "ui.menu item {index} needs a label of 1 to {MAX_MENU_LABEL_CHARS} characters, \
+         found {found} (spec/app-contract.md §3)"
+    )]
+    MenuLabel {
+        /// The item's position, counting from 1.
+        index: usize,
+        /// Characters found.
+        found: usize,
+    },
+
+    /// A `[[ui.menu]]` path that is not mount-relative. A full URL, a path that names the
+    /// mount itself, or an empty path cannot be resolved through `url()`.
+    #[error(
+        "ui.menu item {index} path {path:?} must be mount-relative — begin with a single / \
+         and name no scheme (spec/app-contract.md §3)"
+    )]
+    MenuPath {
+        /// The item's position, counting from 1.
+        index: usize,
+        /// What was written.
+        path: String,
+    },
+
+    /// A `ui.scripts` or `ui.styles` entry not spelled `static/<file>` with the matching
+    /// extension, or one that climbs out of the folder.
+    #[error(
+        "ui.{key} entry {entry:?} must name a file as static/<name>.{extension} \
+         (spec/app-contract.md §3)"
+    )]
+    UiAssetPath {
+        /// `scripts` or `styles`.
+        key: &'static str,
+        /// What was written.
+        entry: String,
+        /// `js` or `css`.
+        extension: &'static str,
+    },
+
+    /// A `ui.scripts` or `ui.styles` entry whose file is not in the folder.
+    #[error("ui.{key} names {entry}, which is not in the app folder (spec/app-contract.md §3)")]
+    UiAssetMissing {
+        /// `scripts` or `styles`.
+        key: &'static str,
+        /// The entry as written.
+        entry: String,
+    },
+
     /// `§8`'s tier check.
     #[error("tier {tier} requires {file} (spec/app-contract.md §8)")]
     TierFileMissing {
@@ -435,8 +527,105 @@ impl Manifest {
         if self.permissions.cross_origin_isolated && mode == Mode::Host {
             return Err(ManifestError::CrossOriginIsolatedInHostMode);
         }
+        self.ui.validate()
+    }
+}
+
+impl Ui {
+    /// `§3`'s shape rules for the table, without the folder: every menu item has a label
+    /// and a mount-relative path, and every script or stylesheet is spelled
+    /// `static/<name>` with the extension its key implies. Whether the files exist is
+    /// [`Ui::check_files`], which needs the folder.
+    pub fn validate(&self) -> Result<(), ManifestError> {
+        for (position, item) in self.menu.iter().enumerate() {
+            let index = position + 1;
+            let found = item.label.trim().chars().count();
+            if found == 0 || found > MAX_MENU_LABEL_CHARS {
+                return Err(ManifestError::MenuLabel { index, found });
+            }
+            if !is_mount_relative(&item.path) {
+                return Err(ManifestError::MenuPath {
+                    index,
+                    path: item.path.clone(),
+                });
+            }
+        }
+        for entry in &self.scripts {
+            if !is_ui_asset_path(entry, "js") {
+                return Err(ManifestError::UiAssetPath {
+                    key: "scripts",
+                    entry: entry.clone(),
+                    extension: "js",
+                });
+            }
+        }
+        for entry in &self.styles {
+            if !is_ui_asset_path(entry, "css") {
+                return Err(ManifestError::UiAssetPath {
+                    key: "styles",
+                    entry: entry.clone(),
+                    extension: "css",
+                });
+            }
+        }
         Ok(())
     }
+
+    /// Every `scripts` and `styles` entry names a file beneath `dir`. Run after
+    /// [`Ui::validate`], which guarantees the entries stay inside `static/`.
+    pub fn check_files(&self, dir: &std::path::Path) -> Result<(), ManifestError> {
+        for (key, entries) in [("scripts", &self.scripts), ("styles", &self.styles)] {
+            for entry in entries {
+                if !dir.join(entry).is_file() {
+                    return Err(ManifestError::UiAssetMissing {
+                        key,
+                        entry: entry.clone(),
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether the table changes anything about the frame.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.menu.is_empty() && self.scripts.is_empty() && self.styles.is_empty()
+    }
+}
+
+/// A path `url()` can resolve beneath the mount: one leading `/`, no scheme, no
+/// whitespace, and nothing that climbs. `/` alone is the mount root and is allowed.
+#[must_use]
+pub fn is_mount_relative(path: &str) -> bool {
+    path.starts_with('/')
+        && !path.starts_with("//")
+        && !path.contains(':')
+        && !path.chars().any(char::is_whitespace)
+        && !path.split('/').any(|part| part == "..")
+}
+
+/// `static/<name>.<extension>`: beneath the asset folder, one or more plain segments,
+/// nothing hidden, nothing that climbs, and the extension the key implies.
+#[must_use]
+pub fn is_ui_asset_path(entry: &str, extension: &str) -> bool {
+    let Some(rest) = entry.strip_prefix(UI_ASSET_DIR) else {
+        return false;
+    };
+    let segments: Vec<&str> = rest.split('/').collect();
+    let well_formed = !segments.is_empty()
+        && segments.iter().all(|part| {
+            !part.is_empty()
+                && !part.starts_with('.')
+                && part
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
+        });
+    well_formed
+        && segments
+            .last()
+            .and_then(|name| name.rsplit_once('.'))
+            .is_some_and(|(stem, ext)| !stem.is_empty() && ext == extension)
 }
 
 /// `spec/protocol.md §1.1`.
@@ -702,6 +891,127 @@ mod tests {
             w[0]
         );
         assert_eq!(w[1], Widening::Sql);
+    }
+
+    #[test]
+    fn test_spec_3_the_ui_table_parses_validates_and_defaults_to_nothing() {
+        let m = Manifest::parse(HELLO).unwrap();
+        assert!(m.ui.is_empty());
+        assert_eq!(m.ui, Ui::default());
+
+        let full = format!(
+            "{HELLO}[ui]\nscripts = [\"static/forms.js\"]\nstyles = [\"static/app.css\"]\n\
+             [[ui.menu]]\nlabel = \"Setup\"\npath = \"/setup\"\nicon = \"gear\"\n\
+             [[ui.menu]]\nlabel = \"Print list\"\npath = \"/\"\n"
+        );
+        let m = Manifest::parse(&full).unwrap();
+        assert_eq!(m.ui.menu.len(), 2);
+        assert_eq!(m.ui.menu[0].icon.as_deref(), Some("gear"));
+        assert_eq!(m.ui.menu[1].path, "/");
+        assert!(m.ui.menu[1].icon.is_none());
+        m.validate("hello", Mode::Host).unwrap();
+
+        // A key §3 does not name is refused like any other.
+        assert!(Manifest::parse(&format!("{HELLO}[ui]\nnavbar = true\n")).is_err());
+        assert!(
+            Manifest::parse(&format!(
+                "{HELLO}[[ui.menu]]\nlabel = \"x\"\npath = \"/\"\nhref = \"/\"\n"
+            ))
+            .is_err()
+        );
+        // A menu item without its path is a parse error naming the key.
+        let error = Manifest::parse(&format!("{HELLO}[[ui.menu]]\nlabel = \"x\"\n")).unwrap_err();
+        assert!(error.to_string().contains("path"), "{error}");
+    }
+
+    #[test]
+    fn test_spec_3_ui_references_are_held_to_their_shape() {
+        let item = |label: &str, path: &str| {
+            Manifest::parse(&format!(
+                "{HELLO}[[ui.menu]]\nlabel = {label:?}\npath = {path:?}\n"
+            ))
+            .unwrap()
+            .validate("hello", Mode::Host)
+        };
+        assert!(matches!(
+            item("  ", "/x").unwrap_err(),
+            ManifestError::MenuLabel { index: 1, found: 0 }
+        ));
+        assert!(matches!(
+            item(&"x".repeat(41), "/x").unwrap_err(),
+            ManifestError::MenuLabel {
+                index: 1,
+                found: 41
+            }
+        ));
+        for bad in [
+            "",
+            "setup",
+            "//evil",
+            "https://example.com/",
+            "/a b",
+            "/../x",
+            "/a/hello/x:y",
+        ] {
+            assert!(
+                matches!(
+                    item("ok", bad).unwrap_err(),
+                    ManifestError::MenuPath { index: 1, .. }
+                ),
+                "{bad:?}"
+            );
+        }
+        for ok in ["/", "/setup", "/people/1/print", "/x?y=1"] {
+            item("ok", ok).unwrap_or_else(|e| panic!("{ok:?}: {e}"));
+        }
+
+        let asset = |key: &str, entry: &str| {
+            Manifest::parse(&format!("{HELLO}[ui]\n{key} = [{entry:?}]\n"))
+                .unwrap()
+                .validate("hello", Mode::Host)
+        };
+        for bad in [
+            "forms.js",
+            "/static/forms.js",
+            "static/",
+            "static/forms",
+            "static/forms.css",
+            "static/../app.lua",
+            "static/.hidden.js",
+            "static//forms.js",
+            "web/forms.js",
+        ] {
+            assert!(
+                matches!(
+                    asset("scripts", bad).unwrap_err(),
+                    ManifestError::UiAssetPath { key: "scripts", .. }
+                ),
+                "{bad:?}"
+            );
+        }
+        asset("scripts", "static/forms.js").unwrap();
+        asset("scripts", "static/vendor/alpine-csp.min.js").unwrap();
+        asset("styles", "static/app.css").unwrap();
+        assert!(matches!(
+            asset("styles", "static/app.js").unwrap_err(),
+            ManifestError::UiAssetPath { key: "styles", .. }
+        ));
+
+        // The files themselves are checked against the folder.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("static")).unwrap();
+        std::fs::write(dir.path().join("static/app.css"), "").unwrap();
+        let ui = Ui {
+            styles: vec!["static/app.css".into()],
+            scripts: vec!["static/forms.js".into()],
+            ..Ui::default()
+        };
+        assert!(matches!(
+            ui.check_files(dir.path()).unwrap_err(),
+            ManifestError::UiAssetMissing { key: "scripts", .. }
+        ));
+        std::fs::write(dir.path().join("static/forms.js"), "").unwrap();
+        ui.check_files(dir.path()).unwrap();
     }
 
     #[test]

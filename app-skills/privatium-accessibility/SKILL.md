@@ -67,8 +67,19 @@ of them are.
 **The framework's own pages**
 - The launcher, settings, error pages and the Tier 1 page frame are held to `PV401`–
   `PV407` by the framework's tests over their rendered HTML (`spec/cli.md §5.4`). Your
-  view inherits a frame that already passes: `lang`, one `<main>`, a labelled `<nav>`, a
-  skip link. Supply the `<h1>` and the content.
+  view inherits a frame that already passes: `lang`, one `<main>`, labelled `<nav>`s, a
+  skip link, 44-pixel targets and a visible focus ring on every control. Supply the
+  `<h1>` and the content.
+- The app's title in the bar is a paragraph, not a heading. The page's one `<h1>` is
+  still yours to write, in the view, in every state.
+- The footer's status line, `<p id="pv-status" role="status">`, is a polite live region:
+  what is written there is read out without moving focus. Write task wording through
+  `pv.status('Saved.')` — short, plain, on a change of state, never technical detail
+  and never a stream of progress. An error belongs next to its field with `role="alert"`,
+  not in the status line. The framework writes the connection wording there itself; do
+  not repeat it.
+- A menu item you add, through `[[ui.menu]]`, `menu()` or by appending to
+  `#pv-app-menu`, is a link or a button with a text label. An icon alone is not a label.
 
 **Language and clarity**
 - Set `lang` on the document

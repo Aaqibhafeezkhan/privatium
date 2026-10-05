@@ -59,8 +59,11 @@ export class Transport {
         if (crypto.receive.closed) this.close();
       } catch { this.close(); }
     });
-    socket.addEventListener('close', () => this.close());
-    socket.addEventListener('error', () => this.close());
+    // A socket the page did not close is a lost connection: said once, for the status
+    // slot (spec/app-contract.md §5.2). A close this side asked for says nothing.
+    const lost = () => { const unexpected = !this.#closed; this.close(); if (unexpected) globalThis.dispatchEvent?.(new CustomEvent('pv:channel-closed')); };
+    socket.addEventListener('close', lost);
+    socket.addEventListener('error', lost);
   }
   get closed() { return this.#closed; }
   #send(head, payload) {
