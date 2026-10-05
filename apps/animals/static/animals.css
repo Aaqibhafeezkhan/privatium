@@ -1,7 +1,9 @@
 /* Project:  Privatium™  |  File: apps/animals/static/animals.css
  * Authors:  Gabriel Mongefranco (@gabrielmongefranco)
- * Created:  2026-08-31  |  Modified: 2026-09-06
- * Summary:  A focused game board and readable question paths, using shell tokens.
+ * Created:  2026-08-31  |  Modified: 2026-10-04
+ * Summary:  A focused game board and readable question paths, using shell tokens, and
+ *           what changes when JavaScript is off. Loaded once by the frame's head, from
+ *           [ui] styles in app.toml.
  *           See main README.md for full license information.
  */
 
@@ -9,6 +11,16 @@
  * collapsed content is visible for one frame on a slow phone. Pair every
  * x-show that starts closed with x-cloak. */
 [x-cloak] { display: none !important; }
+
+/* With JavaScript off every write in this app is still a plain form; what Alpine hides
+ * until asked — a question path, the reset confirmation — is shown outright, and the
+ * buttons that only toggle Alpine state are dropped. A media query rather than a
+ * <noscript> link, because a swapped page is parsed with scripting off, so a link inside
+ * <noscript> would arrive as a live stylesheet and apply with JavaScript on. */
+@media (scripting: none) {
+  [x-cloak] { display: revert !important; }
+  .pv-js-only { display: none !important; }
+}
 
 /* Question paths can be long. Wrap rather than scroll the table sideways. */
 .pv-path { white-space: normal; }

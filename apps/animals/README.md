@@ -19,6 +19,7 @@ It is here because it forces the framework to prove things `hello` does not.
 | **Accessible forms** | `fieldset`/`legend` for the radio pair, labels on every input |
 | **The HTMX / Alpine boundary** | Both on one screen — see below |
 | **Progressive enhancement** | `app.lua` → `board()` returns a fragment or a redirect |
+| **Swap navigation** | `app.toml` → `[ui] navigation = "swap"`: pages change under a bar that does not move |
 | **A strict CSP, satisfied** | `static/animals.js` — Alpine's CSP build, no `eval` |
 
 ## Why this app exists, in one sentence
@@ -48,19 +49,22 @@ complementary halves of one rule:
 | Confirm before forgetting everything | Alpine | ephemeral by definition |
 
 Two cases that look like exceptions and are not. **Teaching and forgetting are
-plain form posts**, not HTMX, because they are navigations — a separate page you
-arrive at and leave, and swapping a fragment there means owning the back button.
-And **every HTMX form still carries `method` and `action`**: `hx-post` is an
+plain form posts**, with no `hx-post` of their own, because they are navigations — a
+separate page you arrive at and leave, and swapping a fragment there means owning the
+back button. The frame's swap navigation (below) carries them like any other page change,
+and the redirect each route answers with is where you land. And **every HTMX form still
+carries `method` and `action`**: `hx-post` is an
 enhancement, and `board()` in `app.lua` returns a fragment or a redirect depending
 on `req.is_htmx`, so recording a guess never requires JavaScript.
 
 The rule has a corollary the Alpine half has to honour too: **every write is reachable
 with JavaScript off.** Alpine hides the reset form behind a confirmation and the
 question paths behind a toggle, and without Alpine nothing would ever reveal them. So
-`views/_assets.lsp` links `static/nojs.css` from a `<noscript>` — an external sheet,
-since the default CSP has no `style-src` and an inline `<style>` would be dropped — which
-reverts `x-cloak` and hides the buttons marked `pv-js-only`, the ones whose only job is
-to toggle Alpine state. With JavaScript off the paths are printed and the reset form is
+`static/animals.css` has an `@media (scripting: none)` block that reverts `x-cloak` and
+hides the buttons marked `pv-js-only`, the ones whose only job is to toggle Alpine state.
+It is a media query rather than a `<noscript>` link because a swapped page is parsed with
+scripting off, and a link inside `<noscript>` would arrive in the page as a live
+stylesheet with JavaScript on. With JavaScript off the paths are printed and the reset form is
 simply on the page: one step instead of two, and nothing you can do with scripts that you
 cannot do without them.
 
@@ -83,7 +87,7 @@ One more thing the browser taught this app: `static/animals.js` must load **befo
 Alpine. Alpine's CDN builds start themselves in a microtask as soon as their script runs,
 and `alpine:init` fires right then — a component registered afterwards does not exist as
 far as Alpine is concerned, and every `x-data` is an "Undefined variable" in the console.
-`views/_assets.lsp` keeps the order, both scripts `defer`.
+`[ui] scripts` in `app.toml` keeps the order, and the frame loads both with `defer`.
 
 Each use is commented in the source with *why that tool*, not *how it works*. The teaching
 happens in the contrast, on one page.
@@ -91,6 +95,22 @@ happens in the contrast, on one page.
 Across the reference apps a reader sees all three postures without a comparison
 document: server-owned state (`animals`, HTMX), client-owned ephemeral state (`animals`,
 Alpine), and client-owned everything (`sketch`).
+
+## Pages change in place
+
+`app.toml` sets `[ui] navigation = "swap"`. A link or a form inside the page fetches the
+next page as usual, and the frame swaps only its main region in, so the bar and footer stay
+put and the screen does not flash between pages. The new page's heading takes focus, the
+window title changes, and the address bar shows where you are. The back button reloads the
+page you go back to. Anything outside the app — Settings, the launcher, another app — is a
+full page load, as before. See `spec/lua-api.md §4.1` for the rules.
+
+Two things follow for the code. The stylesheet and both scripts are listed under `[ui]` in
+`app.toml` and loaded once, in the head, so no view carries a `<link>` or a `<script>` of
+its own (`PV111`): a swapped page never runs one. And `static/animals.js` binds its
+listeners to `document` once, when it loads, so a swapped page needs nothing re-run. Alpine
+starts the components of a swapped page by itself, since it watches the document for new
+elements.
 
 ## The starter tree
 

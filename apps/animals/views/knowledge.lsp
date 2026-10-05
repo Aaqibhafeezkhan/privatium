@@ -5,8 +5,6 @@ Summary: Everything the app has learned, and the button that forgets it.
 Notes: See README file for documentation and full license information.
 --?>
 
-<?= render('_assets') ?>
-
 <div class="animals">
 <h1>What I know</h1>
 

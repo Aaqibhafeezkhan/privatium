@@ -1,0 +1,17 @@
+# Project:  Privatium™  |  File: apps/_lint/pass/PV111/pv111ok/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV111 pass: a swap app whose script and stylesheet are declared in app.toml, so its views carry neither.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv111ok"
+title   = "Lint PV111"
+version = "1.0.0"
+api     = 1
+tier    = "lua"
+
+[ui]
+navigation = "swap"
+scripts    = ["static/app.js"]
+styles     = ["static/app.css"]

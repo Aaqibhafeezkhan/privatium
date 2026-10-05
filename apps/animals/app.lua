@@ -2,7 +2,7 @@
 -- apps/animals/app.lua
 -- Author(s): Gabriel Mongefranco
 -- Created: 2026-08-28
--- Last Modified: 2026-09-26
+-- Last Modified: 2026-10-04
 -- Summary: The guess-the-animal game. Demonstrates multi-event atomic writes, recursive SQL, stored
 --          session state, and the HTMX/Alpine boundary.
 -- Notes: See README file for documentation and full license information.
@@ -119,8 +119,10 @@ end)
 --
 -- Note this route redirects rather than swapping a fragment, even under HTMX.
 -- Teaching is a navigation: you came here from the board on a separate page and
--- you are going back to it. Swapping would leave the browser's history pointing
--- at a form the user has already submitted. Not every write wants HTMX.
+-- you are going back to it. Swapping a fragment would leave the browser's history
+-- pointing at a form the user has already submitted. Not every write wants HTMX.
+-- With swap navigation the frame follows the redirect inside the document, and the
+-- address bar shows the board, exactly as after a full-page post.
 pv.post('/teach', function(req)
   local node     = here()
   local animal   = tree.clean(req.form.animal)

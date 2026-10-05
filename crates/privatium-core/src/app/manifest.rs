@@ -158,6 +158,32 @@ impl Chrome {
     }
 }
 
+/// `[ui] navigation` (`spec/app-contract.md §3`, `spec/lua-api.md §4.1`): how a framed
+/// Tier 1 view moves to the next page of the same app. A Tier 2 app owns its document and
+/// navigates as it likes, so `swap` is refused for one at load.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Navigation {
+    /// The default: every link and form beneath the mount loads a fresh document.
+    #[default]
+    Page,
+    /// A link or form beneath the mount fetches the next page and swaps its main region
+    /// into the current document, under the bar that does not move
+    /// (`spec/protocol.md §8.3.1`).
+    Swap,
+}
+
+impl Navigation {
+    /// The value as `app.toml` spells it.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Page => "page",
+            Self::Swap => "swap",
+        }
+    }
+}
+
 /// `[ui]` (`spec/app-contract.md §3`). Every key is optional and every default is the
 /// frame as it renders for an app that declares nothing.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -165,6 +191,8 @@ impl Chrome {
 pub struct Ui {
     /// Whether a document the app owns receives the standard chrome (`§5`).
     pub chrome: Chrome,
+    /// How a framed Tier 1 view reaches the app's next page.
+    pub navigation: Navigation,
     /// `[[ui.menu]]`: app-wide links the page frame's menu lists before the framework's
     /// own pages, in this order.
     pub menu: Vec<MenuItem>,
@@ -491,6 +519,14 @@ pub enum ManifestError {
         entry: String,
     },
 
+    /// `navigation = "swap"` on a Tier 2 app, which owns its document and has no frame to
+    /// swap a page into.
+    #[error(
+        "ui.navigation = \"swap\" applies to the page frame of a Tier 1 app; a Tier 2 app owns \
+         its document and navigates as it likes (spec/app-contract.md §3)"
+    )]
+    SwapNavigationOnWeb,
+
     /// `§8`'s tier check.
     #[error("tier {tier} requires {file} (spec/app-contract.md §8)")]
     TierFileMissing {
@@ -554,6 +590,9 @@ impl Manifest {
         }
         if self.permissions.cross_origin_isolated && mode == Mode::Host {
             return Err(ManifestError::CrossOriginIsolatedInHostMode);
+        }
+        if self.app.tier == Tier::Web && self.ui.navigation == Navigation::Swap {
+            return Err(ManifestError::SwapNavigationOnWeb);
         }
         self.ui.validate()
     }
@@ -619,6 +658,7 @@ impl Ui {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.chrome == Chrome::Standard
+            && self.navigation == Navigation::Page
             && self.menu.is_empty()
             && self.scripts.is_empty()
             && self.styles.is_empty()
@@ -1053,6 +1093,27 @@ mod tests {
         assert_eq!(none.ui.chrome, Chrome::None);
         assert!(!none.ui.is_empty());
         let other = Manifest::parse(&format!("{HELLO}[ui]\nchrome = \"bare\"\n"));
+        assert!(matches!(other, Err(ManifestError::Toml(_))), "{other:?}");
+    }
+
+    #[test]
+    fn test_spec_3_navigation_defaults_to_page_and_swap_is_for_a_lua_app_only() {
+        let m = Manifest::parse(HELLO).unwrap();
+        assert_eq!(m.ui.navigation, Navigation::Page);
+        let swap = Manifest::parse(&format!("{HELLO}[ui]\nnavigation = \"swap\"\n")).unwrap();
+        assert_eq!(swap.ui.navigation, Navigation::Swap);
+        assert!(!swap.ui.is_empty());
+        swap.validate("hello", Mode::Host).unwrap();
+        let web = Manifest::parse(&format!(
+            "{}[ui]\nnavigation = \"swap\"\n",
+            HELLO.replace("tier = \"lua\"", "tier = \"web\"")
+        ))
+        .unwrap();
+        assert!(matches!(
+            web.validate("hello", Mode::Host),
+            Err(ManifestError::SwapNavigationOnWeb)
+        ));
+        let other = Manifest::parse(&format!("{HELLO}[ui]\nnavigation = \"spa\"\n"));
         assert!(matches!(other, Err(ManifestError::Toml(_))), "{other:?}");
     }
 

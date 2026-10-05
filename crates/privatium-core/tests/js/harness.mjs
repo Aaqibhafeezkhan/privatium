@@ -4,7 +4,9 @@
 // Summary:  What pv.js needs of a browser, faked for `node --test`: a location, a
 //           navigator, a localStorage that can be told to fail, an EventSource that goes
 //           nowhere, and a fetch that answers from a script and records every request. Each
-//           test imports a fresh copy of the module through a unique query string.
+//           test imports a fresh copy of the module through a unique query string. Also a
+//           framed document small enough to drive chrome.js's swap navigation: a body
+//           naming its mount, a main region, links, forms and their buttons.
 //           See main README.md for full license information.
 
 import { fileURLToPath } from 'node:url';
@@ -83,4 +85,77 @@ export function upNode(app = 'sketch', lam = { value: 10 }) {
 /** A node nobody can reach. */
 export function downNode() {
   return () => { throw new TypeError('fetch failed'); };
+}
+
+/**
+ * A fake element: a tag, attributes and children, with the few DOM methods chrome.js's
+ * navigation uses. `querySelector('h1')` matches by tag; the submit-control selector
+ * matches buttons without a type or of type submit, and inputs of type submit or image.
+ */
+export function element(tag, attributes = {}, children = []) {
+  const el = {
+    tagName: tag.toUpperCase(), attributes: { ...attributes }, children: [], parent: null, disabled: false,
+    getAttribute(name) { return name in this.attributes ? this.attributes[name] : null; },
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    hasAttribute(name) { return name in this.attributes; },
+    get name() { return this.attributes.name ?? ''; },
+    set name(text) { this.attributes.name = String(text); },
+    get value() { return this.attributes.value ?? ''; },
+    set value(text) { this.attributes.value = String(text); },
+    get type() { return this.attributes.type ?? ''; },
+    set type(text) { this.attributes.type = String(text); },
+    append(...nodes) { for (const node of nodes) { node.parent = this; this.children.push(node); } },
+    contains(other) { for (let node = other; node; node = node.parent) if (node === this) return true; return false; },
+    descendants() { return this.children.flatMap(child => [child, ...child.descendants()]); },
+    querySelectorAll(selector) {
+      if (selector === '[autofocus]') return this.descendants().filter(node => node.hasAttribute('autofocus'));
+      if (selector.includes('button')) {
+        return this.descendants().filter(node => (node.tagName === 'BUTTON' && ['', 'submit'].includes(node.type))
+          || (node.tagName === 'INPUT' && ['submit', 'image'].includes(node.type)));
+      }
+      return this.descendants().filter(node => node.tagName === selector.toUpperCase());
+    },
+    querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; },
+    closest(selector) { for (let node = this; node; node = node.parent) if (node.tagName === selector.toUpperCase()) return node; return null; },
+    focus() { el.ownerDocument.activeElement = el; },
+  };
+  el.append(...children);
+  return el;
+}
+
+/**
+ * A framed page of the app at `mount`, as the frame renders it under swap navigation
+ * (`swap`, the default) or page navigation: a body with `data-pv-mount`, a header outside
+ * the main region, and `<main id="main">` holding a link and a form with a submit button.
+ * `win` records every full navigation in `assigned` and every native form submission in
+ * `submitted`. `__pv_channel` is set on it when `channel` is true.
+ */
+export function framedPage({ mount = '/a/animals/', href = 'http://192.0.2.1:8420/a/animals/', swap = true, channel = false } = {}) {
+  const doc = new EventTarget();
+  const own = node => { node.ownerDocument = doc; node.descendants().forEach(child => { child.ownerDocument = doc; }); return node; };
+  const link = element('a', { href: 'knowledge' });
+  const button = element('button', { type: 'submit', name: 'answer', value: 'yes' });
+  const form = element('form', { method: 'post', action: 'teach' }, [element('input', { type: 'text', name: 'animal' }), button]);
+  const outside = element('a', { href: '/settings' });
+  const main = own(element('main', swap ? { id: 'main', 'hx-boost': 'true' } : { id: 'main' }, [element('h1'), link, form]));
+  own(outside);
+  doc.body = { dataset: mount ? { pvMount: mount } : {} };
+  doc.main = main;
+  doc.activeElement = null;
+  doc.getElementById = id => (id === 'main' ? doc.main : null);
+  doc.createElement = tag => own(element(tag));
+  const win = new EventTarget();
+  win.location = { href, origin: new URL(href).origin, assigned: [], assign(url) { this.assigned.push(url); } };
+  win.submitted = [];
+  win.HTMLFormElement = { prototype: { submit() { win.submitted.push(this); } } };
+  if (channel) win.__pv_channel = {};
+  return { doc, win, main, link, form, button, outside };
+}
+
+/**
+ * The `detail` htmx gives its request and swap events for a boosted request from `elt`
+ * to `path` with `verb`.
+ */
+export function boosted(elt, path, verb = 'get', extra = {}) {
+  return { boosted: true, elt, pathInfo: { requestPath: path, finalRequestPath: path }, requestConfig: { verb, elt, headers: { 'HX-Request': 'true', 'HX-Boosted': 'true' } }, ...extra };
 }

@@ -1,0 +1,17 @@
+# Project:  Privatium™  |  File: apps/_lint/fail/PV111/pv111bad/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV111 fail: a swap app whose view links its own stylesheet and script.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv111bad"
+title   = "Lint PV111"
+version = "1.0.0"
+api     = 1
+tier    = "lua"
+
+[ui]
+navigation = "swap"
+scripts    = ["static/app.js"]
+styles     = ["static/app.css"]

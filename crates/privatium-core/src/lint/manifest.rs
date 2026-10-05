@@ -26,8 +26,8 @@
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::app::manifest::{
-    MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, SUPPORTED_API, Tier, is_reserved,
-    is_valid_slug,
+    MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, Navigation, SUPPORTED_API, Tier,
+    is_reserved, is_valid_slug,
 };
 use crate::config::Mode;
 use crate::lint::{Ctx, RuleId, line_of};
@@ -124,6 +124,7 @@ pub(crate) fn check(ctx: &mut Ctx<'_>) {
                 | ManifestError::MenuPath { .. }
                 | ManifestError::UiAssetPath { .. }
                 | ManifestError::UiAssetMissing { .. }
+                | ManifestError::SwapNavigationOnWeb
         )
     {
         ctx.push(RuleId::PV101, MANIFEST_FILE, 0, error.to_string());
@@ -197,6 +198,17 @@ fn check_ui(ctx: &mut Ctx<'_>, text: &str, manifest: &Manifest) {
             "ui.scripts and ui.styles load in the page frame's head, and a Tier 2 app owns its document, so nothing here is ever loaded",
         )
         .fix = Some("link the stylesheet and script from web/index.html and drop the entries".into());
+    }
+    if manifest.app.tier == Tier::Web && manifest.ui.navigation == Navigation::Swap {
+        ctx.push(
+            RuleId::PV110,
+            MANIFEST_FILE,
+            line_of_key(text, "navigation"),
+            ManifestError::SwapNavigationOnWeb.to_string(),
+        )
+        .fix = Some(
+            "drop the navigation key; the node refuses to load the app while it is there".into(),
+        );
     }
 }
 
