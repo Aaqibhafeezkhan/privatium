@@ -1,0 +1,12 @@
+# Project:  Privatium™  |  File: apps/_lint/fail/PV408/pv408bad/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV408 fail: an Apps link of the app's own under the standard chrome, and a path that climbs to the launcher in the script.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv408bad"
+title   = "Lint PV408"
+version = "1.0.0"
+api     = 1
+tier    = "web"

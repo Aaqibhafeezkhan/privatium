@@ -52,7 +52,7 @@ pub mod seed;
 
 pub use csp::Csp;
 pub use manifest::{
-    MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, MenuItem, Permissions,
+    Chrome, MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, MenuItem, Permissions,
     RESERVED_SLUGS, SUPPORTED_API, Tier, Ui, Widening,
 };
 pub use seed::{SEED_PATH, SeedError, SeedEvent};
@@ -223,6 +223,17 @@ pub enum Warning {
         /// The name that was asked for.
         icon: String,
     },
+    /// An HTML document under `web/` lacks one of the three anchors the standard chrome
+    /// is inserted at (`spec/app-contract.md §5`), so it is served as written, without
+    /// the bar and footer. Named at load rather than discovered by a missing bar.
+    ChromeAnchorMissing {
+        /// The app.
+        slug: String,
+        /// The file beneath the app folder, as `web/index.html`.
+        file: String,
+        /// The tag that was not found: `</head>`, `<body>` or `</body>`.
+        anchor: &'static str,
+    },
 }
 
 impl Warning {
@@ -234,7 +245,8 @@ impl Warning {
             | Self::SlugTooLongToAdvertise { slug }
             | Self::SoloAppNotLoaded { slug }
             | Self::RouteShadowed { slug, .. }
-            | Self::UnknownIcon { slug, .. } => slug,
+            | Self::UnknownIcon { slug, .. }
+            | Self::ChromeAnchorMissing { slug, .. } => slug,
         }
     }
 
@@ -290,6 +302,12 @@ impl fmt::Display for Warning {
             Self::UnknownIcon { slug, icon } => write!(
                 f,
                 "{slug}: icon {icon:?} is not in the vendored Bootstrap Icons set; question-circle \n                 is shown instead (docs/icons.md)"
+            ),
+            Self::ChromeAnchorMissing { slug, file, anchor } => write!(
+                f,
+                "{slug}: {file} has no {anchor}, so the standard chrome is not inserted and the \
+                 document is served as written; add the tag, or set [ui] chrome = \"none\" \
+                 (spec/app-contract.md §5)"
             ),
         }
     }
@@ -1581,6 +1599,19 @@ impl Node {
             }
         }
 
+        // `spec/app-contract.md §5`: a Tier 2 document the chrome would go into needs its
+        // three anchors. Checked at load, once per HTML file, so the owner reads why a bar
+        // is missing instead of wondering; the serve path serves such a file untouched.
+        if manifest.app.tier == Tier::Web && manifest.ui.chrome == manifest::Chrome::Standard {
+            for (file, anchor) in documents_without_anchors(&candidate.dir) {
+                warnings.push(Warning::ChromeAnchorMissing {
+                    slug: slug.clone(),
+                    file,
+                    anchor,
+                });
+            }
+        }
+
         Ok(Prepared {
             manifest,
             manifest_hash,
@@ -1839,6 +1870,44 @@ fn app_row(
 
 /// The top-level entries of a Tier 2 app's `web/` — files or directories — that a
 /// framework prefix would shadow in solo mode, as routes (`/settings`, `/static`, …).
+/// Every `.html` file under `web/`, as `web/<path>`, that lacks a chrome anchor, with the
+/// anchor it lacks (`spec/app-contract.md §5`). A file that cannot be read as text is
+/// skipped: the serve path serves it as it is, and nothing can be said about its tags.
+fn documents_without_anchors(app_dir: &Path) -> Vec<(String, &'static str)> {
+    let mut files = Vec::new();
+    collect_html(&app_dir.join("web"), "web", &mut files);
+    files.sort();
+    files
+        .into_iter()
+        .filter_map(|rel| {
+            let text = fs::read_to_string(app_dir.join(&rel)).ok()?;
+            crate::http::apps::chrome_anchors(&text)
+                .err()
+                .map(|anchor| (rel, anchor))
+        })
+        .collect()
+}
+
+/// Walk `dir`, pushing every `.html` and `.htm` file as `<rel>/<name>`.
+fn collect_html(dir: &Path, rel: &str, into: &mut Vec<String>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let child = format!("{rel}/{name}");
+        if path.is_dir() {
+            collect_html(&path, &child, into);
+        } else if path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("html") || ext.eq_ignore_ascii_case("htm"))
+        {
+            into.push(child);
+        }
+    }
+}
+
 fn shadowed_web_routes(web: &Path) -> Vec<String> {
     let Ok(entries) = fs::read_dir(web) else {
         return Vec::new();

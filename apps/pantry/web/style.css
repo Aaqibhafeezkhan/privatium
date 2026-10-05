@@ -3,7 +3,7 @@
  * apps/pantry/web/style.css
  * Author(s): Gabriel Mongefranco
  * Created: 2026-09-07
- * Last Modified: 2026-09-08
+ * Last Modified: 2026-10-04
  * Summary: One sheet, ruled rather than boxed. The work and the rail are two independent stacks either
  *          side of a hairline, so a long list on one side never pushes the other's headings
  *          out of line. A shelf is drawn as a slat with a lip, because that is what a shelf
@@ -93,14 +93,10 @@ main {
   padding: 1.25rem 1.25rem 4rem;
 }
 
-/* The band: the name of the place, and what just happened to it. */
+/* The band: the name of the place. What just happened to it is said in the footer's
+   status slot, which the framework's chrome renders, and the way back is the bar's. */
 
 .band {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 1.5rem;
   padding-bottom: 0.75rem;
   border-bottom: 2px solid var(--ink);
 }
@@ -119,54 +115,6 @@ h1 {
   width: 1.15em;
   height: 1.15em;
   fill: var(--cold);
-}
-
-.status {
-  margin: 0;
-  flex: 1 1 12rem;
-  min-height: 1.5rem;
-  text-align: right;
-  color: var(--muted);
-}
-
-/* The way back to the launcher, at the end of the band. Icon only, so it stays out of the
-   way of the app's own name; 44 pixels square, so a thumb can reach it. */
-
-.exit {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin: -0.5rem -0.5rem -0.5rem 0;
-  border-radius: 6px;
-  color: var(--cold);
-}
-
-.exit .ic {
-  width: 1.25rem;
-  height: 1.25rem;
-  fill: currentColor;
-}
-
-.exit:hover {
-  background: var(--frost);
-}
-
-/* Narrow: the status line is too wide to share a row with the title, so it takes its own
-   and the way out stays where a thumb expects it — the top right corner, on every width. */
-
-@media (max-width: 33rem) {
-  .status {
-    order: 3;
-    flex: 1 1 100%;
-    text-align: left;
-  }
-
-  .exit {
-    margin-left: auto;
-  }
 }
 
 /* Two independent stacks, joined by one rule. */

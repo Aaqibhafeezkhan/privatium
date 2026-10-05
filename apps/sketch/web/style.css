@@ -3,7 +3,7 @@
  * apps/sketch/web/style.css
  * Author(s): Gabriel Mongefranco
  * Created: 2026-08-28
- * Last Modified: 2026-09-07
+ * Last Modified: 2026-10-04
  * Summary: A fixed white sheet with a labelled tool rail, a single-row top bar and the zoom overlaid on
  *          the sheet's corner. Every colour lives here, because the default CSP has no
  *          style-src and an inline style is dropped; the few values that follow the person's
@@ -164,6 +164,19 @@ input[type="range"] { padding: 0; accent-color: var(--ink); }
   font-size: 16px;
 }
 #tools h1 img { display: block; }
+/* The mark is a link out of the app. Its target is the rail's full 44 pixels, drawn around
+   the 26-pixel image with a negative margin so the heading keeps its height. */
+#tools h1 .mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -9px -9px -9px -11px;
+  border-radius: 6px;
+  color: inherit;
+}
+#tools h1 .mark:hover { background: var(--accent); }
 
 /* The list scrolls inside its own space; the options below it are a sibling, so a panel
    can never pin itself over a tool row. */
@@ -570,6 +583,9 @@ footer p { margin: 0; font-size: 13px; color: var(--muted); white-space: nowrap;
     clip-path: inset(50%);
     white-space: nowrap;
   }
+  /* A hidden heading must not hold a focusable link; the menu's Apps entry is the way
+     out on a narrow screen. */
+  #tools h1 .mark { display: none; }
   #tool-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
   #options { flex-direction: row; align-items: center; gap: 10px; padding-top: 0; border-top: 0; }
   #options h2 { display: none; }

@@ -2,7 +2,7 @@
 // crates/xtask/src/skill_reference.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-26
+// Last Modified: 2026-10-04
 // Summary: `cargo xtask gen-skill-reference [--check]` (docs/skills.md §7): the reference/ files of
 //          every skill, written from the crate — the lint rule table, the pv surface, the
 //          sandbox's removed names, the limits, the permissions and their plain-language
@@ -687,7 +687,10 @@ fn primary_files(id: RuleId) -> &'static [&'static str] {
         | RuleId::PV205
         | RuleId::PV501
         | RuleId::PV502
+        | RuleId::PV110
         | RuleId::PV503 => &["app.toml"],
+        RuleId::PV109 => &["web/index.html"],
+        RuleId::PV408 => &["web/index.html", "web/app.js"],
         RuleId::PV106 | RuleId::PV107 => &["schema.sql"],
         RuleId::PV208 => &["sample/seed.jsonl"],
         RuleId::PV202

@@ -6,7 +6,8 @@
 // Summary: app.toml (spec/app-contract.md §3) — the manifest as a type, its validation against §3.1,
 //          protocol §1.1's reserved slugs and §12's api ceiling, the [permissions] table of
 //          §5.4 with the plain-language widenings it implies, and the [ui] table: the menu
-//          items, scripts and stylesheets the page frame carries for the app.
+//          items, scripts and stylesheets the page frame carries for the app, and whether a
+//          document the app owns receives the standard chrome (§5).
 // Notes: See README file for documentation and full license information.
 //
 // Copyright © 2026 Gabriel Mongefranco
@@ -132,11 +133,38 @@ pub struct Manifest {
     pub ui: Ui,
 }
 
+/// `[ui] chrome` (`spec/app-contract.md §3`, `§5`): whether the node inserts the standard
+/// chrome — the bar and the footer — into a document the app owns, which is every HTML
+/// document a Tier 2 app serves from `web/` and every Tier 1 view that calls `layout()`.
+/// A view rendered inside the page frame always has the chrome; the key does not reach it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Chrome {
+    /// The default: the chrome is inserted at the document's three anchors.
+    #[default]
+    Standard,
+    /// The document is served byte for byte, as the app wrote it.
+    None,
+}
+
+impl Chrome {
+    /// The value as `app.toml` spells it.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Standard => "standard",
+            Self::None => "none",
+        }
+    }
+}
+
 /// `[ui]` (`spec/app-contract.md §3`). Every key is optional and every default is the
 /// frame as it renders for an app that declares nothing.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct Ui {
+    /// Whether a document the app owns receives the standard chrome (`§5`).
+    pub chrome: Chrome,
     /// `[[ui.menu]]`: app-wide links the page frame's menu lists before the framework's
     /// own pages, in this order.
     pub menu: Vec<MenuItem>,
@@ -587,10 +615,13 @@ impl Ui {
         Ok(())
     }
 
-    /// Whether the table changes anything about the frame.
+    /// Whether the table changes anything about the frame or the chrome.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.menu.is_empty() && self.scripts.is_empty() && self.styles.is_empty()
+        self.chrome == Chrome::Standard
+            && self.menu.is_empty()
+            && self.scripts.is_empty()
+            && self.styles.is_empty()
     }
 }
 
@@ -1012,6 +1043,17 @@ mod tests {
         ));
         std::fs::write(dir.path().join("static/forms.js"), "").unwrap();
         ui.check_files(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn test_spec_5_the_chrome_key_defaults_to_standard_and_accepts_none_only() {
+        let m = Manifest::parse(HELLO).unwrap();
+        assert_eq!(m.ui.chrome, Chrome::Standard);
+        let none = Manifest::parse(&format!("{HELLO}[ui]\nchrome = \"none\"\n")).unwrap();
+        assert_eq!(none.ui.chrome, Chrome::None);
+        assert!(!none.ui.is_empty());
+        let other = Manifest::parse(&format!("{HELLO}[ui]\nchrome = \"bare\"\n"));
+        assert!(matches!(other, Err(ManifestError::Toml(_))), "{other:?}");
     }
 
     #[test]

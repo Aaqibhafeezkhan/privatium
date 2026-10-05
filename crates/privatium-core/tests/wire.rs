@@ -6,8 +6,10 @@
 // Summary: core::handle against spec/protocol.md §9 and ADR 0003 — every route reachable with no
 //          listener, the headers of §9.3 on every response, nothing leaked unauthenticated
 //          (§9.2), solo mode at `/` with the framework prefixes winning (§9.1), Tier 2 served
-//          under its own CSP (spec/app-contract.md §5.4), the seed behind a POST (§9), and
-//          bodies that stream. Tier 1 routes are tests/lua.rs.
+//          under its own CSP (spec/app-contract.md §5.4), the standard chrome inserted into
+//          the documents an app owns at their three anchors unless the manifest declines it
+//          (§5), the seed behind a POST (§9), and bodies that stream. Tier 1 routes are
+//          tests/lua.rs.
 // Notes: See README file for documentation and full license information.
 //
 // Copyright © 2026 Gabriel Mongefranco
@@ -46,6 +48,7 @@ use common::{
     APP, event, hand_append, lua_manifest, repo_apps_dir, ts_offset_secs, write_app, write_web_app,
 };
 use privatium_core::app::Warning;
+use privatium_core::http::apps as app_router;
 use privatium_core::http::assets;
 use privatium_core::{AppRoot, Body, Handler, LoadReport, Node, Peer, Request, Response};
 
@@ -1412,4 +1415,391 @@ async fn test_spec_9_3_chrome_assets_are_addressable_by_build_and_carry_an_etag(
             "{name}: {page}"
         );
     }
+}
+
+/// `spec/app-contract.md §5` — a Tier 2 document is served with the standard chrome at
+/// its three anchors: the chrome stylesheet and script before `</head>`, the skip link and
+/// the three-zone header after the opening `<body>`, the footer with the status slot
+/// before `</body>`. The header carries the app's title and its `[[ui.menu]]` items, and
+/// nothing else in the document changes. Other files under `web/` stream as they are.
+#[tokio::test]
+async fn test_spec_5_standard_chrome_is_inserted_at_the_three_anchors_of_a_web_document() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = Node::open(root.path()).unwrap().paths().apps_dir();
+    let document = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n\
+                    <title>Wears</title>\n<link rel=\"stylesheet\" href=\"style.css\">\n</head>\n\
+                    <body class=\"own\" data-x=\"1\">\n<main id=\"main\"><h1>Wears</h1></main>\n\
+                    <script type=\"module\" src=\"app.js\"></script>\n</body>\n</html>\n";
+    write_app(
+        &apps,
+        "wears",
+        Some(
+            "[app]\nslug = \"wears\"\ntitle = \"Wears & Co\"\nversion = \"1.0.0\"\napi = 1\n\
+             tier = \"web\"\nicon = \"box-seam\"\n[[ui.menu]]\nlabel = \"Print list\"\n\
+             path = \"/print\"\nicon = \"printer\"\n",
+        ),
+        &[
+            ("web/index.html", document),
+            ("web/style.css", "main { color: black; }\n"),
+            ("web/app.js", "export const x = 1;\n"),
+        ],
+    );
+    let (node, report) = open(&root);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    let handler = Handler::new(node, report);
+
+    let response = handler.handle(get("/a/wears/")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(header(&response, &CONTENT_TYPE).starts_with("text/html"));
+    assert_eq!(header(&response, &axum::http::header::ETAG), "");
+    assert_eq!(header(&response, &axum::http::header::LAST_MODIFIED), "");
+    let page = body_of(response).await;
+    // Before </head>: the chrome's own two assets, addressed and hashed, and nothing else
+    // of the frame's — no shell stylesheet, no htmx.
+    let head = page.split("</head>").next().unwrap();
+    for asset in ["chrome.css", "chrome.js"] {
+        assert!(
+            head.contains(&format!(
+                "\"{}\" integrity=\"{}\"",
+                assets::versioned(asset),
+                assets::integrity(asset)
+            )),
+            "{asset}: {head}"
+        );
+    }
+    assert!(!head.contains("shell.css"), "{head}");
+    assert!(!head.contains("htmx"), "{head}");
+    assert!(
+        head.contains("<link rel=\"stylesheet\" href=\"style.css\">"),
+        "{head}"
+    );
+    // After <body …>: the body tag is the app's own, then the skip link and the header.
+    let body_at = page.find("<body class=\"own\" data-x=\"1\">").unwrap();
+    let after_body = &page[body_at..];
+    let skip = after_body
+        .find("<a class=\"pv-skip\" href=\"#main\">")
+        .unwrap();
+    let header_at = after_body.find("<header class=\"pv-header\">").unwrap();
+    let main_at = after_body.find("<main id=\"main\">").unwrap();
+    assert!(skip < header_at && header_at < main_at, "{after_body}");
+    let header_html = &after_body[header_at..after_body.find("</header>").unwrap()];
+    assert!(
+        header_html.contains("<p class=\"pv-brand\"><a href=\"/\">"),
+        "{header_html}"
+    );
+    assert!(
+        header_html.contains("<p class=\"pv-app-title\"><a href=\"/a/wears/\">"),
+        "{header_html}"
+    );
+    assert!(
+        header_html.contains("<span>Wears &amp; Co</span></a></p>"),
+        "{header_html}"
+    );
+    assert!(header_html.contains("Apps</a>"), "{header_html}");
+    assert!(
+        header_html.contains("<li><a href=\"/a/wears/print\">"),
+        "the manifest's menu item: {header_html}"
+    );
+    assert!(header_html.contains("Print list</a></li>"), "{header_html}");
+    assert!(
+        header_html.contains("<hr class=\"pv-menu-rule\">"),
+        "{header_html}"
+    );
+    assert!(
+        !header_html.contains("<h1"),
+        "the app keeps the page's h1: {header_html}"
+    );
+    // Before the last </body>: the footer with the status slot, after the app's script.
+    let footer_at = page.find("<footer class=\"pv-footer\">").unwrap();
+    let script_at = page
+        .find("<script type=\"module\" src=\"app.js\">")
+        .unwrap();
+    let body_end = page.rfind("</body>").unwrap();
+    assert!(script_at < footer_at && footer_at < body_end, "{page}");
+    assert!(
+        page.contains("<p id=\"pv-status\" class=\"pv-status\" role=\"status\"></p>"),
+        "{page}"
+    );
+    assert_eq!(page.matches("<h1>").count(), 1, "{page}");
+    assert!(page.ends_with("</body>\n</html>\n"), "{page}");
+    let findings = a11y::check(&page, Unit::Document);
+    assert!(findings.is_empty(), "{findings:?}");
+    // The declared Content-Length is the inserted document's, not the file's.
+    let response = handler.handle(get("/a/wears/")).await;
+    let declared: usize = header(&response, &axum::http::header::CONTENT_LENGTH)
+        .parse()
+        .unwrap();
+    assert_eq!(declared, body_of(response).await.len());
+    // Everything else under web/ is the file.
+    for (file, text) in [
+        ("style.css", "main { color: black; }\n"),
+        ("app.js", "export const x = 1;\n"),
+    ] {
+        let response = handler.handle(get(&format!("/a/wears/{file}"))).await;
+        assert_eq!(body_of(response).await, text, "{file}");
+    }
+    // A HEAD answers with the file's length and no body, as ServeDir does; the chrome is
+    // for a GET alone.
+    let head = handler.handle(request(Method::HEAD, "/a/wears/")).await;
+    assert_eq!(head.status(), StatusCode::OK);
+    assert_eq!(body_of(head).await, "");
+}
+
+/// `spec/app-contract.md §5` — `[ui] chrome = "none"` serves the document byte for byte,
+/// with no chrome asset and no slot; `apps/sketch` is the reference for it.
+#[tokio::test]
+async fn test_spec_5_chrome_none_serves_the_document_byte_for_byte() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = Node::open(root.path()).unwrap().paths().apps_dir();
+    let document = "<!doctype html>\n<html lang=\"en\">\n<head><title>Bare</title></head>\n\
+                    <body>\n<main id=\"main\"><h1>Bare</h1></main>\n</body>\n</html>\n";
+    write_app(
+        &apps,
+        "bare",
+        Some(&format!(
+            "{}[ui]\nchrome = \"none\"\n",
+            common::web_manifest("bare")
+        )),
+        &[("web/index.html", document)],
+    );
+    let (node, report) = open(&root);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    let handler = Handler::new(node, report);
+    let response = handler.handle(get("/a/bare/")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(body_of(response).await, document);
+
+    let sketch = body_of(handler.handle(get("/a/sketch/")).await).await;
+    assert_eq!(
+        sketch,
+        fs::read_to_string(repo_apps_dir().join("sketch/web/index.html")).unwrap()
+    );
+    assert!(!sketch.contains("pv-header"), "{sketch}");
+    assert!(!sketch.contains("chrome.js"), "{sketch}");
+}
+
+/// `spec/app-contract.md §5` — a document without one of the three anchors is served as
+/// it was written, and the load report carries a warning naming the file and the tag, so
+/// the owner reads why the bar is missing. Every HTML file under `web/` is checked.
+#[tokio::test]
+async fn test_spec_5_a_document_without_an_anchor_is_served_untouched_with_a_load_warning() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = Node::open(root.path()).unwrap().paths().apps_dir();
+    // No </head>: the HTML5 shorthand the reference apps once used.
+    let index = "<!doctype html>\n<html lang=\"en\">\n<meta charset=\"utf-8\">\n\
+                 <title>Headless</title>\n<body>\n<main id=\"main\"><h1>Headless</h1></main>\n\
+                 </body>\n</html>\n";
+    // No </body>.
+    let help = "<!doctype html>\n<html lang=\"en\">\n<head><title>Help</title></head>\n\
+                <body>\n<main id=\"main\"><h1>Help</h1></main>\n</html>\n";
+    write_app(
+        &apps,
+        "headless",
+        Some(&common::web_manifest("headless")),
+        &[("web/index.html", index), ("web/docs/help.html", help)],
+    );
+    let (node, report) = open(&root);
+    let anchors: Vec<(String, &str)> = report
+        .warnings
+        .iter()
+        .filter_map(|warning| match warning {
+            Warning::ChromeAnchorMissing { slug, file, anchor } if slug == "headless" => {
+                Some((file.clone(), *anchor))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        anchors,
+        vec![
+            ("web/docs/help.html".to_owned(), "</body>"),
+            ("web/index.html".to_owned(), "</head>"),
+        ],
+        "{:?}",
+        report.warnings
+    );
+    let text = report.warnings[0].to_string();
+    assert!(
+        text.contains("headless: web/docs/help.html has no </body>"),
+        "{text}"
+    );
+    assert!(text.contains("chrome = \"none\""), "{text}");
+    assert!(text.contains("§5"), "{text}");
+    assert_eq!(report.warnings[0].label(), "Load warning");
+    assert!(report.loaded.contains(&"headless".to_owned()), "{report:?}");
+
+    let handler = Handler::new(node, report);
+    assert_eq!(
+        body_of(handler.handle(get("/a/headless/")).await).await,
+        index
+    );
+    assert_eq!(
+        body_of(handler.handle(get("/a/headless/docs/help.html")).await).await,
+        help
+    );
+}
+
+/// `spec/lua-api.md §4.1`, `spec/app-contract.md §5` — a Tier 1 view that owns its
+/// document with `layout()` receives the chrome at the document's anchors, like a Tier 2
+/// document; the body's own attributes are kept, and a fragment answering htmx is served
+/// as it is. The manifest's `chrome = "none"` turns it off for the layout too, while a
+/// framed view keeps the frame regardless.
+#[tokio::test]
+async fn test_spec_4_1_a_layout_owned_lua_document_receives_the_chrome() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = Node::open(root.path()).unwrap().paths().apps_dir();
+    let app_lua = "local pv = require 'privatium'\n\
+                   pv.get('/', function() return pv.render('index', {}) end)\n\
+                   pv.get('/framed', function() return pv.render('framed', {}) end)\n";
+    let base = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n\
+                <title>Owned</title>\n</head>\n<body class=\"mine\">\n\
+                <main id=\"main\"><?= content ?></main>\n</body>\n</html>\n";
+    let views: [(&str, &str); 3] = [
+        ("views/index.lsp", "<? layout('base') ?>\n<h1>Owned</h1>\n"),
+        ("views/base.lsp", base),
+        ("views/framed.lsp", "<h1>Framed</h1>\n"),
+    ];
+    let mut files = vec![("app.lua", app_lua)];
+    files.extend(views);
+    write_app(&apps, "owned", Some(&lua_manifest("owned")), &files);
+    let mut declined = vec![("app.lua", app_lua)];
+    declined.extend(views);
+    write_app(
+        &apps,
+        "declined",
+        Some(&format!(
+            "{}[ui]\nchrome = \"none\"\n",
+            lua_manifest("declined")
+        )),
+        &declined,
+    );
+    let handler = handler(&root);
+
+    let page = body_of(handler.handle(get("/a/owned/")).await).await;
+    assert!(
+        page.contains("<body class=\"mine\">\n<a class=\"pv-skip\""),
+        "{page}"
+    );
+    assert!(
+        page.contains("<p class=\"pv-app-title\"><a href=\"/a/owned/\">"),
+        "{page}"
+    );
+    assert!(
+        page.contains("<main id=\"main\">\n<h1>Owned</h1>"),
+        "{page}"
+    );
+    assert!(page.contains("<footer class=\"pv-footer\">"), "{page}");
+    assert!(page.contains(&assets::versioned("chrome.js")), "{page}");
+    assert!(
+        !page.contains("shell.css"),
+        "the layout's document is not the frame: {page}"
+    );
+    assert!(!page.contains("hx-headers"), "{page}");
+    assert_eq!(page.matches("<h1>").count(), 1, "{page}");
+    let findings = a11y::check(&page, Unit::Document);
+    assert!(findings.is_empty(), "{findings:?}");
+
+    // A fragment: the view alone, nothing inserted.
+    let mut fragment = get("/a/owned/framed");
+    fragment
+        .headers_mut()
+        .insert("hx-request", "true".parse().unwrap());
+    let fragment = body_of(handler.handle(fragment).await).await;
+    assert_eq!(fragment.trim(), "<h1>Framed</h1>");
+
+    // Declined: the layout's document exactly as the template wrote it …
+    let bare = body_of(handler.handle(get("/a/declined/")).await).await;
+    assert!(!bare.contains("pv-header"), "{bare}");
+    assert!(!bare.contains("chrome.js"), "{bare}");
+    assert!(
+        bare.contains("<main id=\"main\">\n<h1>Owned</h1>"),
+        "{bare}"
+    );
+    // … while the framed view still has the frame, since the key is about owned documents.
+    let framed = body_of(handler.handle(get("/a/declined/framed")).await).await;
+    assert!(framed.contains("<header class=\"pv-header\">"), "{framed}");
+    assert!(framed.contains("hx-headers"), "{framed}");
+}
+
+/// `spec/app-contract.md §5`, `spec/protocol.md §9.3` — an inserted document is served
+/// under the app's own policy and the other app headers, exactly as the untouched file
+/// would be: the chrome's assets are same-origin, so no permission widens for them.
+#[tokio::test]
+async fn test_spec_5_inserted_chrome_keeps_the_apps_own_policy_headers() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = Node::open(root.path()).unwrap().paths().apps_dir();
+    let document = "<!doctype html>\n<html lang=\"en\">\n<head><title>Policy</title></head>\n\
+                    <body>\n<main id=\"main\"><h1>Policy</h1></main>\n</body>\n</html>\n";
+    write_app(
+        &apps,
+        "policy",
+        Some(&format!(
+            "{}[permissions]\nremote = [\"https://cdn.example\"]\n",
+            common::web_manifest("policy")
+        )),
+        &[("web/index.html", document)],
+    );
+    let handler = handler(&root);
+    let response = handler.handle(get("/a/policy/")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let csp = header(&response, &CONTENT_SECURITY_POLICY);
+    let script_src = csp
+        .split(';')
+        .find(|directive| directive.trim().starts_with("script-src"))
+        .unwrap();
+    assert!(script_src.contains("https://cdn.example"), "{csp}");
+    assert!(
+        script_src.contains("/static/"),
+        "the chrome's script is admitted by the app's own policy: {csp}"
+    );
+    assert!(
+        csp.contains("connect-src 'self' https://cdn.example"),
+        "{csp}"
+    );
+    assert_eq!(header(&response, &CACHE_CONTROL), "no-store");
+    assert_eq!(header(&response, &X_CONTENT_TYPE_OPTIONS), "nosniff");
+    assert_eq!(header(&response, &REFERRER_POLICY), "no-referrer");
+    assert_eq!(header(&response, &CONTENT_TYPE), "text/html; charset=utf-8");
+    let page = body_of(response).await;
+    assert!(page.contains("<header class=\"pv-header\">"), "{page}");
+    assert!(!page.contains("<style"), "nothing inline: {page}");
+    assert!(
+        !page.contains("src=\"http") && !page.contains("<link rel=\"stylesheet\" href=\"http"),
+        "nothing loaded cross-origin: {page}"
+    );
+}
+
+/// The anchor rule itself: case does not matter, the first `<body` that is a tag wins —
+/// not one inside an attribute value or a comment-free prefix like `<bodyguard>` — the
+/// last `</body>` is the one used, and each missing tag is named.
+#[test]
+fn test_spec_5_chrome_anchors_match_tags_case_insensitively_and_name_the_missing_one() {
+    let (head, body, end) = app_router::chrome_anchors(
+        "<HTML><HEAD></HEAD><BODYGUARD/><Body  class=x>hi</BODY></HTML>",
+    )
+    .unwrap();
+    assert_eq!(head, "<HTML><HEAD>".len());
+    assert_eq!(body, "<HTML><HEAD></HEAD><BODYGUARD/><Body  class=x>".len());
+    assert_eq!(
+        end,
+        "<HTML><HEAD></HEAD><BODYGUARD/><Body  class=x>hi".len()
+    );
+    assert_eq!(
+        app_router::chrome_anchors("<head></head><body>x</body>"),
+        Ok((6, 19, 20))
+    );
+    assert_eq!(app_router::chrome_anchors("<body>x</body>"), Err("</head>"));
+    assert_eq!(
+        app_router::chrome_anchors("<head></head>x</body>"),
+        Err("<body>")
+    );
+    assert_eq!(
+        app_router::chrome_anchors("<head></head><body>x"),
+        Err("</body>")
+    );
+    // A </body> before the <body> tag is not a close of it.
+    assert_eq!(
+        app_router::chrome_anchors("<head></head></body><body>x"),
+        Err("</body>")
+    );
 }

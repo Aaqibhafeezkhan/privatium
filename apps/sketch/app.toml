@@ -3,9 +3,12 @@
 # File:     apps/sketch/app.toml
 # Authors:  Gabriel Mongefranco (@gabrielmongefranco)
 # Created:  2026-08-28
-# Modified: 2026-09-06
+# Modified: 2026-10-04
 # Summary:  Tier 2 reference app. Note what is absent: no app.lua, no views/, no schema.sql.
-#           This is the entire manifest. See main README.md for full license information.
+#           The one thing it declares beyond the two required tables is that it owns its
+#           whole document: the drawing surface fills the window, so the framework's bar
+#           and footer stay out, and the mark in its own rail is the way back.
+#           See main README.md for full license information.
 # ---------------------------------------------------------------------------
 
 [app]
@@ -22,6 +25,13 @@ license     = "GPL-3.0-or-later"
 [nav]
 order     = 30
 advertise = true
+
+# The standard chrome — the bar and the footer every app shares — is inserted into a
+# Tier 2 document unless the app declines it (spec/app-contract.md §5). Sketch declines:
+# a canvas wants the whole window, and its rail already carries the Privatium mark as a
+# link out and an Apps entry in its menu.
+[ui]
+chrome = "none"
 
 # Everything below is optional and shown here only to document the defaults.
 [permissions]

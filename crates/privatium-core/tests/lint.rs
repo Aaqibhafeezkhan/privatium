@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/lint.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: The linter against its corpus (spec/cli.md §5.4): every rule's pass fixture is clean and its
 //          fail fixture trips the rule, a rule with no pair fails the suite, the reference
 //          apps lint clean, every finding's spec reference resolves against this checkout
@@ -130,6 +130,8 @@ rule_tests! {
     PV106 => (test_lint_rule_pv106_passes, test_lint_rule_pv106_fails),
     PV107 => (test_lint_rule_pv107_passes, test_lint_rule_pv107_fails),
     PV108 => (test_lint_rule_pv108_passes, test_lint_rule_pv108_fails),
+    PV109 => (test_lint_rule_pv109_passes, test_lint_rule_pv109_fails),
+    PV110 => (test_lint_rule_pv110_passes, test_lint_rule_pv110_fails),
     PV201 => (test_lint_rule_pv201_passes, test_lint_rule_pv201_fails),
     PV202 => (test_lint_rule_pv202_passes, test_lint_rule_pv202_fails),
     PV203 => (test_lint_rule_pv203_passes, test_lint_rule_pv203_fails),
@@ -153,6 +155,7 @@ rule_tests! {
     PV405 => (test_lint_rule_pv405_passes, test_lint_rule_pv405_fails),
     PV406 => (test_lint_rule_pv406_passes, test_lint_rule_pv406_fails),
     PV407 => (test_lint_rule_pv407_passes, test_lint_rule_pv407_fails),
+    PV408 => (test_lint_rule_pv408_passes, test_lint_rule_pv408_fails),
     PV501 => (test_lint_rule_pv501_passes, test_lint_rule_pv501_fails),
     PV502 => (test_lint_rule_pv502_passes, test_lint_rule_pv502_fails),
     PV503 => (test_lint_rule_pv503_passes, test_lint_rule_pv503_fails),

@@ -1,0 +1,20 @@
+# Project:  Privatium™  |  File: apps/_lint/pass/PV110/pv110ok/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV110 pass: every [ui] reference resolves — the files exist under static/ and the menu item is labelled and mount-relative.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv110ok"
+title   = "Lint PV110"
+version = "1.0.0"
+api     = 1
+tier    = "lua"
+
+[ui]
+scripts = ["static/app.js"]
+styles  = ["static/app.css"]
+
+[[ui.menu]]
+label = "Setup"
+path  = "/setup"

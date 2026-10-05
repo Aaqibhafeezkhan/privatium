@@ -1,9 +1,11 @@
 <!--
   Project:  Privatium™  |  File: apps/sketch/web/index.html
   Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-  Created:  2026-08-28  |  Modified: 2026-09-07
+  Created:  2026-08-28  |  Modified: 2026-10-04
   Summary:  Tier 2 entry point. The framework serves this file verbatim at the app's mount
-            point and injects nothing. No HTMX, no shell, no opinions. Nothing here carries
+            point, because app.toml declines the standard chrome: the sheet wants the whole
+            window, and the Privatium mark in the rail is a link out instead — to the
+            launcher, or to Settings in solo mode. No HTMX, no shell. Nothing here carries
             a style attribute: the default CSP (spec/protocol.md §9.3) has no style-src, so
             default-src 'self' governs styles and an inline one is dropped — every colour
             and every layout rule lives in style.css, and the few values that depend on the
@@ -58,10 +60,14 @@
 
   <nav id="tools" aria-label="Drawing tools">
     <h1>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="mark-light.svg">
-        <img src="mark.svg" alt="Privatium" width="26" height="26">
-      </picture>
+      <!-- The mark is the way back. app.js gives the link its destination and name —
+           Apps under a launcher, Settings in solo mode — the same as the menu's exit. -->
+      <a id="mark" class="mark">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="mark-light.svg">
+          <img src="mark.svg" alt="Privatium" width="26" height="26">
+        </picture>
+      </a>
       <span>Sketch</span>
     </h1>
 

@@ -1,0 +1,12 @@
+# Project:  Privatium™  |  File: apps/_lint/pass/PV109/pv109ok/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV109 pass: a Tier 2 document with </head>, <body>, </body> and <main id="main">.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv109ok"
+title   = "Lint PV109"
+version = "1.0.0"
+api     = 1
+tier    = "web"

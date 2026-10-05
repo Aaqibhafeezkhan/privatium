@@ -2,7 +2,7 @@
 // crates/privatium-core/src/app/scaffold.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: What `privatium new` writes (spec/cli.md §4, spec/app-contract.md §4.7): the files of an
 //          empty app for each tier, a copy of an existing app with its slug and title
 //          rewritten, and the list / detail / create / edit screens for one table of
@@ -168,19 +168,24 @@ pub fn fresh(slug: &str, title: &str, tier: Tier) -> Vec<File> {
                 format!(
                     "<!doctype html>\n\
                      <html lang=\"en\">\n\
+                     <head>\n\
                      <meta charset=\"utf-8\">\n\
                      <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n\
                      <title>{title}</title>\n\
                      <link rel=\"stylesheet\" href=\"style.css\">\n\
-                     \n\
-                     <main>\n\
+                     </head>\n\
+                     <body>\n\
+                     <!-- The framework's bar and footer are inserted around this document\n\
+                     \x20    unless app.toml sets [ui] chrome = \"none\" (spec/app-contract.md §5);\n\
+                     \x20    the bar's skip link lands on the main region below. -->\n\
+                     <main id=\"main\">\n\
                      \x20 <h1>{title}</h1>\n\
-                     \x20 <p>Served verbatim from <code>web/</code>; the framework injects nothing.\n\
+                     \x20 <p>Served from <code>web/</code>, wearing the framework's bar and footer.\n\
                      \x20    Talk to the node through <code>pv.js</code> (spec/data-api.md §5).</p>\n\
-                     \x20 <p id=\"status\" role=\"status\"></p>\n\
                      </main>\n\
                      \n\
                      <script type=\"module\" src=\"app.js\"></script>\n\
+                     </body>\n\
                      </html>\n",
                     title = escape(title),
                 ),
@@ -192,9 +197,10 @@ pub fn fresh(slug: &str, title: &str, tier: Tier) -> Vec<File> {
                  // vendor libraries under web/vendor/ and keep every script in a file.\n\
                  import { pv } from '/static/pv.js';\n\
                  \n\
-                 const status = document.getElementById('status');\n\
+                 // Task wording goes to the footer's status line, which the framework's chrome\n\
+                 // renders (spec/app-contract.md §5.2); the connection wording there is its own.\n\
                  const node = await pv.node();\n\
-                 status.textContent = `Connected to ${node.name} (${node.protocol}).`;\n"
+                 pv.status(`Connected to ${node.name} (${node.protocol}).`);\n"
                     .to_owned(),
             ));
             files.push(File::text(

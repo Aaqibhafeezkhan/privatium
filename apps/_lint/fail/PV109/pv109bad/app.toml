@@ -1,0 +1,12 @@
+# Project:  Privatium™  |  File: apps/_lint/fail/PV109/pv109bad/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV109 fail: the document omits </head> and its main region has no id, so the chrome has nowhere to go.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv109bad"
+title   = "Lint PV109"
+version = "1.0.0"
+api     = 1
+tier    = "web"

@@ -2,7 +2,7 @@
 // crates/privatium-core/src/lint/template.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: The template rules over the compiler's own front end: each views/*.lsp is scanned into
 //          segments (PV202 is every raw tag), compiled to the chunk the host runs, and that
 //          chunk is parsed with full_moon — so an `if` in the template is an `If` in the tree,
@@ -35,7 +35,7 @@ use full_moon::ast::{
 };
 use full_moon::node::Node as _;
 
-use crate::lint::{Ctx, Edit, RuleId, html, lua, mount_path, origin_of};
+use crate::lint::{Ctx, Edit, RuleId, html, line_of, lua, mount_path, origin_of};
 use crate::lua::lsp::{self, SegmentKind};
 
 const VIEWS: &str = "views";
@@ -676,6 +676,50 @@ fn level_skips(
 fn check_pages(ctx: &mut Ctx<'_>, views: &BTreeMap<String, View>, facts: &lua::Facts) {
     let included: BTreeSet<&String> = views.values().flat_map(|v| v.includes.iter()).collect();
     let layouts: BTreeSet<&String> = views.values().filter_map(|v| v.layout.as_ref()).collect();
+    let chrome = ctx
+        .manifest
+        .as_ref()
+        .is_none_or(|m| m.ui.chrome == crate::app::manifest::Chrome::Standard);
+    // PV109: a document a layout() owns takes the chrome at its anchors unless the
+    // manifest declined it (`spec/app-contract.md §5`). Its literal text, every branch
+    // included, is what is asked for the tags; what a view emits cannot supply them.
+    if chrome {
+        for layout in &layouts {
+            if let Some(document) = views.get(*layout) {
+                let text = literal_text(&document.shape);
+                crate::lint::check_chrome_anchors(ctx, &document.rel, &text);
+            }
+        }
+    }
+    // PV408: a framed view always has the bar, and a layout's document has it under the
+    // standard chrome, so neither draws its own link to the launcher or settings.
+    for view in views.values() {
+        let name = view
+            .rel
+            .trim_start_matches("views/")
+            .trim_end_matches(".lsp")
+            .to_owned();
+        let owns = layouts.contains(&name);
+        if owns && !chrome {
+            continue;
+        }
+        for (text, line) in literal_chunks(&view.shape) {
+            for attr in attributes_in(&text) {
+                if attr.tag == "a"
+                    && attr.name == "href"
+                    && crate::lint::is_way_back_href(&attr.value)
+                {
+                    ctx.push(
+                        RuleId::PV408,
+                        &view.rel,
+                        line + line_of(&text, attr.value_offset) - 1,
+                        format!("<a href=\"{}\"> is a second way back — the bar already carries the Privatium mark, the Apps link and the Menu", attr.value),
+                    )
+                    .fix = Some("drop the link; the frame's bar leads there".into());
+                }
+            }
+        }
+    }
     for (name, view) in views {
         let rendered = facts.rendered.contains(name);
         let is_partial = included.contains(name) || layouts.contains(name);
@@ -725,6 +769,34 @@ fn check_pages(ctx: &mut Ctx<'_>, views: &BTreeMap<String, View>, facts: &lua::F
                 Some(format!("<h{}>", previous + 1));
         }
     }
+}
+
+/// Every literal chunk of a shape in document order, each with the `.lsp` line it starts
+/// on; branches and loops contribute every alternative, partials nothing.
+fn literal_chunks(items: &[Item]) -> Vec<(String, u32)> {
+    let mut out = Vec::new();
+    for item in items {
+        match item {
+            Item::Text(text, line) => out.push((text.clone(), *line)),
+            Item::Branch(alternatives) => {
+                for alternative in alternatives {
+                    out.extend(literal_chunks(alternative));
+                }
+            }
+            Item::Loop(body) => out.extend(literal_chunks(body)),
+            Item::Partial(_) | Item::Content => {}
+        }
+    }
+    out
+}
+
+/// The literal text of a shape, joined in document order.
+fn literal_text(items: &[Item]) -> String {
+    literal_chunks(items)
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// The layout's shape with the view's in place of `content`.

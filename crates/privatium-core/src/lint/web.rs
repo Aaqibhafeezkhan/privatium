@@ -2,13 +2,16 @@
 // crates/privatium-core/src/lint/web.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-05
+// Last Modified: 2026-10-04
 // Summary: A Tier 2 app's web/ and a Tier 1 app's static/: HTML through the same tree the templates use
 //          (PV401–405, 407, and PV404 over the whole document), attributes for PV301, PV207
 //          and PV504, JavaScript through a small lexer — strings, template literals, comments,
 //          identifiers — for PV201, PV206, PV302, PV304, PV305, PV306, PV301, PV505 and the
 //          two origin rules, and stylesheets for PV406's contrast floors and any origin in a
-//          url(). PV506 names a top-level web/ entry a framework prefix shadows.
+//          url(). PV506 names a top-level web/ entry a framework prefix shadows. Under the
+//          standard chrome, PV109 asks each document for its anchors and its main region, and
+//          PV408 for no second way back — an href to the launcher or settings, or a path
+//          that climbs out of the mount in browser code.
 // Notes: See README file for documentation and full license information.
 //
 // Copyright © 2026 Gabriel Mongefranco
@@ -29,8 +32,10 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
+use crate::app::manifest::{Chrome, Tier};
 use crate::lint::{
-    Columns, Ctx, Edit, RuleId, css, html, is_absolute_fs_path, line_of, lua, mount_path, origin_of,
+    Columns, Ctx, Edit, RuleId, check_chrome_anchors, css, html, is_absolute_fs_path,
+    is_way_back_href, is_way_back_path, line_of, lua, mount_path, origin_of,
 };
 
 /// Everything under `web/` (Tier 2) and `static/` (Tier 1).
@@ -38,7 +43,7 @@ pub(crate) fn check(ctx: &mut Ctx<'_>, _facts: &lua::Facts) {
     let is_web = ctx
         .manifest
         .as_ref()
-        .is_some_and(|m| m.app.tier == crate::app::manifest::Tier::Web);
+        .is_some_and(|m| m.app.tier == Tier::Web);
     let mut files = Vec::new();
     if is_web {
         collect(&ctx.dir.join("web"), "web", &mut files);
@@ -103,12 +108,39 @@ fn check_shadowed_entries(ctx: &mut Ctx<'_>) {
     }
 }
 
+/// Whether this app's own documents receive the standard chrome: a Tier 2 app that did
+/// not set `[ui] chrome = "none"` (`spec/app-contract.md §5`). A Tier 1 app's `static/`
+/// holds no document the chrome goes into.
+fn under_standard_chrome(ctx: &Ctx<'_>) -> bool {
+    ctx.manifest
+        .as_ref()
+        .is_some_and(|m| m.app.tier == Tier::Web && m.ui.chrome == Chrome::Standard)
+}
+
 fn check_html(ctx: &mut Ctx<'_>, rel: &str, text: &str, columns: &Columns) {
     let root = html::parse(text);
     for finding in html::element_findings(&root) {
         let f = ctx.push(finding.rule, rel, finding.line, finding.message);
         if finding.fixable {
             f.fix = Some("focusable=\"false\"".into());
+        }
+    }
+    // PV109 and PV408 under the standard chrome: the anchors and the main region, and no
+    // link of the app's own to where the bar already leads.
+    if under_standard_chrome(ctx) {
+        check_chrome_anchors(ctx, rel, text);
+        for link in root.find_all("a") {
+            if let Some(href) = link.attr("href")
+                && is_way_back_href(href)
+            {
+                ctx.push(
+                    RuleId::PV408,
+                    rel,
+                    link.line,
+                    format!("<a href=\"{href}\"> is a second way back — the bar already carries the Privatium mark, the Apps link and the Menu"),
+                )
+                .fix = Some("drop the link, or set [ui] chrome = \"none\" and keep your own".into());
+            }
         }
     }
     // PV404 over the whole document.
@@ -415,6 +447,7 @@ fn check_js_at(
         .as_ref()
         .map(|m| m.permissions.remote.clone())
         .unwrap_or_default();
+    let way_back = under_standard_chrome(ctx);
     let line = |offset: usize| base + line_of(js, offset);
     let mut noted: BTreeSet<String> = BTreeSet::new();
     // Object literal keys by brace depth, for PV304.
@@ -627,6 +660,10 @@ fn check_js_at(
                 if is_absolute_fs_path(s) {
                     ctx.push(RuleId::PV505, rel, at, format!("absolute filesystem path {s:?} in browser code — nothing beside the binary or on the owner's disk is the app's"))
                         .fix = Some("everything an app stores is an event".into());
+                }
+                if way_back && is_way_back_path(s) {
+                    ctx.push(RuleId::PV408, rel, at, format!("{s:?} climbs out of the mount to the launcher — a second way back the bar already provides"))
+                        .fix = Some("drop the link, or set [ui] chrome = \"none\" and keep your own".into());
                 }
                 if let Some(origin) = origin_of(s) {
                     let imported =

@@ -2,7 +2,7 @@
 // apps/sketch/web/app.js
 // Author(s): Gabriel Mongefranco
 // Created: 2026-08-28
-// Last Modified: 2026-09-07
+// Last Modified: 2026-10-04
 // Summary: Drawing, controls and event replay. Plain ES modules — no build step, no framework, no SQL.
 //          The event log is used directly as a document store, and a mark is one event:
 //          freehand keeps the original { points, color, width }, and the shapes, text, fills
@@ -36,6 +36,7 @@ import {
 } from './strokes.js';
 import { paintArea, paintMark } from './paint.js';
 import { fromSvg, isOurs, toSvg } from './clip.js';
+import { exitTarget, pointOut } from './exit.js';
 import {
   BASIC, DASHED, DASHES, DEFAULT_SLOTS, INKING, INKS, SIZES, TOOLS, WIDTHED,
   colorName, inkOn, isHex, needsEdge, panelColor
@@ -1530,13 +1531,11 @@ pv.on('rejected', report => {
 
 /* ---- boot -------------------------------------------------------------- */
 
-const exit = $('exit');
-exit.href = pv.url(pv.mount === '/' ? 'settings' : '../../');
-const exitLabel = pv.mount === '/' ? 'Settings' : 'Apps';
-exit.setAttribute('aria-label', exitLabel);
-exit.title = exitLabel;
-exit.querySelector('span').textContent = exitLabel;
-exit.hidden = false;
+// Two exits, one destination: the mark in the rail and the Apps entry in the menu. The
+// app declines the framework's bar, so these are the only way back it has.
+const out = exitTarget(pv.mount, pv.url);
+pointOut($('exit'), out);
+pointOut($('mark'), out);
 
 /** An empty sheet opens ready to draw; a sheet that already holds marks opens ready to
  *  pick one. Runs after the log has been read, and never overrides a tool already chosen. */

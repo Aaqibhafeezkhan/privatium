@@ -1,0 +1,19 @@
+# Project:  Privatium™  |  File: apps/_lint/fail/PV110/pv110bad/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV110 fail: ui.scripts names a file that is not under static/, and the menu item's path does not begin with /.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv110bad"
+title   = "Lint PV110"
+version = "1.0.0"
+api     = 1
+tier    = "lua"
+
+[ui]
+scripts = ["static/missing.js"]
+
+[[ui.menu]]
+label = "Setup"
+path  = "setup"

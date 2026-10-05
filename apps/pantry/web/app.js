@@ -2,7 +2,7 @@
 // apps/pantry/web/app.js
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-07
-// Last Modified: 2026-09-08
+// Last Modified: 2026-10-04
 // Summary: Boot, the queries, and what each control does. The screen is read two ways at once, and that
 //          is the point of this app: the shelves, the batches and the tray come from named
 //          views in schema.sql through pv.query, which say what is true now; the activity list
@@ -62,11 +62,13 @@ const state = {
 // ---------------------------------------------------------------------------------------
 
 /**
- * Put one sentence in the status line.
+ * Put one sentence in the footer's status line, the slot the framework's chrome renders
+ * (spec/app-contract.md §5.2). The framework writes the connection wording there itself;
+ * what goes through here is what happened to the pantry.
  * @param {string} message What to say, in the person's own terms.
  */
 function say(message) {
-  $('status').textContent = message;
+  pv.status(message);
 }
 
 /**
@@ -151,7 +153,8 @@ async function refresh() {
     renderSummary($('summary-rows'), summary);
   } catch (error) {
     if (error.name === 'PvOffline') {
-      say('Offline. What is on screen was read a moment ago and may not be current; anything you record is queued.');
+      // The chrome has already said the node is offline; this is the app's part of it.
+      say('What is on screen was read a moment ago and may not be current.');
       return;
     }
     say(`Could not read: ${error.message}`);
@@ -420,16 +423,6 @@ async function boot() {
   }
   $('b-stored').value = new Date().toISOString().slice(0, 10);
 
-  // Where the way out goes. Mounted under a launcher, it goes back to the launcher; in
-  // solo mode the app *is* the node's front page, so there is no launcher and the settings
-  // page is the only place left to go (spec/cli.md §2).
-  const solo = pv.mount === '/';
-  const exit = $('exit');
-  exit.href = pv.url(solo ? 'settings' : '../../');
-  exit.title = solo ? 'Settings' : 'Apps';
-  $('exit-label').textContent = exit.title;
-  exit.hidden = false;
-
   $('shelf-form').addEventListener('submit', onAddShelf);
   $('batch-form').addEventListener('submit', onAddBatch);
   $('earlier').addEventListener('click', onEarlier);
@@ -443,11 +436,8 @@ async function boot() {
     void readLog();
     void refresh();
   });
-  pv.on('offline', () => say('Offline. Anything you record is queued and written when the node is back.'));
-  pv.on('online', () => {
-    say('Back with the node.');
-    void refresh();
-  });
+  // The chrome says when the node is offline and back; the app only re-reads on return.
+  pv.on('online', () => void refresh());
   pv.on('rejected', sayRejection);
 
   await refresh();

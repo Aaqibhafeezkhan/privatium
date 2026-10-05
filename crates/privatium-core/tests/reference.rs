@@ -1030,7 +1030,14 @@ async fn test_sketch_end_to_end() {
     assert_eq!(index.status(), StatusCode::OK);
     assert!(header(&index, &CONTENT_TYPE).starts_with("text/html"));
     let index = body_of(index).await;
+    // Sketch declines the chrome (`[ui] chrome = "none"`), so the document is the file,
+    // and the Privatium mark in its rail is the link out instead.
     assert_eq!(index, fs::read_to_string(web.join("index.html")).unwrap());
+    assert!(!index.contains("pv-header"), "{index}");
+    assert!(
+        index.contains("<a id=\"mark\" class=\"mark\">"),
+        "the mark is a link: {index}"
+    );
     assert!(index.contains("<html lang=\"en\">"), "{index}");
     assert!(index.contains("<canvas id=\"pad\""), "{index}");
     assert!(
@@ -1052,6 +1059,7 @@ async fn test_sketch_end_to_end() {
         ("clip.js", "javascript"),
         ("tools.js", "javascript"),
         ("history.js", "javascript"),
+        ("exit.js", "javascript"),
         ("style.css", "text/css"),
         ("mark.svg", "svg"),
         ("mark-light.svg", "svg"),
@@ -1416,13 +1424,36 @@ async fn test_pantry_end_to_end() {
     assert_eq!(index.status(), StatusCode::OK);
     assert!(header(&index, &CONTENT_TYPE).starts_with("text/html"));
     let index = body_of(index).await;
-    assert_eq!(index, fs::read_to_string(web.join("index.html")).unwrap());
+    // Pantry wears the standard chrome (`spec/app-contract.md §5`): the served document
+    // is the file with the bar after its <body> and the footer before its </body>, the
+    // app's own title in the bar's centre, and its main region the skip link's target.
+    let file = fs::read_to_string(web.join("index.html")).unwrap();
+    assert_ne!(index, file);
+    assert!(
+        index.contains("<body>\n<a class=\"pv-skip\" href=\"#main\">"),
+        "{index}"
+    );
+    assert!(
+        index.contains("<p class=\"pv-app-title\"><a href=\"/a/pantry/\">"),
+        "{index}"
+    );
+    assert!(index.contains("<span>Pantry</span></a></p>"), "{index}");
+    assert!(index.contains("<main id=\"main\">"), "{index}");
+    assert!(
+        index.contains("<p id=\"pv-status\" class=\"pv-status\" role=\"status\"></p>"),
+        "{index}"
+    );
+    assert!(
+        file.contains("</head>") && file.contains("</body>"),
+        "{file}"
+    );
     assert!(index.contains("<html lang=\"en\">"), "{index}");
     assert!(!index.contains("user-scalable=no"), "{index}");
     assert!(
         index.contains("<script type=\"module\" src=\"app.js\">"),
         "{index}"
     );
+    assert_eq!(index.matches("<h1").count(), 1, "{index}");
     assert_clean("pantry index.html", &index, Unit::Document);
     let app_js = fs::read_to_string(web.join("app.js")).unwrap();
     // The work and the rail are separate stacks. Laying both out as rows of one grid ties
@@ -1443,17 +1474,17 @@ async fn test_pantry_end_to_end() {
         app_js.contains("$('batches').toggleAttribute('hidden', bare)"),
         "app.js no longer hides the batch half until a shelf exists"
     );
-    // A Tier 2 app gets no framework header, so the way back to the launcher is the app's
-    // own: an icon in the band, with the destination filled in from `pv.mount`, because in
-    // solo mode there is no launcher to return to.
+    // The bar is the way back and the footer's slot is the status line, so the app draws
+    // neither of its own (`PV408`) and says what happened through `pv.status`.
+    assert!(!index.contains("class=\"exit\""), "{index}");
+    assert!(!index.contains("id=\"status\""), "{index}");
     assert!(
-        index.contains("<a class=\"exit\" id=\"exit\" hidden>"),
-        "{index}"
+        app_js.contains("pv.status(message)"),
+        "app.js no longer writes its status through the chrome's slot"
     );
-    assert!(index.contains("#i-grid-3x3-gap"), "{index}");
     assert!(
-        app_js.contains("exit.href = pv.url(solo ? 'settings' : '../../')"),
-        "app.js no longer points the way out at the launcher"
+        !app_js.contains("'../../'"),
+        "app.js draws a second way back"
     );
 
     for (file, kind) in [
@@ -2649,6 +2680,7 @@ fn test_footer_node_label_is_escaped() {
         styles: Vec::new(),
         scripts: Vec::new(),
         static_dir: None,
+        chrome: privatium_core::app::manifest::Chrome::Standard,
     };
     let page = shell::app_frame(
         &frame,
