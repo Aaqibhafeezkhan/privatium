@@ -31,7 +31,8 @@ needs a person, it says so. It is for maintainers and for anyone auditing a node
 ### Targets
 
 - **Accessibility:** WCAG 2.2 AA for every page the node renders: the launcher, the
-  settings pages, the error pages, and the frame a Tier 1 view renders inside.
+  settings pages, the error pages, the frame a Tier 1 view renders inside, and the bar
+  and footer it inserts into a document an app owns.
 - **Security:** the headers and policies of `spec/protocol.md` section 9.3 on every
   response, and the threat model of the [security page](security.md).
 
@@ -45,6 +46,14 @@ needs a person, it says so. It is for maintainers and for anyone auditing a node
 | The one menu lists the app's items, then a separator, then the settings pages, with no launcher entry | `tests/wire.rs::test_spec_4_1_menu_lists_app_items_then_a_separator_then_system_pages_without_apps` |
 | The footer's status line is written once per connection change and never on load | `tests/js/chrome.test.mjs::test_spec_5_2_pv_status_writes_the_slot_and_connection_changes_announce_once` |
 | The node's label, the app's title and a menu label are escaped | `tests/reference.rs::test_footer_node_label_is_escaped` |
+| A Tier 2 document receives the chrome at its three anchors, with the app's title and menu items, its body attributes kept, and the result clean under the `PV4xx` rules | `tests/wire.rs::test_spec_5_standard_chrome_is_inserted_at_the_three_anchors_of_a_web_document` |
+| `chrome = "none"` serves the document byte for byte; `apps/sketch` is the reference | `tests/wire.rs::test_spec_5_chrome_none_serves_the_document_byte_for_byte` |
+| A document without an anchor is served untouched and the load report names the file and the tag | `tests/wire.rs::test_spec_5_a_document_without_an_anchor_is_served_untouched_with_a_load_warning` |
+| A `layout()` document receives the chrome, a fragment does not, and `chrome = "none"` leaves the frame alone | `tests/wire.rs::test_spec_4_1_a_layout_owned_lua_document_receives_the_chrome` |
+| An inserted document keeps the app's own policy and headers, with nothing inline and nothing loaded cross-origin | `tests/wire.rs::test_spec_5_inserted_chrome_keeps_the_apps_own_policy_headers` |
+| Pantry's served page wears the chrome with one `<h1>` and no way back of its own; sketch's is the file with its mark as a link | `tests/reference.rs::test_pantry_end_to_end`, `test_sketch_end_to_end` |
+| Sketch's way out leads to the launcher under one and to Settings in solo mode, from both the mark and the menu | `tests/js/sketch.test.mjs::test_spec_5_the_mark_links_to_apps_in_host_mode_and_settings_in_solo_mode` |
+| `PV109`, `PV110` and `PV408` each have a clean pass fixture and a fail fixture that trips them | `tests/lint.rs::test_lint_rule_pv109_*`, `test_lint_rule_pv110_*`, `test_lint_rule_pv408_*` |
 | Every response carries the policy headers of section 9.3 | `tests/wire.rs::test_spec_9_3_headers_present` |
 | Embedded assets carry an `ETag` and a content-addressed path | `tests/wire.rs::test_spec_9_3_chrome_assets_are_addressable_by_build_and_carry_an_etag` |
 
@@ -82,15 +91,19 @@ Checks a test cannot make. Each row names the date it was last done and by what 
 | 200% zoom: the same | Needs a person in a browser | pending | Zoom to 200% on the launcher and on `/a/hello/` |
 | A screen reader reads the status line once per connection change and not on load | The write count is held by the test above; the announcement itself needs a person with a screen reader | pending | Toggle the network on a paired phone with VoiceOver or TalkBack running |
 | Visible focus ring on every control of the bar in both schemes | Verified by the contrast test for the ring's colour; needs a person to see it | pending | Tab through the bar in light and dark mode |
+| Pantry in the browser: bar and footer present, the skip link lands in its main region, its status messages appear in the footer's slot, one `<h1>`, no second way back | The rendered document is held by the tests above; the skip link's landing and the slot's announcement need a person | pending | Open `/a/pantry/`, press Tab then Enter on the skip link, add a shelf and listen for "Added …" |
+| Sketch in the browser: no bar, no footer, the mark is a link with a visible focus ring and a 44-pixel target, every drawing interaction as before | The served bytes and the link are held by the tests above; the ring and the target need a person | pending | Open `/a/sketch/`, Tab to the mark, then draw with the pointer and from the keyboard |
+| The pantry page at 320 CSS pixels and 200% zoom reflows without horizontal scroll under the bar | Needs a person in a browser | pending | Resize to 320 px and zoom to 200% on `/a/pantry/` |
 
 When a pending row is done, replace its status with what was seen and the date.
 
 ### Known gaps
 
 - The manual rows marked pending above have not been done in a browser for this version.
-- The chrome is rendered for the framework's pages and for Tier 1 views inside the frame.
-  A Tier 2 document and a Tier 1 view that owns its document with `layout()` draw their
-  own bar, if any, and are held to the lint rules rather than to these tests.
+- The chrome is rendered for the framework's pages and for Tier 1 views inside the
+  frame, and inserted into a Tier 2 document and a `layout()` document unless the app
+  declines it. An app that declines it, as `apps/sketch` does, draws its own way back
+  and its own status region, and is held to the lint rules rather than to these tests.
 
 ### Conclusion
 

@@ -35,6 +35,7 @@ use axum::http::header::{CONTENT_LENGTH, CONTENT_TYPE, HOST};
 use axum::http::{Method, StatusCode};
 use tower::{Layer as _, ServiceExt as _};
 
+use crate::app::manifest::Chrome;
 use crate::app::{Appended, LoadReport, Tier};
 use crate::config::Mode;
 use crate::http::shell::{Context, Notice, NoticeKind};
@@ -552,7 +553,16 @@ impl Handler {
         };
         match plan {
             Some((dir, csp)) if dir.is_dir() => {
-                apps::serve_web(dir, "/static/", &format!("/{rest}"), request, &csp, true).await
+                apps::serve_web(
+                    dir,
+                    "/static/",
+                    &format!("/{rest}"),
+                    request,
+                    &csp,
+                    true,
+                    None,
+                )
+                .await
             }
             _ => self.not_found(&path),
         }
@@ -601,10 +611,26 @@ impl Handler {
                 Plan::Api
             } else {
                 match app.manifest().app.tier {
-                    Tier::Web => Plan::Web {
-                        web_dir: dir.join("web"),
-                        csp,
-                    },
+                    Tier::Web => {
+                        let chrome = match app.manifest().ui.chrome {
+                            Chrome::None => None,
+                            Chrome::Standard => {
+                                let frame = shell::Frame::for_app(app.manifest(), mount, None);
+                                let label = match api::display_name(&node) {
+                                    Ok(name) => {
+                                        name.unwrap_or_else(|| node.id().as_str().to_owned())
+                                    }
+                                    Err(error) => return self.failure(&error),
+                                };
+                                Some(shell::chrome_pieces(&frame, self.solo(), &label))
+                            }
+                        };
+                        Plan::Web {
+                            web_dir: dir.join("web"),
+                            csp,
+                            chrome,
+                        }
+                    }
                     // `static/` beneath a Tier 1 mount is the app's directory of that name
                     // (`spec/lua-api.md §2`), served as a Tier 2 app's `web/` is.
                     Tier::Lua if rest == "/static" || rest.starts_with("/static/") => {
@@ -650,14 +676,27 @@ impl Handler {
         self.fire_pending(slug).await;
         match plan {
             Plan::Api => self.data_api(slug, rest, request).await,
-            Plan::Web { web_dir, csp } => {
-                apps::serve_web(web_dir, mount, rest, request, &csp, self.solo()).await
+            Plan::Web {
+                web_dir,
+                csp,
+                chrome,
+            } => {
+                apps::serve_web(
+                    web_dir,
+                    mount,
+                    rest,
+                    request,
+                    &csp,
+                    self.solo(),
+                    chrome.as_ref(),
+                )
+                .await
             }
             Plan::Static { dir, csp } => {
                 let base = format!("{mount}static/");
                 let file = rest.strip_prefix("/static").unwrap_or("/");
                 let file = if file.is_empty() { "/" } else { file };
-                apps::serve_web(dir, &base, file, request, &csp, self.solo()).await
+                apps::serve_web(dir, &base, file, request, &csp, self.solo(), None).await
             }
             Plan::Done(response) => response,
             Plan::Lua(plan) => self.lua(slug, mount, rest, request, *plan).await,
@@ -1091,8 +1130,13 @@ impl Handler {
 enum Plan {
     /// The data API beneath the mount, either tier (`api`).
     Api,
-    /// Tier 2: stream `web/`.
-    Web { web_dir: PathBuf, csp: String },
+    /// Tier 2: stream `web/`; an HTML document receives `chrome` when the manifest did not
+    /// decline it (`spec/app-contract.md §5`).
+    Web {
+        web_dir: PathBuf,
+        csp: String,
+        chrome: Option<shell::ChromePieces>,
+    },
     /// Tier 1: stream the app's `static/`.
     Static { dir: PathBuf, csp: String },
     /// Tier 1: run a handler. Boxed: the plan carries a connection, the node facts and

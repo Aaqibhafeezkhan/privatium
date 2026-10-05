@@ -7,7 +7,9 @@
 //          renders inside, as server-rendered HTML with HTMX and inlined Bootstrap Icons
 //          (docs/architecture.md §2.5, docs/icons.md). The frame is the standard chrome of
 //          spec/lua-api.md §4.1: a three-zone bar, one menu with the app's items first, and
-//          a footer with a status slot. No client framework, no bundler, no inline script or
+//          a footer with a status slot; the same bar and footer are rendered as the pieces the
+//          node inserts into a document an app owns (spec/app-contract.md §5). No client
+//          framework, no bundler, no inline script or
 //          style: every page renders under the default CSP of spec/protocol.md §9.3 exactly
 //          as written, and every page is held to the PV4xx rules of spec/cli.md §5 by
 //          tests/reference.rs.
@@ -120,6 +122,23 @@ pub struct Frame {
     pub scripts: Vec<FrameAsset>,
     /// The app's `static/` folder, where the assets above are hashed from.
     pub static_dir: Option<std::path::PathBuf>,
+    /// `ui.chrome`: whether a document the app owns receives the bar and footer
+    /// (`spec/app-contract.md §5`).
+    pub chrome: crate::app::manifest::Chrome,
+}
+
+/// The three pieces the node inserts into a document an app owns (`spec/app-contract.md
+/// §5`): what goes before `</head>`, what goes after the opening `<body>` tag, and what
+/// goes before the closing `</body>`. Rendered by [`chrome_pieces`]; placed by
+/// `http::apps::insert_chrome`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChromePieces {
+    /// The chrome stylesheet and script, at their addressed paths with their hashes.
+    pub head: String,
+    /// The skip link and the three-zone header.
+    pub body_start: String,
+    /// The footer with the status slot.
+    pub body_end: String,
 }
 
 /// One item of the menu's app section.
@@ -175,6 +194,7 @@ impl Frame {
             styles: manifest.ui.styles.iter().map(asset).collect(),
             scripts: manifest.ui.scripts.iter().map(asset).collect(),
             static_dir: dir.map(std::path::Path::to_path_buf),
+            chrome: manifest.ui.chrome,
         }
     }
 
@@ -293,29 +313,10 @@ fn page(spec: &PageSpec<'_>, body: &str) -> String {
          \"selfRequestsOnly\":true,\"includeIndicatorStyles\":false}'>\n",
     );
     let _ = writeln!(out, "<title>{} — Privatium</title>", escape(spec.title));
-    for sheet in ["chrome.css", "shell.css"] {
-        let _ = writeln!(
-            out,
-            "<link rel=\"stylesheet\" href=\"{}\" integrity=\"{}\">",
-            crate::http::assets::versioned(sheet),
-            crate::http::assets::integrity(sheet)
-        );
-    }
-    let _ = writeln!(
-        out,
-        "<script src=\"{}\" integrity=\"{}\" defer></script>",
-        crate::http::assets::versioned("htmx.min.js"),
-        crate::http::assets::integrity("htmx.min.js")
-    );
-    // A module script is deferred by nature; `defer` is written anyway so the rule the
-    // reference tests hold — every script on a page is deferred, so document order is
-    // execution order — reads from the markup alone.
-    let _ = writeln!(
-        out,
-        "<script type=\"module\" src=\"{}\" integrity=\"{}\" defer></script>",
-        crate::http::assets::versioned("chrome.js"),
-        crate::http::assets::integrity("chrome.js")
-    );
+    out.push_str(&stylesheet_link("chrome.css"));
+    out.push_str(&stylesheet_link("shell.css"));
+    out.push_str(&script_tag("htmx.min.js", false));
+    out.push_str(&script_tag("chrome.js", true));
     if let Some((frame, _)) = spec.app {
         for sheet in &frame.styles {
             let _ = writeln!(
@@ -334,11 +335,41 @@ fn page(spec: &PageSpec<'_>, body: &str) -> String {
             );
         }
     }
-    let _ = writeln!(
-        out,
-        "</head>\n<body{}>\n<a class=\"pv-skip\" href=\"#main\">Skip to content</a>",
-        spec.body_attrs
-    );
+    let _ = writeln!(out, "</head>\n<body{}>", spec.body_attrs);
+    write_header(&mut out, spec);
+    out.push_str("<main id=\"main\">\n");
+    out.push_str(body);
+    out.push_str("\n</main>\n");
+    write_footer(&mut out, spec.node_label.unwrap_or(""));
+    out.push_str("</body>\n</html>\n");
+    out
+}
+
+/// `<link rel="stylesheet">` for one embedded asset, at its addressed path with its hash.
+fn stylesheet_link(name: &str) -> String {
+    format!(
+        "<link rel=\"stylesheet\" href=\"{}\" integrity=\"{}\">\n",
+        crate::http::assets::versioned(name),
+        crate::http::assets::integrity(name)
+    )
+}
+
+/// `<script defer>` for one embedded asset, a module when `module`. A module script is
+/// deferred by nature; `defer` is written anyway so the rule the reference tests hold —
+/// every script on a page is deferred, so document order is execution order — reads from
+/// the markup alone.
+fn script_tag(name: &str, module: bool) -> String {
+    format!(
+        "<script{} src=\"{}\" integrity=\"{}\" defer></script>\n",
+        if module { " type=\"module\"" } else { "" },
+        crate::http::assets::versioned(name),
+        crate::http::assets::integrity(name)
+    )
+}
+
+/// The skip link and the three-zone header of `spec/lua-api.md §4.1`.
+fn write_header(out: &mut String, spec: &PageSpec<'_>) {
+    out.push_str("<a class=\"pv-skip\" href=\"#main\">Skip to content</a>\n");
     let (brand_open, brand_close) = if spec.brand_heading {
         ("<h1 class=\"pv-brand\">", "</h1>")
     } else {
@@ -396,15 +427,47 @@ fn page(spec: &PageSpec<'_>, body: &str) -> String {
     for (href, label) in SYSTEM_PAGES {
         let _ = write!(out, "<li><a href=\"{href}\">{label}</a></li>");
     }
-    out.push_str("</ul></nav></details>\n</nav>\n</header>\n<main id=\"main\">\n");
-    out.push_str(body);
+    out.push_str("</ul></nav></details>\n</nav>\n</header>\n");
+}
+
+/// The footer of `spec/lua-api.md §4.1`: the project link, the status slot `chrome.js`
+/// and `pv.status()` write to, and the space's name with the way to connect a device.
+fn write_footer(out: &mut String, node_label: &str) {
     let _ = write!(
         out,
-        "\n</main>\n<footer class=\"pv-footer\"><a href=\"https://github.com/gabrielmongefranco/privatium\">Privatium</a>\n<p id=\"pv-status\" class=\"pv-status\" role=\"status\"></p>\n<div class=\"pv-footer-node\"><span>{}</span><a class=\"pv-join\" href=\"/settings/devices\" aria-label=\"Connect a device — opens Devices\" title=\"Connect a device\">{}</a></div></footer>\n</body>\n</html>\n",
-        escape(spec.node_label.unwrap_or("")),
+        "<footer class=\"pv-footer\"><a href=\"https://github.com/gabrielmongefranco/privatium\">Privatium</a>\n<p id=\"pv-status\" class=\"pv-status\" role=\"status\"></p>\n<div class=\"pv-footer-node\"><span>{}</span><a class=\"pv-join\" href=\"/settings/devices\" aria-label=\"Connect a device — opens Devices\" title=\"Connect a device\">{}</a></div></footer>\n",
+        escape(node_label),
         icon("qr-code")
     );
-    out
+}
+
+/// What the node inserts into a document an app owns (`spec/app-contract.md §5`): the
+/// chrome stylesheet and script for the head, the skip link and the header the frame
+/// would draw for this app — with the manifest's menu items, in host or solo form — and
+/// the footer. The document's own `<body>` is kept, so there is no `hx-headers` here; a
+/// Tier 2 app talks to the data API, which takes no token.
+#[must_use]
+pub fn chrome_pieces(frame: &Frame, solo: bool, node_label: &str) -> ChromePieces {
+    let spec = PageSpec {
+        title: &frame.title,
+        active: Active::None,
+        solo,
+        brand_heading: false,
+        body_attrs: "",
+        node_label: Some(node_label),
+        app: Some((frame, &[])),
+    };
+    let mut head = stylesheet_link("chrome.css");
+    head.push_str(&script_tag("chrome.js", true));
+    let mut body_start = String::with_capacity(2048);
+    write_header(&mut body_start, &spec);
+    let mut body_end = String::with_capacity(512);
+    write_footer(&mut body_end, node_label);
+    ChromePieces {
+        head,
+        body_start,
+        body_end,
+    }
 }
 
 /// ` integrity="…"` when a hash is known, nothing otherwise.

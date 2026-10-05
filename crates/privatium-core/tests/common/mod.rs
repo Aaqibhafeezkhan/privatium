@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/common/mod.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-02
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: What tests/store.rs, tests/snapshot.rs and tests/apps.rs share: a node plus one app store,
 //          the event line of spec/protocol.md §4.1 spelled by hand, `echo >>`, the digests the
 //          §2.5 comparisons are made with, app folders written into a data root, and the sys
@@ -474,9 +474,14 @@ pub fn web_manifest(slug: &str) -> String {
     )
 }
 
-/// A loadable Tier 2 app: the manifest and a one-line `web/index.html`, plus `files`.
+/// A loadable Tier 2 app: the manifest and the smallest `web/index.html` that takes the
+/// standard chrome — the three anchors and a main region (`spec/app-contract.md §5`) —
+/// plus `files`.
 pub fn write_web_app(apps_dir: &Path, slug: &str, files: &[(&str, &str)]) -> PathBuf {
-    let index = format!("<!doctype html><title>{slug}</title><p>{slug} index</p>\n");
+    let index = format!(
+        "<!doctype html><html lang=\"en\"><head><title>{slug}</title></head>\
+         <body><main id=\"main\"><p>{slug} index</p></main></body></html>\n"
+    );
     let mut all: Vec<(&str, &str)> = vec![("web/index.html", &index)];
     all.extend_from_slice(files);
     write_app(apps_dir, slug, Some(&web_manifest(slug)), &all)

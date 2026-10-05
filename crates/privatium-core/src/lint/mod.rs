@@ -2,7 +2,7 @@
 // crates/privatium-core/src/lint/mod.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: `privatium lint` (spec/cli.md §5): the rule table with its stable IDs, severities and spec
 //          citations; a finding and its JSON shape (§5.2); the walk over an app folder that
 //          hands each file to the rule module that reads it — the manifest, the schema through
@@ -139,10 +139,10 @@ macro_rules! rule_ids {
 }
 
 rule_ids! {
-    PV101, PV102, PV103, PV104, PV105, PV106, PV107, PV108,
+    PV101, PV102, PV103, PV104, PV105, PV106, PV107, PV108, PV109, PV110,
     PV201, PV202, PV203, PV204, PV205, PV206, PV207, PV208,
     PV301, PV302, PV303, PV304, PV305, PV306, PV307, PV308,
-    PV401, PV402, PV403, PV404, PV405, PV406, PV407,
+    PV401, PV402, PV403, PV404, PV405, PV406, PV407, PV408,
     PV501, PV502, PV503, PV504, PV505, PV506,
 }
 
@@ -247,6 +247,24 @@ pub static RULES: &[Rule] = &[
         title: "No UNIQUE constraint or index beyond id's primary key",
         reads: "schema.sql, through the engine's catalog",
         spec: "spec/app-contract.md §4.5",
+        criterion: None,
+    },
+    Rule {
+        id: RuleId::PV109,
+        class: Class::Contract,
+        severity: Severity::Error,
+        title: "A document under the standard chrome has </head>, <body>, </body> and a main region with id=\"main\"",
+        reads: "web/**/*.html, the views a layout() owns",
+        spec: "spec/app-contract.md §5",
+        criterion: None,
+    },
+    Rule {
+        id: RuleId::PV110,
+        class: Class::Contract,
+        severity: Severity::Error,
+        title: "Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path",
+        reads: "app.toml, static/",
+        spec: "spec/app-contract.md §3",
         criterion: None,
     },
     Rule {
@@ -455,6 +473,15 @@ pub static RULES: &[Rule] = &[
         reads: "templates, web/ HTML",
         spec: "spec/cli.md §5.1",
         criterion: Some("1.3.1 Info and Relationships"),
+    },
+    Rule {
+        id: RuleId::PV408,
+        class: Class::Accessibility,
+        severity: Severity::Warn,
+        title: "No second way back — under the standard chrome the app draws no link of its own to the launcher or the settings pages",
+        reads: "templates, web/ HTML and JavaScript",
+        spec: "spec/app-contract.md §5",
+        criterion: Some("3.2.3 Consistent Navigation"),
     },
     Rule {
         id: RuleId::PV501,
@@ -900,6 +927,51 @@ pub fn apply(findings: &[Finding]) -> std::io::Result<Vec<PathBuf>> {
         written.push(file);
     }
     Ok(written)
+}
+
+/// `PV109` over one document under the standard chrome (`spec/app-contract.md §5`): the
+/// three anchors the chrome is inserted at, and a `<main id="main">` for the skip link
+/// to land in. `text` is the document as served, or a layout's literal text; findings are
+/// recorded against `rel`.
+pub(crate) fn check_chrome_anchors(ctx: &mut Ctx<'_>, rel: &str, text: &str) {
+    if let Err(anchor) = crate::http::apps::chrome_anchors(text) {
+        ctx.push(
+            RuleId::PV109,
+            rel,
+            1,
+            format!("no {anchor} — the standard chrome is inserted before </head>, after <body> and before </body>, and without the tag the document is served bare"),
+        )
+        .fix = Some("write the tag, or set [ui] chrome = \"none\" to own the whole document".into());
+    }
+    let root = html::parse(text);
+    if !root
+        .find_all("main")
+        .iter()
+        .any(|main| main.attr("id") == Some("main"))
+    {
+        let line = root.find_all("main").first().map_or(1, |main| main.line);
+        ctx.push(
+            RuleId::PV109,
+            rel,
+            line,
+            "no <main id=\"main\"> — the chrome's skip link targets #main",
+        )
+        .fix = Some("give the main region id=\"main\"".into());
+    }
+}
+
+/// `PV408`: an `href` that is the launcher or a framework settings page. Under the
+/// standard chrome the bar already carries both, and a second way back is one more
+/// control to learn (`spec/app-contract.md §5`).
+pub(crate) fn is_way_back_href(value: &str) -> bool {
+    let value = value.trim();
+    value == "/" || value == "/settings" || value.starts_with("/settings/")
+}
+
+/// `PV408`: a string in browser code that climbs out of the mount to the launcher, as
+/// `pv.url('../../')` does from `/a/<slug>/`.
+pub(crate) fn is_way_back_path(value: &str) -> bool {
+    matches!(value.trim(), "../../" | "../..")
 }
 
 /// The 1-based line of byte `offset` in `text`.

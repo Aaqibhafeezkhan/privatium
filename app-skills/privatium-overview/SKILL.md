@@ -35,13 +35,18 @@ hardcode `/a/<slug>/`** — it breaks in solo mode, and the linter flags it.
 
 ## The bar every app shares
 
-A Tier 1 view renders inside the framework's page frame: a top bar with the Privatium
-mark on the left linking to the launcher, the app's title in the centre linking to its
-first page, and on the right an Apps link and one Menu; a footer with a status line the
-framework writes when the connection changes. An app adds its own items to that menu
-through `[ui]` in `app.toml` and the `menu()` template helper, and writes its own task
-status through `pv.status()`; it never draws a second way back or a second menu. The
-details are in `privatium-tier1-lua` and `spec/lua-api.md §4.1`.
+Every app wears the same chrome: a top bar with the Privatium mark on the left linking
+to the launcher, the app's title in the centre linking to its first page, and on the
+right an Apps link and one Menu; a footer with a status line the framework writes when
+the connection changes. A Tier 1 view renders inside the page frame that carries it. A
+Tier 2 document, and a Tier 1 view that owns its document with `layout()`, receive the
+bar and footer inserted at three anchors — `</head>`, the opening `<body>`, `</body>` —
+unless `app.toml` says `[ui] chrome = "none"`, which an app with its own full-window
+interface (a canvas, a game) does. An app adds its own items to the menu through `[ui]`
+in `app.toml` and the `menu()` template helper, writes its own task status through
+`pv.status()`, and never draws a second way back or a second menu (`PV408`). The details
+are in `privatium-tier1-lua`, `privatium-tier2-web`, `spec/lua-api.md §4.1` and
+`spec/app-contract.md §5`.
 
 ## Invariants — true in every tier
 

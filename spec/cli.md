@@ -245,6 +245,8 @@ Rule IDs are stable. Removing or renumbering one is a breaking change to the ski
 | `PV106` | Every table in `schema.sql` has `id VARCHAR PRIMARY KEY` |
 | `PV107` | `schema.sql` contains only `CREATE TABLE`, `CREATE VIEW`, `CREATE INDEX` and comments |
 | `PV108` | No `UNIQUE` constraint or index beyond `id`'s primary key (`spec/app-contract.md §4.5`) |
+| `PV109` | A document that takes the standard chrome — a Tier 2 HTML document, or the document a `layout()` owns — has `</head>`, `<body>`, `</body>` and a main region with `id="main"` (`spec/app-contract.md §5`) |
+| `PV110` | Every `[ui]` reference resolves: `scripts` and `styles` name files under `static/` and belong to a Tier 1 app, whose frame loads them; every menu item has a label and a mount-relative path (`spec/app-contract.md §3`) |
 
 **Security — `PV2xx`**
 
@@ -283,12 +285,14 @@ Rule IDs are stable. Removing or renumbering one is a breaking change to the ski
 | `PV405` | No status conveyed by colour alone | warn |
 | `PV406` | Declared colour tokens meet 4.5:1 body / 3:1 large and UI | warn |
 | `PV407` | Tabular data uses `<table>` with `<th scope>`, not a grid of divs | warn |
+| `PV408` | No second way back: under the standard chrome the app draws no link of its own to the launcher or the settings pages — an `href` of `/` or `/settings…`, or a path that climbs out of the mount in browser code (`spec/app-contract.md §5`) | warn |
 
 The `PV4xx` rules are the framework's reading of WCAG 2.2 AA (`AGENTS.md`, Accessibility
 target), and this table is the document they enforce: `PV401` is 1.1.1 Non-text Content
 and 4.1.2 Name, Role, Value; `PV402` 1.3.1 Info and Relationships and 3.3.2 Labels or
 Instructions; `PV403` and `PV407` 1.3.1; `PV404` 1.3.1 and 2.4.6 Headings and Labels;
-`PV405` 1.4.1 Use of Color; `PV406` 1.4.3 Contrast (Minimum) and 1.4.11 Non-text Contrast.
+`PV405` 1.4.1 Use of Color; `PV406` 1.4.3 Contrast (Minimum) and 1.4.11 Non-text Contrast;
+`PV408` 3.2.3 Consistent Navigation.
 `PV401`'s icon requirements — `aria-hidden` beside text, a label when the icon is the only
 content, `focusable="false"` always — are `docs/icons.md`'s, which is what its findings cite.
 

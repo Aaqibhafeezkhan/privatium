@@ -85,12 +85,14 @@ the right to the bottom of a box on the left, and the two halves drift out of li
 as one list grows. The empty states are the other half of that rule — with no shelf the
 batch half is not rendered at all, because its Shelf field would have nothing to offer.
 
-**Draw your own way out.** A Tier 2 app serves its own pages and the framework injects
-nothing into them, so nothing puts a link back to the launcher there but you. Pantry ends
-its title band with one: an icon-only link, 44 pixels square, whose destination `app.js`
-fills in — `pv.url('../../')` under a launcher, and `pv.url('settings')` when `pv.mount`
-is `/`, because solo mode has no launcher to return to. Leaving it out strands anyone who
-opened the app from the launcher and has no Back button to hand.
+**The bar and footer are the framework's.** The page is served with the standard chrome
+inserted at its three anchors (`spec/app-contract.md §5`), so `index.html` keeps
+`</head>`, `<body>`, `</body>` and `<main id="main">` where they are (`PV109`), draws no
+link of its own to the launcher or settings (`PV408`), and has no status element: `say()`
+in `app.js` is `pv.status()`, which writes the footer's slot, and the framework writes
+the connection wording there itself. The band keeps the app's `<h1>` and nothing else.
+To own the whole window instead, set `[ui] chrome = "none"` in `app.toml` and draw the
+way back yourself, as `apps/sketch` does.
 
 ## Accessibility conventions
 

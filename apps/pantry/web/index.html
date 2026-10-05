@@ -1,9 +1,12 @@
 <!--
   Project:  Privatium™  |  File: apps/pantry/web/index.html
   Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-  Created:  2026-09-07  |  Modified: 2026-09-08
-  Summary:  Tier 2 entry point. The framework serves this file verbatim at the app's mount
-            point and injects nothing. One sheet, divided by a rule rather than cut into
+  Created:  2026-09-07  |  Modified: 2026-10-04
+  Summary:  Tier 2 entry point, served at the app's mount point with the framework's standard
+            chrome inserted at its three anchors: the bar before the sheet, the footer with
+            the status slot after it (spec/app-contract.md §5). The document is written with
+            those anchors — </head>, <body>, </body> — and its main region is id="main", where
+            the bar's skip link lands. One sheet, divided by a rule rather than cut into
             boxes: the work — the shelves and what is on the open one — and beside it the
             rail, which is what is out, what needs checking and what the log says happened.
             Each side is its own stack, so neither can drag the other's headings out of
@@ -15,11 +18,12 @@
 -->
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pantry</title>
 <link rel="stylesheet" href="style.css">
-
+</head>
 <body>
 
 <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
@@ -43,7 +47,6 @@
   <symbol id="i-cloud-slash" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M3.112 5.112a3 3 0 0 0-.17.613C1.266 6.095 0 7.555 0 9.318 0 11.366 1.708 13 3.781 13H11l-1-1H3.781C2.231 12 1 10.785 1 9.318c0-1.365 1.064-2.513 2.46-2.666l.446-.05v-.447q0-.113.018-.231zm2.55-1.45-.725-.725A5.5 5.5 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773a3.2 3.2 0 0 1-1.516 2.711l-.733-.733C14.498 11.378 15 10.626 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3c-.875 0-1.678.26-2.339.661z"/><path d="m13.646 14.354-12-12 .708-.708 12 12z"/></symbol>
   <symbol id="i-arrow-repeat" viewBox="0 0 16 16"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/></symbol>
   <symbol id="i-list-ul" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/></symbol>
-  <symbol id="i-grid-3x3-gap" viewBox="0 0 16 16"><path d="M4 2v2H2V2zm1 12v-2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1m0-5V7a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1m0-5V2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1m5 10v-2a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1m0-5V7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1m0-5V2a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1M9 2v2H7V2zm5 0v2h-2V2zM4 7v2H2V7zm5 0v2H7V7zm5 0h-2v2h2zM4 12v2H2v-2zm5 0v2H7v-2zm5 0v2h-2v-2zM12 1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm-1 6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zm1 4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1z"/></symbol>
   <symbol id="i-caret-down-fill" viewBox="0 0 16 16"><path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/></symbol>
 </svg>
 
@@ -51,19 +54,13 @@
      namespace, and cloning one the page already holds keeps that detail out of the code. -->
 <template id="icon-shape"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-box-seam"></use></svg></template>
 
-<main>
+<main id="main">
 
+  <!-- The band keeps the app's own heading. The way back and the status line are the
+       framework's: the bar above links to the launcher, and app.js writes what happened
+       into the footer's slot through pv.status. -->
   <header class="band">
     <h1><svg class="mark" aria-hidden="true" focusable="false"><use href="#i-box-seam"></use></svg> Pantry</h1>
-    <p class="status" id="status" role="status"></p>
-    <!-- The way back out of the app. An app serves its own pages and gets no framework
-         header, so the link is the app's to draw; app.js fills in where it goes, because
-         only pv.url knows the mount and only pv.mount says whether there is a launcher to
-         return to. -->
-    <a class="exit" id="exit" hidden>
-      <svg class="ic" aria-hidden="true" focusable="false"><use href="#i-grid-3x3-gap"></use></svg>
-      <span class="sr" id="exit-label">Apps</span>
-    </a>
   </header>
 
   <div class="split">
@@ -298,3 +295,5 @@
 </main>
 
 <script type="module" src="app.js"></script>
+</body>
+</html>

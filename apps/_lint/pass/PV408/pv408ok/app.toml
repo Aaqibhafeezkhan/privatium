@@ -1,0 +1,12 @@
+# Project:  Privatium™  |  File: apps/_lint/pass/PV408/pv408ok/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV408 pass: the bar is the way back; the page draws no link to the launcher or settings.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv408ok"
+title   = "Lint PV408"
+version = "1.0.0"
+api     = 1
+tier    = "web"

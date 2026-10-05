@@ -175,12 +175,17 @@ pub enum LuaResponse {
     Redirect(String),
     /// `pv.render`, fulfilled: the view rendered. `complete` says the app supplied the
     /// whole document — the view called `layout()`, or the request was an htmx fragment
-    /// request — so the wire layer adds no page frame (`spec/lua-api.md §4.1`).
+    /// request — so the wire layer adds no page frame (`spec/lua-api.md §4.1`). `owned`
+    /// says which of the two: a document the view owns with `layout()` receives the
+    /// standard chrome at its anchors unless the manifest declines it
+    /// (`spec/app-contract.md §5`); a fragment never does.
     View {
         /// The HTML.
         html: Vec<u8>,
         /// Whether to serve it as it is rather than inside the framework's frame.
         complete: bool,
+        /// Whether the view called `layout()` and so owns the whole document.
+        owned: bool,
         /// The items the view added to the page's menu with `menu()`, in call order.
         menu: Vec<PageMenuItem>,
     },
@@ -920,6 +925,7 @@ fn response_of(lua: &Lua, value: &Value, fragment: bool) -> mlua::Result<LuaResp
                     Ok(LuaResponse::View {
                         html: html.into_bytes(),
                         complete: layouted || fragment,
+                        owned: layouted,
                         menu,
                     })
                 }

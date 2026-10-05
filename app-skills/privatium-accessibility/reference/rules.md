@@ -13,6 +13,7 @@ The `PV4xx` rules of `spec/cli.md §5.1` with the WCAG 2.2 success criterion eac
 | `PV405` | warn | No status conveyed by colour alone | 1.4.1 Use of Color | templates, web/ HTML | `spec/cli.md §5.1` |
 | `PV406` | warn | Declared colour tokens meet 4.5:1 body / 3:1 large and UI | 1.4.3 Contrast (Minimum), 1.4.11 Non-text Contrast | static/*.css, web/**/*.css | `spec/cli.md §5.1` |
 | `PV407` | warn | Tabular data uses <table> with <th scope>, not a grid of divs | 1.3.1 Info and Relationships | templates, web/ HTML | `spec/cli.md §5.1` |
+| `PV408` | warn | No second way back — under the standard chrome the app draws no link of its own to the launcher or the settings pages | 3.2.3 Consistent Navigation | templates, web/ HTML and JavaScript | `spec/app-contract.md §5` |
 
 ## The framework's colour tokens
 

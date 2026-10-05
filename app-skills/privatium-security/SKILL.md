@@ -69,6 +69,13 @@ about.
 Default CSP is `script-src 'self'` scoped to the app's path. Inline `<script>` does not run.
 Put JavaScript in external files.
 
+The bar and footer the node inserts into your document (`spec/app-contract.md §5`) add
+nothing inline and nothing cross-origin: two same-origin assets in the head with their
+integrity hashes, and markup rendered from your manifest with every value escaped. Your
+policy is unchanged by them, and you need no permission for them. Do not widen the
+policy to "make room" for the chrome; if a bar is missing, the load warning names the
+anchor your document lacks.
+
 Every non-default permission is shown to the owner at install:
 
 | Permission | Ask for it only if |

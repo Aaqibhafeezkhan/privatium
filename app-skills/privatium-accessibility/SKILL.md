@@ -80,6 +80,13 @@ of them are.
   not repeat it.
 - A menu item you add, through `[[ui.menu]]`, `menu()` or by appending to
   `#pv-app-menu`, is a link or a button with a text label. An icon alone is not a label.
+- A Tier 2 document, or a `layout()` document, gets the same bar and footer inserted
+  unless it declines them (`spec/app-contract.md §5`). Give it the three anchors and a
+  `<main id="main">` for the skip link to land in (`PV109`), keep your one `<h1>` inside
+  it, and draw no link of your own to the launcher or settings (`PV408`): two ways back
+  is one more control to learn. Write status through `pv.status()` rather than a second
+  live region. An app that declines the chrome owns all of this itself — its own way
+  back, its own `role="status"` — and `apps/sketch` shows what that costs.
 
 **Language and clarity**
 - Set `lang` on the document

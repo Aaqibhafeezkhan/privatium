@@ -1,8 +1,9 @@
 // Project: Privatium™ | File: crates/privatium-core/tests/js/sketch.test.mjs
 // Authors: Gabriel Mongefranco (@gabrielmongefranco)
-// Created: 2026-09-06 | Modified: 2026-09-07
+// Created: 2026-09-06 | Modified: 2026-10-04
 // Summary: Stroke erasing respects segment edges and rejects malformed geometry; undo is
-//          shared across windows and devices, batched, bounded, and never reuses an ID.
+//          shared across windows and devices, batched, bounded, and never reuses an ID; the
+//          way out of the app leads to the launcher under one and to Settings in solo mode.
 //          See main README.md for full license information.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -122,4 +123,35 @@ test('a tab\'s own write echoed by the stream and a replay of what is drawn are 
  assert.equal(replay.undoStack.length, 3);
  await replay.undo();
  assert.deepEqual([...replay.strokes.keys()], ['s0', 's1']);
+});
+
+import { exitTarget, pointOut } from '../../../../apps/sketch/web/exit.js';
+test('test_spec_5_the_mark_links_to_apps_in_host_mode_and_settings_in_solo_mode', () => {
+  // `pv.url` as pv.js resolves it: a path beneath the mount, `..` segments and all.
+  const url = mount => path => new URL(path, `http://node${mount}`).pathname;
+  assert.deepEqual(exitTarget('/a/sketch/', url('/a/sketch/')), { href: '/', label: 'Apps' });
+  assert.deepEqual(exitTarget('/', url('/')), { href: '/settings', label: 'Settings' });
+  // Both exits — the mark in the rail and the menu's entry — are filled from one target.
+  const link = (span) => {
+    const attrs = {};
+    return {
+      hidden: true, href: '', title: '',
+      setAttribute: (k, v) => { attrs[k] = v; },
+      getAttribute: k => attrs[k],
+      querySelector: () => span,
+    };
+  };
+  const text = { textContent: 'Apps' };
+  const menu = link(text);
+  pointOut(menu, exitTarget('/', url('/')));
+  assert.equal(menu.href, '/settings');
+  assert.equal(menu.getAttribute('aria-label'), 'Settings');
+  assert.equal(menu.title, 'Settings');
+  assert.equal(text.textContent, 'Settings');
+  assert.equal(menu.hidden, false);
+  const mark = link(null);
+  pointOut(mark, exitTarget('/a/sketch/', url('/a/sketch/')));
+  assert.equal(mark.href, '/');
+  assert.equal(mark.getAttribute('aria-label'), 'Apps');
+  assert.equal(mark.hidden, false);
 });

@@ -21,8 +21,9 @@ whichever was drawn last.
 | `app.lua` | **No.** No server-side code. |
 | `schema.sql` | **No.** This app has no tables. |
 | A build step | **No.** Plain ES modules; `app.js` is what ships. |
+| The framework's bar and footer | **No.** `app.toml` sets `[ui] chrome = "none"`; see below. |
 
-`web/` contains an HTML page, a stylesheet, seven small JavaScript modules and the Pv
+`web/` contains an HTML page, a stylesheet, eight small JavaScript modules and the Pv
 mark in its two schemes. Together with `app.toml`, that is the entire app.
 
 The sheet is a fixed 1600 × 1200 surface, so a mark lands on the same pixels on every
@@ -34,6 +35,20 @@ keyboard, every control keeps its touch size, and on a narrow screen the rail be
 strip below the sheet. Open **Help** for the keyboard map. Help and status text stay
 readable when zoomed; see [Sample app design](../../docs/sample-app-design.md) for the
 layout and its limits.
+
+## Why it declines the bar
+
+Every other app wears the framework's bar and footer, inserted around its page
+(`spec/app-contract.md §5`). Sketch turns them off with `[ui] chrome = "none"` in
+`app.toml`, because a drawing surface wants the whole window: a bar above the sheet and a
+footer below it would take height from the one thing the app is for, and the sheet's own
+status line already says what the drawing holds. The document is therefore served byte
+for byte, and the way back is the app's to draw. It draws it twice from one source
+(`web/exit.js`): the Privatium mark at the top of the tool rail is a link, and the menu
+carries an Apps entry; both lead to the launcher, or to Settings in solo mode, where
+there is no launcher to return to. On a narrow screen the rail's heading is hidden and
+the menu's entry is the way out. An app that keeps the bar gets all of this for nothing,
+and `apps/pantry` shows that side.
 
 ## What the framework still gives it
 

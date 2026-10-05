@@ -2,12 +2,13 @@
 // crates/privatium-core/src/lint/manifest.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-05
-// Last Modified: 2026-09-05
+// Last Modified: 2026-10-04
 // Summary: The rules that read app.toml and the sample data: PV101–PV105 through the loader's own
 //          Manifest type and validation, PV205 (a widened permission needs a comment beside
 //          it), PV208 (nothing that looks like a secret in the manifest, the schema or
-//          sample/seed.jsonl), PV501 (the DNS-SD label limit) and PV502 (cross_origin_isolated
-//          is the solo app's alone).
+//          sample/seed.jsonl), PV110 (every [ui] reference resolves and reaches a framed
+//          view), PV501 (the DNS-SD label limit) and PV502 (cross_origin_isolated is the
+//          solo app's alone).
 // Notes: See README file for documentation and full license information.
 //
 // Copyright © 2026 Gabriel Mongefranco
@@ -25,7 +26,7 @@
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::app::manifest::{
-    MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, SUPPORTED_API, is_reserved,
+    MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, SUPPORTED_API, Tier, is_reserved,
     is_valid_slug,
 };
 use crate::config::Mode;
@@ -33,7 +34,7 @@ use crate::lint::{Ctx, RuleId, line_of};
 
 const SEED_FILE: &str = "sample/seed.jsonl";
 
-/// `PV101`–`PV105`, `PV205`, `PV208`, `PV501`, `PV502`.
+/// `PV101`–`PV105`, `PV110`, `PV205`, `PV208`, `PV501`, `PV502`.
 pub(crate) fn check(ctx: &mut Ctx<'_>) {
     let Some(text) = ctx.read(MANIFEST_FILE) else {
         ctx.push(
@@ -109,7 +110,8 @@ pub(crate) fn check(ctx: &mut Ctx<'_>) {
         ));
     }
     // The rest of the loader's validation — title length, semver, remote origins — is
-    // PV101's: the manifest does not carry what §3 requires.
+    // PV101's: the manifest does not carry what §3 requires. The `[ui]` table's own
+    // shape is PV110's, below, so it is left out here.
     if let Err(error) = manifest.validate(&slug, Mode::Solo)
         && !matches!(
             error,
@@ -118,10 +120,15 @@ pub(crate) fn check(ctx: &mut Ctx<'_>) {
                 | ManifestError::FolderMismatch { .. }
                 | ManifestError::ApiTooHigh { .. }
                 | ManifestError::ApiZero
+                | ManifestError::MenuLabel { .. }
+                | ManifestError::MenuPath { .. }
+                | ManifestError::UiAssetPath { .. }
+                | ManifestError::UiAssetMissing { .. }
         )
     {
         ctx.push(RuleId::PV101, MANIFEST_FILE, 0, error.to_string());
     }
+    check_ui(ctx, &text, &manifest);
     if let Some(file) = manifest.app.tier.required_file()
         && !ctx.dir.join(file).is_file()
     {
@@ -166,6 +173,38 @@ pub(crate) fn check(ctx: &mut Ctx<'_>) {
     }
     check_permission_comments(ctx, &text, &manifest);
     ctx.manifest = Some(manifest);
+}
+
+/// `PV110`: every `[ui]` reference resolves — the shape rules of `Ui::validate`, the
+/// files of `Ui::check_files` — and `scripts` and `styles` reach a page that loads them,
+/// which a Tier 2 app, owning its document, has none of (`spec/app-contract.md §3`).
+fn check_ui(ctx: &mut Ctx<'_>, text: &str, manifest: &Manifest) {
+    let ui_line = line_of_table(text, "[ui]").max(line_of_table(text, "[[ui.menu]]"));
+    if let Err(error) = manifest.ui.validate() {
+        ctx.push(RuleId::PV110, MANIFEST_FILE, ui_line, error.to_string())
+            .fix = Some("give every menu item a label and a path beginning with /, and spell every asset static/<name>".into());
+    } else if let Err(error) = manifest.ui.check_files(ctx.dir) {
+        ctx.push(RuleId::PV110, MANIFEST_FILE, ui_line, error.to_string())
+            .fix = Some("create the file under static/, or drop the entry".into());
+    }
+    if manifest.app.tier == Tier::Web
+        && (!manifest.ui.scripts.is_empty() || !manifest.ui.styles.is_empty())
+    {
+        ctx.push(
+            RuleId::PV110,
+            MANIFEST_FILE,
+            ui_line,
+            "ui.scripts and ui.styles load in the page frame's head, and a Tier 2 app owns its document, so nothing here is ever loaded",
+        )
+        .fix = Some("link the stylesheet and script from web/index.html and drop the entries".into());
+    }
+}
+
+/// The 1-based line on which `table` — `[ui]`, `[[ui.menu]]` — opens, or 0.
+fn line_of_table(text: &str, table: &str) -> u32 {
+    text.lines()
+        .position(|line| line.trim_start() == table)
+        .map_or(0, |index| index as u32 + 1)
 }
 
 /// The 1-based line of the first `key =` at the start of a line, or 0.

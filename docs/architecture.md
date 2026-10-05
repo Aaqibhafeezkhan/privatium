@@ -128,6 +128,24 @@ from `[ui]` in its manifest and from the `menu()` template helper, then a rule, 
 framework's settings pages. The footer holds a link to the project, a status line, and
 the space's name with the way to connect a device.
 
+A document the app owns gets the same bar and footer by insertion rather than by
+rendering around it. That is every HTML document a Tier 2 app serves from `web/`, and a
+Tier 1 view that calls `layout()`. The node buffers the document — the entry page, not
+an asset; everything else under `web/` streams — finds three anchors by tag, and puts
+three pieces at them: the chrome's stylesheet and script before `</head>`, the skip link
+and the header after the opening `<body>` tag, the footer before the last `</body>`.
+The header is the one the frame would draw for that app, with its title and its
+manifest's menu items, in host or solo form. Nothing else changes: the body keeps its
+attributes, the app's own links and scripts stay where they were, and the response
+carries the app's own policy and headers. A document that lacks an anchor is served as
+written, and the loader records a warning naming the file and the tag, so the owner
+reads why the bar is missing. `[ui] chrome = "none"` in the manifest turns the insertion
+off and serves the document byte for byte; `apps/sketch` does that, `apps/pantry` takes
+the chrome. The lint holds a document under the chrome to its anchors and its
+`<main id="main">` (`PV109`) and to drawing no second way back (`PV408`). The contract is
+`spec/app-contract.md §5`; the code is `http::apps::insert_chrome` and
+`http::shell::chrome_pieces`.
+
 Two embedded assets carry it. `chrome.css` holds the colour tokens and the rules for the
 header, menu, footer and skip link, scoped to their own classes so a document an app
 owns keeps its own styles; `shell.css` holds the framework's page styles and declares no
