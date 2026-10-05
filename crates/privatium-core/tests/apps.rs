@@ -35,7 +35,7 @@ use std::fs;
 use common::{
     APP, HELLO_DDL, audit_rows, digest_via, event, files_in, flip_byte, hand_append, log_lines,
     lua_manifest, repo_apps_dir, sha256_hex, sys_app_row, sys_lines, tree, ts_offset_secs,
-    write_app, write_lua_app,
+    web_manifest, write_app, write_lua_app,
 };
 use privatium_core::app::{RESERVED_SLUGS, SUPPORTED_API, StreamEvent, Widening};
 use privatium_core::local::State;
@@ -204,6 +204,48 @@ fn test_spec_3_1_slug_dir_mismatch_refused() {
     assert!(sys_app_row(&node, "foo").is_none());
     assert!(!node.paths().data_dir().join("bar").exists());
     assert!(!node.paths().data_dir().join("foo").exists());
+}
+
+/// `spec/app-contract.md §3`: `navigation = "swap"` swaps pages inside the Lua page frame,
+/// which a Tier 2 app does not have, so the loader refuses it there with the wording the
+/// lint uses; the same key on a Lua app loads.
+#[test]
+fn test_spec_3_navigation_swap_is_refused_for_a_web_app_at_load() {
+    let root = tempfile::tempdir().unwrap();
+    let mut node = open(&root);
+    let apps = node.paths().apps_dir();
+    let swap = "[ui]\nnavigation = \"swap\"\n";
+    write_app(
+        &apps,
+        "webswap",
+        Some(&format!("{}{swap}", web_manifest("webswap"))),
+        &[(
+            "web/index.html",
+            "<!doctype html><head></head><body><main id=\"main\"></main></body>",
+        )],
+    );
+    write_app(
+        &apps,
+        "luaswap",
+        Some(&format!("{}{swap}", lua_manifest("luaswap"))),
+        &[("app.lua", "")],
+    );
+    let report = node.load_apps(&[local(&node)]).unwrap();
+    assert_eq!(report.loaded, vec!["luaswap".to_owned()], "{report:?}");
+    let failure = report
+        .failed
+        .iter()
+        .find(|failure| failure.folder == "webswap")
+        .unwrap_or_else(|| panic!("{report:?}"));
+    assert_eq!(failure.stage, Stage::Validate);
+    let expected = privatium_core::app::ManifestError::SwapNavigationOnWeb.to_string();
+    assert!(failure.reason.contains(&expected), "{}", failure.reason);
+    assert!(node.app("webswap").is_none());
+    let row = sys_app_row(&node, "webswap").unwrap();
+    assert!(
+        row["last_error"].as_str().unwrap().contains(&expected),
+        "{row}"
+    );
 }
 
 /// `spec/app-contract.md §3` — a `[ui]` reference that does not resolve is refused at

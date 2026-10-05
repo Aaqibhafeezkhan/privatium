@@ -6,8 +6,6 @@ Summary: The page around the board. The board itself is _board.lsp, because HTMX
 Notes: See README file for documentation and full license information.
 --?>
 
-<?= render('_assets') ?>
-
 <div class="animals">
 <p class="animals-intro"><?= icon('diagram-3') ?> Think of an animal. Let's see if I can guess it.</p>
 <div id="board">

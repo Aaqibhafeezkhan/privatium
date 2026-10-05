@@ -125,6 +125,9 @@ pub struct Frame {
     /// `ui.chrome`: whether a document the app owns receives the bar and footer
     /// (`spec/app-contract.md §5`).
     pub chrome: crate::app::manifest::Chrome,
+    /// `ui.navigation`: whether the frame's main region swaps the app's next page in
+    /// place (`spec/lua-api.md §4.1`, `spec/protocol.md §8.3.1`).
+    pub navigation: crate::app::manifest::Navigation,
 }
 
 /// The three pieces the node inserts into a document an app owns (`spec/app-contract.md
@@ -195,6 +198,7 @@ impl Frame {
             scripts: manifest.ui.scripts.iter().map(asset).collect(),
             static_dir: dir.map(std::path::Path::to_path_buf),
             chrome: manifest.ui.chrome,
+            navigation: manifest.ui.navigation,
         }
     }
 
@@ -231,6 +235,9 @@ struct PageSpec<'a> {
     /// The app whose frame this is, with the page's own menu items appended; `None` for
     /// the shell's pages.
     app: Option<(&'a Frame, &'a [MenuLink])>,
+    /// Swap navigation: the main region is boosted and the menu's app list is swapped out
+    /// of band with every page, so it follows the page.
+    swap: bool,
 }
 
 /// The shell's own page frame. `solo` drops the launcher link: there is no launcher to
@@ -245,6 +252,7 @@ fn layout(title: &str, active: Active, solo: bool, body: &str) -> String {
             body_attrs: "",
             node_label: None,
             app: None,
+            swap: false,
         },
         body,
     )
@@ -256,6 +264,8 @@ fn layout(title: &str, active: Active, solo: bool, body: &str) -> String {
 /// `hx-headers` on the body so every htmx request beneath the mount carries the CSRF
 /// token — which is what lets an `hx-delete` button, with no form, pass the host's check.
 /// `page_menu` is what the view added with `menu()`, listed after the manifest's items.
+/// Under `navigation = "swap"` the main region carries `hx-boost`, so a link or form inside
+/// it fetches the next page and `chrome.js` swaps that page's main region into this one.
 #[must_use]
 pub fn app_frame(
     frame: &Frame,
@@ -279,6 +289,7 @@ pub fn app_frame(
             body_attrs: &attrs,
             node_label: Some(node_label),
             app: Some((frame, page_menu)),
+            swap: frame.navigation == crate::app::manifest::Navigation::Swap,
         },
         body,
     )
@@ -307,10 +318,13 @@ fn page(spec: &PageSpec<'_>, body: &str) -> String {
     // config says so, which keeps the default CSP's `script-src 'self'` honest (AGENTS.md).
     // It also injects a `<style>` for its request indicators unless told not to, which the
     // default CSP (no `style-src`, so `default-src 'self'`) refuses with a console error on
-    // every page; the shell's stylesheet is the only style there is.
+    // every page; the shell's stylesheet is the only style there is. The history cache is
+    // off, so no page is ever copied into browser storage, and the back button after a
+    // swap reloads the page from the node.
     out.push_str(
         "<meta name=\"htmx-config\" content='{\"allowEval\":false,\"allowScriptTags\":false,\
-         \"selfRequestsOnly\":true,\"includeIndicatorStyles\":false}'>\n",
+         \"selfRequestsOnly\":true,\"includeIndicatorStyles\":false,\"historyCacheSize\":0,\
+         \"refreshOnHistoryMiss\":true}'>\n",
     );
     let _ = writeln!(out, "<title>{} — Privatium</title>", escape(spec.title));
     out.push_str(&stylesheet_link("chrome.css"));
@@ -337,7 +351,11 @@ fn page(spec: &PageSpec<'_>, body: &str) -> String {
     }
     let _ = writeln!(out, "</head>\n<body{}>", spec.body_attrs);
     write_header(&mut out, spec);
-    out.push_str("<main id=\"main\">\n");
+    out.push_str(if spec.swap {
+        "<main id=\"main\" hx-boost=\"true\">\n"
+    } else {
+        "<main id=\"main\">\n"
+    });
     out.push_str(body);
     out.push_str("\n</main>\n");
     write_footer(&mut out, spec.node_label.unwrap_or(""));
@@ -406,8 +424,13 @@ fn write_header(out: &mut String, spec: &PageSpec<'_>) {
     }
     let _ = write!(
         out,
-        "<details class=\"pv-menu\"><summary aria-label=\"Menu\" title=\"Menu\">{}</summary><nav aria-label=\"All pages\">\n<ul id=\"pv-app-menu\" class=\"pv-menu-app\">",
-        icon("list")
+        "<details class=\"pv-menu\"><summary aria-label=\"Menu\" title=\"Menu\">{}</summary><nav aria-label=\"All pages\">\n<ul id=\"pv-app-menu\" class=\"pv-menu-app\"{}>",
+        icon("list"),
+        if spec.swap {
+            " hx-swap-oob=\"true\""
+        } else {
+            ""
+        }
     );
     if let Some((frame, page_menu)) = spec.app {
         for item in frame.menu.iter().chain(page_menu) {
@@ -456,6 +479,7 @@ pub fn chrome_pieces(frame: &Frame, solo: bool, node_label: &str) -> ChromePiece
         body_attrs: "",
         node_label: Some(node_label),
         app: Some((frame, &[])),
+        swap: false,
     };
     let mut head = stylesheet_link("chrome.css");
     head.push_str(&script_tag("chrome.js", true));
@@ -494,6 +518,7 @@ fn node_layout(
             body_attrs: "",
             node_label: Some(&label),
             app: None,
+            swap: false,
         },
         body,
     ))

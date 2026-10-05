@@ -2,10 +2,12 @@
 // Authors:  Gabriel Mongefranco (@gabrielmongefranco)
 // Created:  2026-09-05  |  Modified: 2026-10-04
 // Summary:  Bootstrap rendering, the pairing screen (§7.2), the refusal screen (§8.1),
-//           encrypted HTMX and fresh-document navigation (§8.3).
+//           encrypted HTMX, in-document page swaps beneath the mount, and fresh-document
+//           navigation everywhere else (§8.3, §8.3.1).
 //           See main README.md for full license information.
 
 import { channel, channelFetch, closeChannel, eventSource, localUrl } from './channel.js';
+import { isSwap } from './chrome.js';
 import { pair, parseCode } from './pair.js';
 import { base64, decode64 } from './session.js';
 import { sha256 } from './vendor/noble/hashes/sha2.js';
@@ -36,10 +38,14 @@ export function takeHandoff(path, node) {
 
 /**
  * Replace only an HTMX request's send operation. HTMX retains parameter encoding,
- * validation, indicators, response headers, swapping and completion callbacks.
+ * validation, indicators, response headers, swapping and completion callbacks. A
+ * redirect is followed here, and a boosted request's redirect is followed as boosted, so
+ * the destination answers with its whole page for a swap to take the main region from.
  */
 export function bridgeHtmx(detail, fetcher = channelFetch) {
   const { xhr, requestConfig, pathInfo } = detail;
+  const follow = { 'HX-Request': 'true' };
+  if (detail.boosted || requestConfig.headers?.['HX-Boosted']) follow['HX-Boosted'] = 'true';
   const abort = new AbortController();
   xhr.abort = () => { abort.abort(); xhr.onabort?.(); };
   xhr.send = async body => {
@@ -52,10 +58,10 @@ export function bridgeHtmx(detail, fetcher = channelFetch) {
       for (let count = 0; response.status >= 300 && response.status < 400 && response.headers.has('location'); count++) {
         if (count >= 10 || ![301, 302, 303].includes(response.status)) throw uncertainty();
         destination = localUrl(new URL(response.headers.get('location'), destination));
-        await response.body?.cancel(); response = await fetcher(destination.href, { headers: { 'HX-Request': 'true' }, signal: abort.signal });
+        await response.body?.cancel(); response = await fetcher(destination.href, { headers: follow, signal: abort.signal });
       }
       let html = await response.text();
-      if (globalThis.DOMParser) html = await pinMarkup(html, false, destination.href);
+      if (globalThis.DOMParser) html = await pinMarkup(html, detail.boosted ? 'swap' : false, destination.href);
       for (const [name, value] of Object.entries({ status: response.status, statusText: response.statusText,
         response: html, responseText: html, responseURL: destination.href, readyState: 4 })) {
         Object.defineProperty(xhr, name, { configurable: true, value });
@@ -92,15 +98,23 @@ export async function resourceIntegrity(url, provided, fetcher = channelFetch) {
   return 'sha256-' + base64(hash.digest());
 }
 
+/**
+ * Pin every same-origin script and stylesheet of `html` to the bytes the channel carried.
+ * `full` is true for a whole document, false for a fragment, and 'swap' for a page whose
+ * main region is swapped in: its head is never used, so only the body is pinned and kept,
+ * with the title htmx takes from it.
+ */
 async function pinMarkup(html, full, base) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  for (const element of doc.querySelectorAll('script[src], link[rel~="stylesheet"][href]')) {
+  const root = full === 'swap' ? doc.body : doc;
+  for (const element of root.querySelectorAll('script[src], link[rel~="stylesheet"][href]')) {
     const attribute = element.tagName === 'SCRIPT' ? 'src' : 'href';
     const url = new URL(element.getAttribute(attribute), base);
     element.setAttribute('integrity', await resourceIntegrity(url, element.getAttribute('integrity')));
     element.setAttribute(attribute, url.href);
     if (url.origin !== location.origin) element.setAttribute('crossorigin', 'anonymous');
   }
+  if (full === 'swap') return (doc.querySelector('title')?.outerHTML ?? '') + doc.body.innerHTML;
   if (!full) return doc.head.innerHTML + doc.body.innerHTML;
   const config = doc.querySelector('meta[name="htmx-config"]') || doc.createElement('meta');
   const settings = config.content ? JSON.parse(config.content) : {};
@@ -249,8 +263,11 @@ function installNavigation(node) {
   // words, unless the page is on its way out anyway.
   window.addEventListener('pv:channel-closed', () => { if (!leaving) { const slot = document.getElementById('pv-status'); if (slot) slot.textContent = 'Connection lost.'; } });
   window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+  // A boosted request that stays beneath the mount and off the framework's prefixes is a
+  // page swap and travels like a fragment; any other boosted request makes a fresh
+  // document, under the destination's own policy (§8.3.1).
   document.addEventListener('htmx:beforeRequest', event => {
-    if (event.detail.boosted) {
+    if (event.detail.boosted && !isSwap(event.detail)) {
       event.preventDefault();
       const config = event.detail.requestConfig;
       if (config.verb === 'get') location.assign(localUrl(event.detail.pathInfo.finalRequestPath).href);

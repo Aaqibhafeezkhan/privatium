@@ -1,11 +1,10 @@
 <?--
 This file is part of Privatium
 apps/animals/views/teach.lsp
-Summary: The learning form. One HTMX-free page, on purpose.
+Summary: The learning form. No hx-* attribute, on purpose: a plain post that redirects, which
+         the frame's swap navigation follows inside the document.
 Notes: See README file for documentation and full license information.
 --?>
-
-<?= render('_assets') ?>
 
 <div class="animals">
 <h1>I give up. What was it?</h1>

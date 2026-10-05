@@ -17,7 +17,8 @@ The rule table of `privatium lint` as the crate holds it — `spec/cli.md §5.1`
 | `PV107` | error | schema.sql contains only CREATE TABLE, CREATE VIEW, CREATE INDEX and comments | schema.sql, one statement at a time under the engine's authorizer | `spec/app-contract.md §4.5` |
 | `PV108` | error | No UNIQUE constraint or index beyond id's primary key | schema.sql, through the engine's catalog | `spec/app-contract.md §4.5` |
 | `PV109` | error | A document under the standard chrome has </head>, <body>, </body> and a main region with id="main" | web/**/*.html, the views a layout() owns | `spec/app-contract.md §5` |
-| `PV110` | error | Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path | app.toml, static/ | `spec/app-contract.md §3` |
+| `PV110` | error | Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path, navigation = "swap" is for a Tier 1 app | app.toml, static/ | `spec/app-contract.md §3` |
+| `PV111` | error | A view of an app with navigation = "swap" carries no <script> or <link rel="stylesheet">; they belong in ui.scripts and ui.styles | views/*.lsp, when app.toml sets [ui] navigation = "swap" | `spec/lua-api.md §4.1` |
 
 ## Security
 

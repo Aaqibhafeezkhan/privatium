@@ -806,7 +806,10 @@ impl Handler {
                 )
             })
             .collect();
-        let is_htmx = parts.headers.contains_key("hx-request");
+        // A boosted request is htmx navigating, not asking for a fragment
+        // (`spec/lua-api.md §3.1`).
+        let is_htmx =
+            parts.headers.contains_key("hx-request") && !parts.headers.contains_key("hx-boosted");
         let device = parts
             .extensions
             .get::<Device>()

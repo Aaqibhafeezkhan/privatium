@@ -58,7 +58,9 @@ Handlers return one of:
 | `nil` | 204 No Content |
 
 `req` fields: `method`, `path`, `params`, `query`, `form`, `body`, `headers`, `device`
-(the paired device's ID), `is_htmx` (true when `HX-Request` is present).
+(the paired device's ID), `is_htmx` (true when htmx asks for a fragment: `HX-Request`
+present and `HX-Boosted` absent). A boosted request is htmx navigating to a page, so it is
+answered with the whole page and `is_htmx` is false for it.
 
 `path` is the path beneath the app's mount, `/` for the mount point. `query` is the query
 string decoded, `form` an `application/x-www-form-urlencoded` body decoded, `body` the

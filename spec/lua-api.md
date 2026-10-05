@@ -104,7 +104,9 @@ Handlers return one of:
 | `nil` | 204 No Content |
 
 `req` fields: `method`, `path`, `params`, `query`, `form`, `body`, `headers`, `device`
-(the paired device's ID), `is_htmx` (true when `HX-Request` is present).
+(the paired device's ID), `is_htmx` (true when htmx asks for a fragment: `HX-Request`
+present and `HX-Boosted` absent). A boosted request is htmx navigating to a page, so it is
+answered with the whole page and `is_htmx` is false for it.
 
 `path` is the path beneath the app's mount, `/` for the mount point. `query` is the query
 string decoded, `form` an `application/x-www-form-urlencoded` body decoded, `body` the
@@ -415,6 +417,28 @@ is not inserted. `layout` is for the view `pv.render` named; a partial calling i
 error. A request htmx makes (`HX-Request` present, `HX-Boosted` absent) gets the view's
 output alone, since htmx swaps it into an element, and never the chrome: that is how
 `pv.render('_board', ctx)` answers `req.is_htmx`.
+
+**Swap navigation.** Under `[ui] navigation = "swap"` (`spec/app-contract.md §3`) the
+frame's main region is `<main id="main" hx-boost="true">`, and `#pv-app-menu` carries
+`hx-swap-oob="true"`. A link or form inside the main region then fetches the next page as
+an ordinary GET or POST with `HX-Boosted`, which the node answers with the whole framed
+page, and when the destination is in scope (`spec/protocol.md §8.3.1`) the frame keeps the
+page's main region in place of its own, takes the window title from it, takes the menu's
+app list with it out of band, so page items follow the page, scrolls to the top, and moves
+focus to the field the page marks `autofocus`, or else its `<h1>`, or else the main region.
+A destination out of scope is a fresh document, as under page navigation. The submit
+controls of a form are disabled while its request is out. A page the node answers with an
+error status is swapped in like any other, and a response with no main region — a file, a
+bare error — is not swapped: a GET opens it as a fresh document. htmx's history cache is
+off for every frame, so no page is copied into browser storage and the back button reloads
+the page from the node. htmx never runs a script that arrives in swapped content, and a
+swapped page's head is never used, so under swap navigation a view MUST NOT carry a
+`<script>` or a `<link rel="stylesheet">` (`PV111`): what the app needs goes in
+`[ui] scripts` and `[ui] styles`, which the frame's head loads once, and a script binds
+to the document by event delegation, or on `htmx:load` with a guard against binding
+twice, rather than assume a fresh page. A view that calls `layout()` owns its document and
+is not swapped into a frame; a link to one from a swapping page carries
+`hx-boost="false"` so it is a fresh document.
 
 **Names in a template.** The ctx table's keys are bare names; a name absent from the ctx
 is the sandbox global of that name — `ipairs`, `os.date`, `icon` — or `nil` when there is

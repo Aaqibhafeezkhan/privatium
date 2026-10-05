@@ -35,8 +35,8 @@ finding it requires a traversal.
 |---|---|---|
 | Submit a guess | HTMX | `views/_board.lsp` |
 | Restart a round | HTMX | `views/_board.lsp` |
-| Teach a new animal | plain form post | `views/teach.lsp` |
-| Forget everything | plain form post | `views/knowledge.lsp` |
+| Teach a new animal | plain form post, swapped in by the frame | `views/teach.lsp` |
+| Forget everything | plain form post, swapped in by the frame | `views/knowledge.lsp` |
 | Expand a question path | Alpine | `views/knowledge.lsp` |
 | Confirm before forgetting | Alpine | `views/knowledge.lsp` |
 | Show example questions | Alpine | `views/teach.lsp` |
@@ -45,7 +45,9 @@ Two things worth noticing, because both look like exceptions and are not:
 
 - **Not every write is HTMX.** Teaching and forgetting are *navigations* — a
   separate page you arrive at and leave. Swapping a fragment there means owning
-  the back button. `app.lua` comments say so at each route.
+  the back button. `app.lua` comments say so at each route. The frame's swap
+  navigation boosts these forms; the route still answers with a redirect, and the
+  frame follows it inside the document.
 - **Every HTMX form still carries `method` and `action`.** `hx-post` is an
   enhancement on top, and `board()` in `app.lua` returns a fragment or a redirect
   depending on `req.is_htmx`. Do not delete either branch: without the redirect,
@@ -53,11 +55,11 @@ Two things worth noticing, because both look like exceptions and are not:
 - After HTMX replaces the board, `static/animals.js` focuses its new heading. Preserve
   that keyboard starting point so Tab reaches the next answers.
 - **Every write is reachable with JavaScript off**, including the ones Alpine hides.
-  `views/_assets.lsp` links `static/nojs.css` from a `<noscript>`; it reverts
-  `x-cloak` and hides `.pv-js-only`. Mark a button whose only effect is Alpine state
-  (`toggle`, `ask`, `cancel`) with `pv-js-only`, and put `x-cloak` on what it reveals —
-  never hide a form behind Alpine without both. An inline `<style>` inside `<noscript>`
-  would be blocked by the CSP; the external sheet is not.
+  The `@media (scripting: none)` block in `static/animals.css` reverts `x-cloak` and
+  hides `.pv-js-only`. Mark a button whose only effect is Alpine state (`toggle`, `ask`,
+  `cancel`) with `pv-js-only`, and put `x-cloak` on what it reveals — never hide a form
+  behind Alpine without both. Do not bring back a `<noscript>` stylesheet link: a swapped
+  page is parsed with scripting off, so the link would apply with JavaScript on.
 
 ## Alpine must be the CSP build
 
@@ -81,7 +83,21 @@ Consequences for anything you add:
   builds call `Alpine.start()` in a microtask the moment their script runs, and `start()`
   dispatches `alpine:init` right then — a component registered from a listener in a
   script loaded after Alpine is too late, and every `x-data` on the page becomes an
-  "Undefined variable". `views/_assets.lsp` has the order; a test holds it.
+  "Undefined variable". `[ui] scripts` in `app.toml` has the order; a test holds it.
+
+## Swap navigation
+
+`app.toml` sets `[ui] navigation = "swap"`, so a link or form inside the page swaps the
+next page's main region in under a bar that does not move (`spec/lua-api.md §4.1`).
+
+- The stylesheet and both scripts load once, from `[ui] styles` and `[ui] scripts`. A view
+  carries no `<script>` or `<link rel="stylesheet">` (`PV111`); a swapped page never runs
+  one.
+- `static/animals.js` binds to `document` when it loads and never assumes a fresh page.
+  Anything added there binds by event delegation, or on `htmx:load` with a guard against
+  binding twice.
+- `board()` answers a fragment only when `req.is_htmx` is true, which a boosted page
+  change is not, so every route still renders its whole page for the swap to take from.
 
 See `static/VENDOR.md` for the vendored file and how to reproduce it.
 
@@ -111,7 +127,7 @@ input.
   `id` with `aria-controls`. Two animals can share a name; ULIDs cannot.
 - `views/_board.lsp` is a partial because HTMX swaps it. `views/play.lsp` is the
   page around it and holds the `#board` wrapper. Keep the split.
-- `views/_assets.lsp` loads Alpine and this app's CSS. HTMX is the framework's and
+- `[ui]` in `app.toml` loads Alpine and this app's CSS. HTMX is the framework's and
   is already loaded — do not vendor a second copy.
 
 Run `privatium lint apps/animals` before finishing.

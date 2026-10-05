@@ -132,6 +132,7 @@ rule_tests! {
     PV108 => (test_lint_rule_pv108_passes, test_lint_rule_pv108_fails),
     PV109 => (test_lint_rule_pv109_passes, test_lint_rule_pv109_fails),
     PV110 => (test_lint_rule_pv110_passes, test_lint_rule_pv110_fails),
+    PV111 => (test_lint_rule_pv111_passes, test_lint_rule_pv111_fails),
     PV201 => (test_lint_rule_pv201_passes, test_lint_rule_pv201_fails),
     PV202 => (test_lint_rule_pv202_passes, test_lint_rule_pv202_fails),
     PV203 => (test_lint_rule_pv203_passes, test_lint_rule_pv203_fails),
@@ -162,6 +163,32 @@ rule_tests! {
     PV504 => (test_lint_rule_pv504_passes, test_lint_rule_pv504_fails),
     PV505 => (test_lint_rule_pv505_passes, test_lint_rule_pv505_fails),
     PV506 => (test_lint_rule_pv506_passes, test_lint_rule_pv506_fails),
+}
+
+/// `spec/lua-api.md §4.1`: under `navigation = "swap"` a view's own stylesheet link and
+/// its script are each reported, on their own lines, and a Tier 2 app that asks for swap
+/// navigation is a `PV110`.
+#[test]
+fn test_spec_4_1_pv111_reports_a_script_or_stylesheet_in_a_view_of_a_swap_app() {
+    let findings = lint_corpus("fail", RuleId::PV111);
+    let pv111: Vec<&Finding> = findings.iter().filter(|f| f.id == RuleId::PV111).collect();
+    assert_eq!(pv111.len(), 2, "{}", describe(&findings));
+    assert!(
+        pv111[0].message.starts_with("<link rel=\"stylesheet\">"),
+        "{}",
+        pv111[0].message
+    );
+    assert!(
+        pv111[1].message.starts_with("<script>"),
+        "{}",
+        pv111[1].message
+    );
+    assert_eq!(pv111[1].line, pv111[0].line + 1);
+    let swap_on_web = lint_corpus("fail", RuleId::PV110)
+        .into_iter()
+        .filter(|f| f.id == RuleId::PV110 && f.message.contains("navigation = \"swap\""))
+        .count();
+    assert_eq!(swap_on_web, 1);
 }
 
 /// The meta-test: every rule has a pass and a fail fixture, and the pair of tests above.

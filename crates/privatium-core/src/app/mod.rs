@@ -52,8 +52,8 @@ pub mod seed;
 
 pub use csp::Csp;
 pub use manifest::{
-    Chrome, MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, MenuItem, Permissions,
-    RESERVED_SLUGS, SUPPORTED_API, Tier, Ui, Widening,
+    Chrome, MANIFEST_FILE, MAX_ADVERTISED_SLUG, Manifest, ManifestError, MenuItem, Navigation,
+    Permissions, RESERVED_SLUGS, SUPPORTED_API, Tier, Ui, Widening,
 };
 pub use seed::{SEED_PATH, SeedError, SeedEvent};
 

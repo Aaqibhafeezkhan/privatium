@@ -699,7 +699,8 @@ fn primary_files(id: RuleId) -> &'static [&'static str] {
         | RuleId::PV402
         | RuleId::PV403
         | RuleId::PV405
-        | RuleId::PV407 => &["views/index.lsp"],
+        | RuleId::PV407
+        | RuleId::PV111 => &["views/index.lsp"],
         RuleId::PV404 => &["views/index.lsp", "views/_board.lsp"],
         RuleId::PV406 => &["static/app.css"],
         RuleId::PV206 | RuleId::PV207 | RuleId::PV304 => &["web/app.js"],

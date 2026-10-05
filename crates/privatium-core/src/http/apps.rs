@@ -48,10 +48,12 @@ pub const CHROME_DOCUMENT_LIMIT: usize = 4 * 1024 * 1024;
 /// The three anchors a document needs for the chrome (`spec/app-contract.md §5`), as byte
 /// offsets into the text: just before `</head>`, just after the first `<body …>` tag, and
 /// just before the last `</body>`. Matching is case-insensitive and asks for nothing more
-/// than those three tags: no parse of the markup between them is attempted. `Err` names
-/// the anchor that is missing, as the load warning and the lint report it.
+/// than those three tags: no parse of the markup between them is attempted. A tag written
+/// inside an HTML comment is not an anchor, since a header comment that names the tags is
+/// common and the chrome inserted there would never render. `Err` names the anchor that is
+/// missing, as the load warning and the lint report it.
 pub fn chrome_anchors(document: &str) -> Result<(usize, usize, usize), &'static str> {
-    let lower = document.to_ascii_lowercase();
+    let lower = without_comments(&document.to_ascii_lowercase());
     let head_end = lower.find("</head>").ok_or("</head>")?;
     let body_open = body_tag_end(&lower).ok_or("<body>")?;
     let body_end = lower
@@ -62,6 +64,25 @@ pub fn chrome_anchors(document: &str) -> Result<(usize, usize, usize), &'static 
         return Err("</head>");
     }
     Ok((head_end, body_open, body_end))
+}
+
+/// `lower` with every byte of every `<!-- … -->` comment, delimiters included, replaced by a
+/// space, so offsets into it are offsets into the document. A comment left open runs to
+/// the end, as a browser reads it.
+fn without_comments(lower: &str) -> String {
+    let mut bytes = lower.as_bytes().to_vec();
+    let mut from = 0;
+    while let Some(at) = lower[from..].find("<!--") {
+        let start = from + at;
+        let end = lower[start + 4..]
+            .find("-->")
+            .map_or(lower.len(), |close| start + 4 + close + 3);
+        bytes[start..end].fill(b' ');
+        from = end;
+    }
+    // Only whole comments were blanked, and each begins and ends on an ASCII byte, so
+    // every multi-byte character was replaced whole.
+    String::from_utf8(bytes).unwrap_or_default()
 }
 
 /// The offset just past the `>` of the first `<body …>` tag, or `None`.

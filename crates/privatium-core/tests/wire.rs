@@ -1802,4 +1802,130 @@ fn test_spec_5_chrome_anchors_match_tags_case_insensitively_and_name_the_missing
         app_router::chrome_anchors("<head></head></body><body>x"),
         Err("</body>")
     );
+    // A tag named inside a comment is not an anchor: a header comment that says where the
+    // chrome goes must not receive it, and a comment alone supplies no anchor.
+    let commented = "<!-- before </head>, after <body>, before </body> --><html><head>\
+                     </head><body><!-- </body> -->x</body><!-- <body> </body> --></html>";
+    let (head, body, end) = app_router::chrome_anchors(commented).unwrap();
+    assert_eq!(&commented[head..head + 7], "</head>");
+    assert!(
+        commented[..body].ends_with("</head><body>"),
+        "{}",
+        &commented[..body]
+    );
+    assert!(commented[..end].ends_with("<!-- </body> -->x"));
+    assert_eq!(
+        app_router::chrome_anchors("<!-- <head></head><body></body> -->"),
+        Err("</head>")
+    );
+    assert_eq!(
+        app_router::chrome_anchors("<head></head><body>x<!-- </body> never closed"),
+        Err("</body>")
+    );
+    // A comment holding characters of more than one byte is blanked whole.
+    assert_eq!(
+        app_router::chrome_anchors("<!-- café — </head> --><head></head><body>é</body>"),
+        Ok((32, 45, 47))
+    );
+}
+
+/// `request` with htmx's headers: `HX-Request`, and `HX-Boosted` when `boosted`.
+fn htmx(mut request: Request, boosted: bool) -> Request {
+    request
+        .headers_mut()
+        .insert("hx-request", "true".parse().unwrap());
+    if boosted {
+        request
+            .headers_mut()
+            .insert("hx-boosted", "true".parse().unwrap());
+    }
+    request
+}
+
+/// `spec/lua-api.md §4.1`, `spec/protocol.md §8.3.1`: under `navigation = "swap"` the frame
+/// names its mount on the body, boosts its main region and sends the menu's app list out of
+/// band with every page; a boosted request is answered with the whole page, so the swap has
+/// a main region to take, while a plain htmx request still gets the fragment. An app that
+/// navigates by page renders neither attribute.
+#[tokio::test]
+async fn test_spec_4_1_swap_navigation_marks_main_boosted_and_the_body_with_its_mount() {
+    let root = tempfile::tempdir().unwrap();
+    let apps = Node::open(root.path()).unwrap().paths().apps_dir();
+    let app_lua = "local pv = require 'privatium'\n\
+                   pv.get('/', function() return pv.render('index', {}) end)\n\
+                   pv.get('/next', function(req)\n\
+                     return pv.render(req.is_htmx and '_part' or 'next', {})\n\
+                   end)\n";
+    let files: [(&str, &str); 4] = [
+        ("app.lua", app_lua),
+        (
+            "views/index.lsp",
+            "<h1>First</h1>\n<a href=\"<?= url('/next') ?>\">Next</a>\n",
+        ),
+        (
+            "views/next.lsp",
+            "<? menu('Here only', '/next') ?>\n<h1>Next</h1>\n",
+        ),
+        ("views/_part.lsp", "<p>Part</p>\n"),
+    ];
+    let swap = format!(
+        "{}[ui]\nnavigation = \"swap\"\n\n[[ui.menu]]\nlabel = \"Everywhere\"\npath = \"/\"\n",
+        lua_manifest("swapper")
+    );
+    write_app(&apps, "swapper", Some(&swap), &files);
+    write_app(&apps, "paged", Some(&lua_manifest("paged")), &files);
+    let handler = handler(&root);
+
+    let page = body_of(handler.handle(get("/a/swapper/")).await).await;
+    assert!(
+        page.contains("<body data-pv-mount=\"/a/swapper/\" hx-headers="),
+        "{page}"
+    );
+    assert!(
+        page.contains("<main id=\"main\" hx-boost=\"true\">\n<h1>First</h1>"),
+        "{page}"
+    );
+    assert!(
+        page.contains(
+            "<ul id=\"pv-app-menu\" class=\"pv-menu-app\" hx-swap-oob=\"true\"><li><a href=\"/a/swapper/\">Everywhere</a></li></ul>"
+        ),
+        "{page}"
+    );
+    assert!(
+        page.contains("\"historyCacheSize\":0,\"refreshOnHistoryMiss\":true"),
+        "no page is copied into browser storage: {page}"
+    );
+    assert_eq!(page.matches("hx-boost").count(), 1, "{page}");
+
+    // A boosted request is a navigation: the whole page, the page's own menu item with it.
+    let next = body_of(handler.handle(htmx(get("/a/swapper/next"), true)).await).await;
+    assert!(next.starts_with("<!doctype html>"), "{next}");
+    assert!(
+        next.contains("<main id=\"main\" hx-boost=\"true\">\n\n<h1>Next</h1>"),
+        "{next}"
+    );
+    assert!(
+        next.contains("<title>swapper — Privatium</title>"),
+        "{next}"
+    );
+    assert!(
+        next.contains("Everywhere</a></li><li><a href=\"/a/swapper/next\">Here only</a></li></ul>"),
+        "the menu follows the page: {next}"
+    );
+    // A request htmx makes for a fragment still gets the fragment alone.
+    let part = body_of(handler.handle(htmx(get("/a/swapper/next"), false)).await).await;
+    assert_eq!(part.trim(), "<p>Part</p>");
+
+    // Page navigation, the default, renders neither the boost nor the out-of-band menu.
+    let paged = body_of(handler.handle(get("/a/paged/")).await).await;
+    assert!(
+        paged.contains("<main id=\"main\">\n<h1>First</h1>"),
+        "{paged}"
+    );
+    assert!(!paged.contains("hx-boost"), "{paged}");
+    assert!(!paged.contains("hx-swap-oob"), "{paged}");
+    assert!(
+        paged.contains("<body data-pv-mount=\"/a/paged/\""),
+        "every frame names its mount: {paged}"
+    );
 }

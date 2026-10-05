@@ -1166,6 +1166,22 @@ destination app's declared CSP. Ordinary GET navigation then fetches the request
 through a fresh channel. HTMX fragments and data API calls do not replace the document.
 Replacing HTML in the previous document cannot reset its CSP or module map.
 
+An in-document page swap (`spec/lua-api.md §4.1`, `navigation = "swap"`) is a fragment
+request under this rule, because it never leaves the app whose policy and modules the
+document already has. A boosted request is in scope only when its URL is on the document's
+origin, beneath the mount the frame names in `data-pv-mount` (`/a/<slug>/` in host mode,
+`/` in solo mode), outside every framework prefix of §9.1 (`/settings`, `/api`, `/skills`,
+`/static`, `/ws`), and outside the mount's own `api/` and `static/`, which are the data
+API and the app's files rather than pages. A client MUST treat any other boosted request,
+and any boosted request not made from inside the frame's boosted main region, as
+full-page navigation: a fresh document under the destination's own policy. One function
+in the framework's `chrome.js` holds the rule; it is applied by the frame on plain HTTPS
+and loopback, and by the channel client before it bridges a request. A request in scope
+travels over the channel like any HTMX request, GET or not. When the client follows a
+redirect for a boosted request it sends `HX-Boosted` along with `HX-Request`, so the
+destination answers with its whole page; the handoff below stays for requests out of
+scope.
+
 For an already-produced full-page response, a client MAY request a handoff:
 
 | Frame | Additional fields | Meaning |

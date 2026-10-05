@@ -64,6 +64,17 @@ request's data in a global expecting to find it later, and do not build a cache 
 mutating a load-time table — that one does persist, per VM, and is what the linter warns
 about.
 
+Under `[ui] navigation = "swap"` your pages share one document, and that document keeps
+the policy and the scripts it loaded first. That is why a swap never crosses your mount:
+the frame sends any link or form that leaves `/a/<slug>/`, or touches `/settings`, `/api`,
+`/skills`, `/static` or `/ws`, to a fresh document under its own policy, on the encrypted
+channel and on plain HTTPS alike (`spec/protocol.md §8.3.1`). Do not work around it — no
+`hx-target` or `hx-select` that pulls another app's page or a settings page into yours.
+htmx runs no script that arrives in swapped content and ignores a swapped page's head, by
+design, so a script your view carries would never run after the first page (`PV111`):
+list it in `[ui] scripts`. Do not turn `allowScriptTags` back on to "fix" that, and do
+not turn htmx's history cache on: it would copy each page into browser storage.
+
 ## Tier 2 (Web)
 
 Default CSP is `script-src 'self'` scoped to the app's path. Inline `<script>` does not run.

@@ -720,6 +720,32 @@ fn check_pages(ctx: &mut Ctx<'_>, views: &BTreeMap<String, View>, facts: &lua::F
             }
         }
     }
+    // PV111: under swap navigation a view's own script or stylesheet element would arrive
+    // in a swapped main region, where htmx never runs a script, so the page would work on
+    // a fresh load and break after a swap. A layout owns its document and is left alone,
+    // as is a view placed in one.
+    let swap = ctx
+        .manifest
+        .as_ref()
+        .is_some_and(|m| m.ui.navigation == crate::app::manifest::Navigation::Swap);
+    if swap {
+        for (name, view) in views {
+            if layouts.contains(name) || view.layout.is_some() {
+                continue;
+            }
+            for (text, line) in literal_chunks(&view.shape) {
+                for (offset, element) in page_assets_in(&text) {
+                    ctx.push(
+                        RuleId::PV111,
+                        &view.rel,
+                        line + line_of(&text, offset) - 1,
+                        format!("{element} in a view of an app with navigation = \"swap\" — a swapped page runs no script and loads no stylesheet of its own"),
+                    )
+                    .fix = Some("list the file in [ui] scripts or styles in app.toml, which the frame's head loads once for every page".into());
+                }
+            }
+        }
+    }
     for (name, view) in views {
         let rendered = facts.rendered.contains(name);
         let is_partial = included.contains(name) || layouts.contains(name);
@@ -769,6 +795,46 @@ fn check_pages(ctx: &mut Ctx<'_>, views: &BTreeMap<String, View>, facts: &lua::F
                 Some(format!("<h{}>", previous + 1));
         }
     }
+}
+
+/// `PV111`: the byte offset of every `<script>` element and every `<link>` whose `rel`
+/// names `stylesheet` in literal text, with how the finding names it.
+fn page_assets_in(text: &str) -> Vec<(usize, &'static str)> {
+    let lower = text.to_ascii_lowercase();
+    let mut out = Vec::new();
+    for (tag, element) in [
+        ("<script", "<script>"),
+        ("<link", "<link rel=\"stylesheet\">"),
+    ] {
+        let mut from = 0;
+        while let Some(found) = lower[from..].find(tag) {
+            let start = from + found;
+            from = start + tag.len();
+            let follows = lower.as_bytes().get(from).copied();
+            if !matches!(follows, None | Some(b'>' | b'/'))
+                && !follows.is_some_and(|b| b.is_ascii_whitespace())
+            {
+                continue;
+            }
+            let end = lower[start..]
+                .find('>')
+                .map_or(lower.len(), |e| start + e + 1);
+            let is_stylesheet = || {
+                attributes_in(&text[start..end]).iter().any(|attr| {
+                    attr.name == "rel"
+                        && attr
+                            .value
+                            .split_ascii_whitespace()
+                            .any(|word| word.eq_ignore_ascii_case("stylesheet"))
+                })
+            };
+            if tag == "<script" || is_stylesheet() {
+                out.push((start, element));
+            }
+        }
+    }
+    out.sort_unstable();
+    out
 }
 
 /// Every literal chunk of a shape in document order, each with the `.lsp` line it starts

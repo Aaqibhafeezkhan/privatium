@@ -246,7 +246,8 @@ Rule IDs are stable. Removing or renumbering one is a breaking change to the ski
 | `PV107` | `schema.sql` contains only `CREATE TABLE`, `CREATE VIEW`, `CREATE INDEX` and comments |
 | `PV108` | No `UNIQUE` constraint or index beyond `id`'s primary key (`spec/app-contract.md §4.5`) |
 | `PV109` | A document that takes the standard chrome — a Tier 2 HTML document, or the document a `layout()` owns — has `</head>`, `<body>`, `</body>` and a main region with `id="main"` (`spec/app-contract.md §5`) |
-| `PV110` | Every `[ui]` reference resolves: `scripts` and `styles` name files under `static/` and belong to a Tier 1 app, whose frame loads them; every menu item has a label and a mount-relative path (`spec/app-contract.md §3`) |
+| `PV110` | Every `[ui]` reference resolves: `scripts` and `styles` name files under `static/` and belong to a Tier 1 app, whose frame loads them; every menu item has a label and a mount-relative path; `navigation = "swap"` is not declared by a Tier 2 app (`spec/app-contract.md §3`) |
+| `PV111` | A view of an app with `navigation = "swap"` carries no `<script>` or `<link rel="stylesheet">`; they belong in `[ui] scripts` and `[ui] styles`, which the frame's head loads once (`spec/lua-api.md §4.1`) |
 
 **Security — `PV2xx`**
 

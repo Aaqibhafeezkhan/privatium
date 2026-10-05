@@ -6,7 +6,7 @@ demos — the framework's own tests run against them.
 | App | Tier | Read it for |
 |---|---|---|
 | [`hello`](hello) | 1 — Lua | Three routes, one table, two LSP templates. **Start here.** |
-| [`animals`](animals) | 1 — Lua | Atomic multi-event writes, recursive SQL, stored session state, `lib/` modules — and the clearest place to *see* that nothing is ever updated. Also where HTMX and Alpine.js sit side by side. |
+| [`animals`](animals) | 1 — Lua | Atomic multi-event writes, recursive SQL, stored session state, `lib/` modules — and the clearest place to *see* that nothing is ever updated. Also where HTMX and Alpine.js sit side by side, and the example of swap navigation: pages change under a bar that never moves. |
 | [`sketch`](sketch) | 2 — Web | Your own HTML and JavaScript, no SQL at all. The framework as a syncing datastore. Declines the shared bar and footer, because a canvas wants the whole window. |
 | [`pantry`](pantry) | 2 — Web | The same tier with tables: `schema.sql`, named views through `pv.query`, exact decimals, forms that validate twice, and two devices disagreeing in the open. Wears the shared bar and footer, and writes its status into the footer. |
 

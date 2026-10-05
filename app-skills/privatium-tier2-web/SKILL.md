@@ -88,7 +88,9 @@ To own the whole window, set `[ui] chrome = "none"` in `app.toml`. The document 
 served byte for byte and the bar, the footer, the status slot and the Apps link are all
 yours to draw — a way back included. `apps/sketch` declines, because a drawing surface
 fills the window, and links the Privatium mark in its own rail to the launcher instead;
-`apps/pantry` takes the chrome and shows what to remove.
+`apps/pantry` takes the chrome and shows what to remove. `[ui] navigation = "swap"` is for
+the Tier 1 page frame only; on a Tier 2 app the node refuses to load it (`PV110`), since
+your document is already yours to navigate as you like.
 
 Full-page transitions create fresh documents with the destination app's declared CSP
 and fresh module initialization. A full-page form's response can wait in node memory

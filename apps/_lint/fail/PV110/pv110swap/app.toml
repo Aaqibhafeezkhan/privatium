@@ -1,0 +1,15 @@
+# Project:  Privatium™  |  File: apps/_lint/fail/PV110/pv110swap/app.toml
+# Authors:  Gabriel Mongefranco (@gabrielmongefranco)
+# Created:  2026-10-04  |  Modified: 2026-10-04
+# Summary:  PV110 fail: a Tier 2 app sets ui.navigation = "swap", which applies to the Lua page frame only.
+#           See main README.md for full license information.
+
+[app]
+slug    = "pv110swap"
+title   = "Lint PV110"
+version = "1.0.0"
+api     = 1
+tier    = "web"
+
+[ui]
+navigation = "swap"

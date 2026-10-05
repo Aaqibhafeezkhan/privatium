@@ -140,6 +140,7 @@ macro_rules! rule_ids {
 
 rule_ids! {
     PV101, PV102, PV103, PV104, PV105, PV106, PV107, PV108, PV109, PV110,
+    PV111,
     PV201, PV202, PV203, PV204, PV205, PV206, PV207, PV208,
     PV301, PV302, PV303, PV304, PV305, PV306, PV307, PV308,
     PV401, PV402, PV403, PV404, PV405, PV406, PV407, PV408,
@@ -262,9 +263,18 @@ pub static RULES: &[Rule] = &[
         id: RuleId::PV110,
         class: Class::Contract,
         severity: Severity::Error,
-        title: "Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path",
+        title: "Every [ui] reference resolves: scripts and styles exist under static/ and reach a framed view, menu items have a label and a mount-relative path, navigation = \"swap\" is for a Tier 1 app",
         reads: "app.toml, static/",
         spec: "spec/app-contract.md §3",
+        criterion: None,
+    },
+    Rule {
+        id: RuleId::PV111,
+        class: Class::Contract,
+        severity: Severity::Error,
+        title: "A view of an app with navigation = \"swap\" carries no <script> or <link rel=\"stylesheet\">; they belong in ui.scripts and ui.styles",
+        reads: "views/*.lsp, when app.toml sets [ui] navigation = \"swap\"",
+        spec: "spec/lua-api.md §4.1",
         criterion: None,
     },
     Rule {

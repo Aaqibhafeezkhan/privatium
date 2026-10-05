@@ -1,6 +1,6 @@
 # Project:  Privatium™  |  File: apps/animals/app.toml
 # Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-# Created:  2026-08-28  |  Modified: 2026-09-26
+# Created:  2026-08-28  |  Modified: 2026-10-04
 # Summary:  Manifest for the ANIMALS guessing game. Tier 1 at its interesting end.
 #           See main README.md for full license information.
 
@@ -18,3 +18,11 @@ license     = "GPL-3.0-or-later"
 [nav]
 order     = 20
 advertise = true
+
+# Pages change inside one document, under a bar that does not move (spec/lua-api.md §4.1).
+# The frame's head loads the stylesheet and the two scripts once, so no view carries its own.
+# animals.js comes first: it registers the Alpine components before Alpine starts.
+[ui]
+navigation = "swap"
+styles     = ["static/animals.css"]
+scripts    = ["static/animals.js", "static/alpine-csp.min.js"]

@@ -298,6 +298,16 @@ Therefore:
   permission widens. Nothing inline is added and nothing from another origin. The
   inserted markup is the node's, rendered from the app's manifest with every value
   escaped, and the document between the anchors is served as the app wrote it.
+- Swap navigation (`[ui] navigation = "swap"`) keeps one document across an app's pages,
+  so the mount is the boundary a swap may not cross. A document's security policy and its
+  loaded scripts cannot be changed by swapping HTML into it; a page from another app or
+  from the framework's own prefixes would otherwise run under the wrong policy, next to
+  the wrong scripts. The scope rule in `chrome.js` sends every boosted request that leaves
+  the mount, or touches `/settings`, `/api`, `/skills`, `/static` or `/ws`, to a fresh
+  document, on the encrypted channel and on plain HTTPS alike
+  (`spec/protocol.md §8.3.1`). A swapped page's head is never used and htmx runs no
+  script that arrives in swapped content, with `allowScriptTags` off in every frame.
+  htmx's history cache is off, so a swapped page is never copied into browser storage.
 
 ## 8. Revocation
 

@@ -1,13 +1,16 @@
 // Project:  Privatium™  |  File: crates/privatium-core/tests/js/client.test.mjs
 // Authors:  Gabriel Mongefranco (@gabrielmongefranco)
 // Created:  2026-09-05  |  Modified: 2026-10-04
-// Summary:  Browser channel framing, streaming, cancellation and origin confinement (§8.3).
+// Summary:  Browser channel framing, streaming, cancellation and origin confinement (§8.3),
+//           and what the frame does with a swapped page: focus, title and menu (§8.3.1).
 //           See main README.md for full license information.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Transport, encode, decode, endpoint, eventSource, channel, identityRefusal } from '../../assets/shell/channel.js';
 import { Frame } from '../../assets/shell/session.js';
+import { installNavigation } from '../../assets/shell/chrome.js';
+import { framedPage, boosted, element as fakeElement } from './harness.mjs';
 
 const utf8 = new TextEncoder();
 function connection(limit) {
@@ -283,4 +286,67 @@ test('test_spec_8_1_refusal_screen_has_no_dismiss', async () => {
   forget.fire('click');
   assert.deepEqual(removed, ['pv:device'], 'forgetting wipes the pairing and nothing else');
   assert.equal(doc.reloaded, true);
+});
+
+test('test_spec_8_3_1_after_a_swap_focus_lands_on_the_new_heading_and_the_menu_follows', () => {
+  const page = framedPage();
+  installNavigation(page.doc, page.win);
+  const fire = (name, detail) => { const event = new Event(name, { cancelable: true }); event.detail = detail; page.doc.dispatchEvent(event); return event; };
+  const response = '<title>What I know — Privatium</title><header><ul id="pv-app-menu" class="pv-menu-app" hx-swap-oob="true"><li><a href="/a/animals/teach">Teach</a></li></ul></header>'
+    + '<main id="main" hx-boost="true"><h1>What I know</h1></main>';
+  // htmx fires beforeSwap on the swap target, so `elt` is the body there, as for any
+  // boosted request; the link that asked is `requestConfig.elt`.
+  const detail = boosted(page.link, '/a/animals/knowledge', 'get', { serverResponse: response, shouldSwap: true, isError: false, target: page.doc.body, xhr: { status: 200 } });
+  detail.elt = page.doc.body;
+  fire('htmx:beforeSwap', detail);
+  // htmx takes the response's main region in place of the frame's, scrolled to the top.
+  assert.equal(detail.target, page.main);
+  assert.equal(detail.selectOverride, '#main');
+  assert.equal(detail.swapOverride, 'outerHTML show:window:top');
+  assert.equal(detail.shouldSwap, true);
+  // The response reaches htmx whole, title and out-of-band menu included: htmx sets the
+  // window title from it and swaps #pv-app-menu, so page-specific items follow the page.
+  assert.equal(detail.serverResponse, response);
+  assert.equal(detail.ignoreTitle, undefined);
+
+  // htmx swaps; the frame then focuses the new page's heading, once.
+  const heading = fakeElement('h1');
+  const next = fakeElement('main', { id: 'main', 'hx-boost': 'true' }, [heading]);
+  next.ownerDocument = heading.ownerDocument = page.doc;
+  page.doc.main = next;
+  fire('htmx:afterSettle', {});
+  assert.equal(page.doc.activeElement, heading);
+  assert.equal(heading.getAttribute('tabindex'), '-1');
+  page.doc.activeElement = null;
+  fire('htmx:afterSettle', {});
+  assert.equal(page.doc.activeElement, null, 'a later settle, a fragment say, moves nothing');
+
+  // A page with a field marked autofocus focuses it, as a fresh load would.
+  const field = fakeElement('input', { id: 'animal', autofocus: '' });
+  const form = fakeElement('main', { id: 'main', 'hx-boost': 'true' }, [fakeElement('h1'), field]);
+  form.ownerDocument = field.ownerDocument = page.doc;
+  fire('htmx:beforeSwap', boosted(next, '/a/animals/teach', 'get', { serverResponse: '<main id="main"><h1>Teach</h1></main>', xhr: { status: 200 } }));
+  page.doc.main = form;
+  fire('htmx:afterSettle', {});
+  assert.equal(page.doc.activeElement, field);
+  assert.equal(field.hasAttribute('tabindex'), false);
+
+  // A page without a heading focuses the main region itself.
+  const bare = fakeElement('main', { id: 'main', 'hx-boost': 'true' });
+  bare.ownerDocument = page.doc;
+  fire('htmx:beforeSwap', boosted(field, '/a/animals/', 'get', { serverResponse: '<main id="main"></main>', xhr: { status: 200 } }));
+  page.doc.main = bare;
+  fire('htmx:afterSettle', {});
+  assert.equal(page.doc.activeElement, bare);
+
+  // A page the node answered with an error status is swapped in, so its heading says what
+  // went wrong; a response that is not a page leaves the frame alone and is opened instead.
+  const missing = boosted(bare, '/a/animals/nowhere', 'get', { serverResponse: '<main id="main"><h1>Not found</h1></main>', shouldSwap: false, isError: true, xhr: { status: 404 } });
+  fire('htmx:beforeSwap', missing);
+  assert.equal(missing.shouldSwap, true);
+  assert.equal(missing.isError, false);
+  const file = boosted(bare, '/a/animals/export.csv', 'get', { serverResponse: 'id,name\n', shouldSwap: true, xhr: { status: 200 } });
+  fire('htmx:beforeSwap', file);
+  assert.equal(file.shouldSwap, false);
+  assert.deepEqual(page.win.location.assigned, ['http://192.0.2.1:8420/a/animals/export.csv']);
 });

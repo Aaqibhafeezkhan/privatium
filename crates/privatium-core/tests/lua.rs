@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/lua.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-04
 // Summary: The Lua host against spec/lua-api.md, every test through core::handle with no listener: the
 //          sandbox of §5 and its four limits, adversarially; the stable route index of §2.4;
 //          the pv module of §3 — routing, typed reads, appends and batches, pv.dec; the
@@ -1860,16 +1860,19 @@ async fn test_reference_apps_load_and_route() {
     assert!(text.contains("value=\"Ada\""), "{text}");
 
     // animals: the first visit plants the starter tree and shows its question inside the
-    // frame, with the app's own assets from static/.
+    // frame, with the app's own assets from static/, which the frame's head loads from
+    // [ui] in app.toml.
     let board = body_of(handler.handle(get("/a/animals/")).await).await;
     assert!(board.starts_with("<!doctype html>"), "{board}");
     assert!(board.contains("<h1>Does it have legs?</h1>"), "{board}");
     assert!(
-        board.contains("<link rel=\"stylesheet\" href=\"/a/animals/static/animals.css\">"),
+        board.contains(
+            "<link rel=\"stylesheet\" href=\"/a/animals/static/animals.css\" integrity=\"sha256-"
+        ),
         "{board}"
     );
     assert!(
-        board.contains("<script defer src=\"/a/animals/static/alpine-csp.min.js\">"),
+        board.contains("<script src=\"/a/animals/static/alpine-csp.min.js\" integrity=\"sha256-"),
         "{board}"
     );
     let css = handler.handle(get("/a/animals/static/animals.css")).await;

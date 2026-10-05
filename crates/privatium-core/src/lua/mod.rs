@@ -158,7 +158,8 @@ pub struct LuaRequest {
     /// The device the request was authenticated as: the paired device's ID through the
     /// channel, this node's own on loopback (`spec/lua-api.md §3.1`).
     pub device: String,
-    /// Whether `HX-Request` was present.
+    /// Whether htmx asked for a fragment: `HX-Request` present and `HX-Boosted` absent. A
+    /// boosted request is a navigation and is answered with the whole page.
     pub is_htmx: bool,
 }
 
@@ -626,9 +627,9 @@ impl Host {
         ctx: RequestCtx,
     ) -> Result<LuaResponse, RunError> {
         let vm = self.checkout().map_err(RunError::Pool)?;
-        // An htmx swap wants the fragment alone; a boosted navigation wants a page.
-        let fragment =
-            request.is_htmx && !request.headers.iter().any(|(name, _)| name == "hx-boosted");
+        // An htmx swap wants the fragment alone; a boosted navigation wants a page, and
+        // `is_htmx` is already false for one.
+        let fragment = request.is_htmx;
         let views = self.templates.snapshot();
         let outcome = vm.run(ctx, views, |lua| {
             let routes: Table = lua.named_registry_value(pv::ROUTES_KEY)?;

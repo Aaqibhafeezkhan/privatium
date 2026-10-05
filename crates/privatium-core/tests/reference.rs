@@ -134,6 +134,14 @@ fn with_htmx(mut request: Request) -> Request {
     request
 }
 
+/// `request` as htmx sends a boosted one: a navigation, answered with the whole page.
+fn with_boost(mut request: Request) -> Request {
+    request
+        .headers_mut()
+        .insert("hx-boosted", "true".parse().unwrap());
+    request
+}
+
 async fn body_of(response: Response) -> String {
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     String::from_utf8_lossy(&bytes).into_owned()
@@ -562,11 +570,50 @@ async fn test_animals_end_to_end() {
         "{text}"
     );
     assert!(text.contains("4 animals, 3 questions"), "{text}");
+    // Swap navigation: the main region is boosted, and the app's stylesheet and scripts
+    // load once in the head, from [ui], so the view itself carries none.
     assert!(
-        text.contains(
-            "<noscript><link rel=\"stylesheet\" href=\"/a/animals/static/nojs.css\"></noscript>"
-        ),
+        text.contains("<main id=\"main\" hx-boost=\"true\">"),
         "{text}"
+    );
+    let (head, rest) = text.split_once("</head>").unwrap();
+    assert!(
+        head.contains(
+            "<link rel=\"stylesheet\" href=\"/a/animals/static/animals.css\" integrity=\"sha256-"
+        ),
+        "{head}"
+    );
+    let main = rest
+        .split("<main")
+        .nth(1)
+        .unwrap()
+        .split("</main>")
+        .next()
+        .unwrap();
+    assert!(!main.contains("<script"), "{main}");
+    assert!(!main.contains("<link"), "{main}");
+
+    // A boosted request for another page is a navigation: the whole page, whose main
+    // region holds the view, for the frame to swap in.
+    let boosted = body_of(
+        handler
+            .handle(with_boost(with_htmx(get("/a/animals/knowledge"))))
+            .await,
+    )
+    .await;
+    assert!(boosted.starts_with("<!doctype html>"), "{boosted}");
+    let boosted_main = boosted
+        .split("<main id=\"main\" hx-boost=\"true\">")
+        .nth(1)
+        .and_then(|rest| rest.split("</main>").next())
+        .unwrap_or_else(|| panic!("{boosted}"));
+    assert!(
+        boosted_main.contains("<h1>What I know</h1>"),
+        "{boosted_main}"
+    );
+    assert!(
+        boosted.contains("<ul id=\"pv-app-menu\" class=\"pv-menu-app\" hx-swap-oob=\"true\">"),
+        "{boosted}"
     );
 
     // An answer over htmx: the fragment alone, its forms carrying the token, the cursor
@@ -765,13 +812,32 @@ async fn test_animals_end_to_end() {
         .await;
     assert_eq!(alpine.status(), StatusCode::OK);
     assert!(header(&alpine, &CONTENT_TYPE).contains("javascript"));
-    let nojs = handler.handle(get("/a/animals/static/nojs.css")).await;
-    assert_eq!(nojs.status(), StatusCode::OK);
-    assert!(header(&nojs, &CONTENT_TYPE).starts_with("text/css"));
-    let nojs = body_of(nojs).await;
-    assert!(nojs.contains("[x-cloak]"), "{nojs}");
-    assert!(nojs.contains("revert"), "{nojs}");
-    assert!(nojs.contains(".pv-js-only"), "{nojs}");
+    // With JavaScript off, what Alpine hides is shown and its toggles are dropped, by a
+    // media query in the one stylesheet: a <noscript> link would arrive live in a page
+    // swapped in with scripting on.
+    let sheet = handler.handle(get("/a/animals/static/animals.css")).await;
+    assert_eq!(sheet.status(), StatusCode::OK);
+    assert!(header(&sheet, &CONTENT_TYPE).starts_with("text/css"));
+    let sheet = body_of(sheet).await;
+    let nojs = sheet
+        .split("@media (scripting: none) {")
+        .nth(1)
+        .unwrap_or_else(|| panic!("{sheet}"));
+    assert!(
+        nojs.contains("[x-cloak] { display: revert !important; }"),
+        "{nojs}"
+    );
+    assert!(
+        nojs.contains(".pv-js-only { display: none !important; }"),
+        "{nojs}"
+    );
+    assert_eq!(
+        handler
+            .handle(get("/a/animals/static/nojs.css"))
+            .await
+            .status(),
+        StatusCode::NOT_FOUND
+    );
 
     // Reset: a tombstone for every node and the cursor, then the starter tree planted
     // again, all in one batch; the log keeps every round played.
@@ -913,14 +979,13 @@ async fn test_animals_works_with_javascript_disabled() {
         );
     }
     assert!(
-        page.contains(
-            "<noscript><link rel=\"stylesheet\" href=\"/a/animals/static/nojs.css\"></noscript>"
-        ),
-        "{page}"
+        page.contains("<link rel=\"stylesheet\" href=\"/a/animals/static/animals.css\""),
+        "the stylesheet whose scripting: none block applies without JavaScript: {page}"
     );
 
     // What Alpine hides is reachable: the reset form is a real form with the token, the
-    // toggles are marked JS-only, the hidden parts carry x-cloak for nojs.css to revert.
+    // toggles are marked JS-only, the hidden parts carry x-cloak for the stylesheet's
+    // scripting: none block to revert.
     let knowledge = body_of(handler.handle(get("/a/animals/knowledge")).await).await;
     assert!(
         knowledge.contains("<form method=\"post\" action=\"/a/animals/reset\">"),
@@ -972,8 +1037,13 @@ async fn test_animals_works_with_javascript_disabled() {
         .find(|e| e.name == "button" && e.attr("x-on:click") == Some("toggle"))
         .unwrap();
     assert!(toggle.has_class("pv-js-only"), "{teach}");
-    assert!(teach.contains("nojs.css"), "{teach}");
-    let nojs = body_of(handler.handle(get("/a/animals/static/nojs.css")).await).await;
+    assert!(teach.contains("/a/animals/static/animals.css"), "{teach}");
+    let sheet = body_of(handler.handle(get("/a/animals/static/animals.css")).await).await;
+    let nojs = sheet
+        .split_once("@media (scripting: none) {")
+        .and_then(|(_, block)| block.split_once("\n}"))
+        .map(|(block, _)| block.to_owned())
+        .unwrap_or_else(|| panic!("{sheet}"));
     let rules: BTreeMap<String, BTreeMap<String, String>> =
         a11y::rules(&nojs).into_iter().collect();
     assert!(
@@ -1432,6 +1502,26 @@ async fn test_pantry_end_to_end() {
     assert!(
         index.contains("<body>\n<a class=\"pv-skip\" href=\"#main\">"),
         "{index}"
+    );
+    // The file's header comment names the three tags; the chrome goes at the real ones,
+    // after the comment, where a browser renders it, and the file's comment is unchanged.
+    let (comment, document) = index.split_once("-->").unwrap();
+    assert!(!comment.contains("pv-header"), "{comment}");
+    assert_eq!(
+        format!("{comment}-->"),
+        file.split_once("-->")
+            .map(|(c, _)| format!("{c}-->"))
+            .unwrap()
+    );
+    let title = document.find("<title>").unwrap();
+    let sheet = document
+        .find(&privatium_core::http::assets::versioned("chrome.css"))
+        .unwrap();
+    let head_end = document.find("</head>").unwrap();
+    assert!(title < sheet && sheet < head_end, "{document}");
+    assert!(
+        document.find("<header class=\"pv-header\">").unwrap() > head_end,
+        "{document}"
     );
     assert!(
         index.contains("<p class=\"pv-app-title\"><a href=\"/a/pantry/\">"),
@@ -2681,6 +2771,7 @@ fn test_footer_node_label_is_escaped() {
         scripts: Vec::new(),
         static_dir: None,
         chrome: privatium_core::app::manifest::Chrome::Standard,
+        navigation: privatium_core::app::manifest::Navigation::Page,
     };
     let page = shell::app_frame(
         &frame,
