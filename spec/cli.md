@@ -60,7 +60,7 @@ the first line is normative; an implementation MUST print it, and the rest is wh
 one prints:
 
 ```
-privatium 0.3.1 pv/1 (partial: phase 2)
+privatium 0.3.2 pv/1 (partial: phase 2)
 Privatium™ is a framework for building small, personal apps that sync across your devices seamlessly without cloud services
 Product:       Privatium
 Author:        Gabriel Mongefranco (@gabrielmongefranco)
