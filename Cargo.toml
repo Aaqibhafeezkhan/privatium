@@ -1,6 +1,6 @@
 # Project:  Privatium™  |  File: Cargo.toml
 # Authors:  Gabriel Mongefranco (@gabrielmongefranco)
-# Created:  2026-08-31  |  Modified: 2026-09-26
+# Created:  2026-08-31  |  Modified: 2026-10-04
 # Summary:  Workspace root: the core library, the binary and the repository's own checks,
 #           one pinned dependency table, and the MSRV every member inherits.
 #           See main README.md for full license information.
@@ -10,7 +10,7 @@ resolver = "3"
 members = ["crates/privatium-core", "crates/privatium", "crates/xtask"]
 
 [workspace.package]
-version       = "0.3.1"
+version       = "0.3.2"
 edition       = "2024"
 rust-version  = "1.90.0"
 license       = "GPL-3.0-or-later"
