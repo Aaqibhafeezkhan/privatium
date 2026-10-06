@@ -3,7 +3,7 @@ This file is part of Privatium
 README.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-31
-Last Modified: 2026-09-26
+Last Modified: 2026-10-06
 Summary: Overview, quick start and examples for Privatium. The documentation index lives in
          docs/README.md.
 Notes: See README file for documentation and full license information.
@@ -106,6 +106,9 @@ and a source checkout serves them straight from `apps/`:
 - **[Sketch](apps/sketch)** — a drawing app built with HTML and JavaScript.
 - **[Pantry](apps/pantry)** — what is in the freezer and on the shelf, and what you took
   out of it.
+- **[Medication Tracker](https://github.com/gabrielmongefranco/privatium-app-meds)** — your
+  family's medications, refills, insurance and prior authorizations, and what to refill
+  next. It lives in its own repository and is installed separately.
 
 [AI assistant guides](docs/skills.md) help an assistant build apps that follow Privatium's
 requirements, including security and accessibility.

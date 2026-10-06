@@ -3,7 +3,7 @@ This file is part of Privatium
 index.html
 Author(s): Gabriel Mongefranco
 Created: 2026-09-27
-Last Modified: 2026-09-27
+Last Modified: 2026-10-06
 Summary: Accessible single-page introduction, app gallery, and quick start for Privatium.
 Notes: See README file for documentation and full license information.
 
@@ -25,6 +25,15 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZM0BWSCDB8"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-ZM0BWSCDB8');
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Privatium™ | Personal apps on your own hardware</title>
@@ -123,15 +132,23 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
     .facts p { font-size: .875rem; color: var(--muted); margin-top: .5rem; }
     .section { padding-block: 3rem; }
     .tour { border-bottom: 1px solid var(--line); }
-    .tour-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 1.5rem; margin-bottom: 1.75rem; }
+    .tour-heading { display: grid; gap: 1.25rem; margin-bottom: 1.75rem; }
     .tour-heading h2 { margin-top: .8rem; }
     .gallery-controls { display: flex; flex-wrap: wrap; gap: .5rem; }
     .gallery-controls button { min-height: 44px; padding: .65rem 1rem; border: 1px solid var(--control-line); border-radius: 5px; background: transparent; font-size: .875rem; }
     .gallery-controls button[aria-pressed="true"] { background: var(--aubergine); color: var(--ivory); border-color: var(--aubergine); }
+    .gallery-hint { font-size: .875rem; color: var(--muted); }
     .gallery { max-width: 60rem; margin-inline: auto; }
     .gallery figure + figure { margin-top: 2rem; }
     .gallery.is-enhanced figure { margin-top: 0; }
     .gallery-status { margin-top: 1rem; font-size: .8rem; color: var(--muted); min-height: 1.4em; }
+    /* Hotspots are positioned in percentages of the screenshot, so they follow it as it scales. */
+    .shot { position: relative; }
+    .hotspot { position: absolute; left: var(--x); top: var(--y); width: var(--w); height: var(--h); padding: 0; border: 0; border-radius: 6px; background: transparent; }
+    .hotspot:hover { background: #ebcbf326; box-shadow: inset 0 0 0 2px var(--lilac); }
+    .hotspot:focus-visible { outline: 3px solid var(--lilac); outline-offset: -3px; box-shadow: inset 0 0 0 6px var(--aubergine); }
+    .resources a[aria-current="true"] { font-weight: 700; }
+    .resources a[aria-current="true"]::before { content: "▸"; content: "▸" / ""; margin-right: .35em; }
     .section-heading { display: grid; gap: 1rem; max-width: 60ch; margin-bottom: 1.75rem; }
     .section-heading > p:last-child { color: var(--muted); }
     .use-cases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
@@ -208,9 +225,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
       .button, .site-nav .nav-start, .gallery-controls button, .screenshot { border-color: ButtonText; }
       .gallery-controls button[aria-pressed="true"] { border-width: 3px; }
       :focus-visible { outline-color: Highlight; }
+      /* Screenshots keep their own dark colors, so hotspots keep the lilac ring that contrasts with them. */
+      .hotspot { forced-color-adjust: none; }
     }
     @media print {
-      .site-nav, .skip-link, .gallery-controls, .gallery-status { display: none !important; }
+      .site-nav, .skip-link, .gallery-controls, .gallery-hint, .gallery-status, .hotspot { display: none !important; }
       .gallery figure[hidden] { display: block !important; }
       .dark, .terminal, .facts-band, .get-started { background: white; color: black; }
       .dark *, .terminal *, h1 em { color: black !important; }
@@ -257,11 +276,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
         <div class="hero-preview">
           <figure>
             <a class="screenshot-link" href="assets/branding/privatium-dashboard-preview.png" aria-label="View the full-size Privatium dashboard screenshot">
-              <img class="screenshot" src="assets/branding/privatium-dashboard-preview.png" width="1003" height="585" fetchpriority="high" alt="Privatium dashboard showing Hello, Prescription Tracker, Animals, Sketch, and Pantry.">
+              <img class="screenshot" src="assets/branding/privatium-dashboard-preview.png" width="1002" height="611" fetchpriority="high" alt="Privatium dashboard showing Hello, Medication Tracker, Animals, Sketch, and Pantry.">
             </a>
             <figcaption data-i18n="hero.caption">Your apps, together in one place.</figcaption>
           </figure>
-          <p class="custom-note" data-i18n="hero.custom">Prescription Tracker is a custom app Gabriel is developing with Privatium.</p>
+          <p class="custom-note" data-i18n="hero.custom">Medication Tracker is a free app built with Privatium. Get it from the <a href="https://dev.mongefranco.com/privatium-app-meds/">Medication Tracker website</a>.</p>
           <a class="text-link" href="#apps" data-gallery-link="dashboard" data-i18n="hero.closer">Take a closer look <span aria-hidden="true">↓</span></a>
         </div>
       </div>
@@ -278,30 +297,85 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
         <div class="tour-heading">
           <div><p class="eyebrow" data-i18n="apps.eyebrow">A look inside Privatium</p><h2 id="apps-title" data-i18n="apps.title">Start small. Make it your own.</h2></div>
           <div class="gallery-controls" id="gallery-controls" role="group" aria-label="Choose an app screenshot" hidden>
-            <button type="button" data-gallery="dashboard" aria-controls="gallery-dashboard" aria-pressed="false" data-i18n="apps.dashboard">App dashboard</button>
-            <button type="button" data-gallery="sketch" aria-controls="gallery-sketch" aria-pressed="true" data-i18n="apps.sketch">Sketch</button>
+            <button type="button" data-gallery="dashboard" aria-controls="gallery-dashboard" aria-pressed="true" data-i18n="apps.dashboard">App dashboard</button>
+            <button type="button" data-gallery="hello" aria-controls="gallery-hello" aria-pressed="false" data-i18n="apps.hello">Hello</button>
+            <button type="button" data-gallery="meds" aria-controls="gallery-meds" aria-pressed="false" data-i18n="apps.meds">Medication Tracker</button>
+            <button type="button" data-gallery="animals" aria-controls="gallery-animals" aria-pressed="false" data-i18n="apps.animals">Animals</button>
+            <button type="button" data-gallery="sketch" aria-controls="gallery-sketch" aria-pressed="false" data-i18n="apps.sketch">Sketch</button>
+            <button type="button" data-gallery="pantry" aria-controls="gallery-pantry" aria-pressed="false" data-i18n="apps.pantry">Pantry</button>
           </div>
+          <p class="gallery-hint" id="gallery-hint" data-i18n="apps.hint" hidden>Select an app on the dashboard to look inside it. To come back, select the bar at the top of the app, or the Pv logo in Sketch.</p>
         </div>
         <div class="gallery" id="gallery">
           <figure id="gallery-dashboard" data-gallery-view="dashboard">
-            <a class="screenshot-link" href="assets/branding/privatium-dashboard-preview.png" aria-label="View the full-size app dashboard screenshot">
-              <img class="screenshot" src="assets/branding/privatium-dashboard-preview.png" width="1003" height="585" loading="lazy" decoding="async" alt="The app launcher displays five cards: Hello, Prescription Tracker, Animals, Sketch, and Pantry.">
-            </a>
-            <figcaption data-i18n="apps.dashboard.caption">The included apps appear alongside your own. Prescription Tracker, shown here, is Gabriel's custom app in development.</figcaption>
+            <div class="shot">
+              <a class="screenshot-link" href="assets/branding/privatium-dashboard-preview.png" aria-label="View the full-size app dashboard screenshot">
+                <img class="screenshot" src="assets/branding/privatium-dashboard-preview.png" width="1002" height="611" loading="lazy" decoding="async" alt="The app launcher displays five cards: Hello, Medication Tracker, Animals, Sketch, and Pantry.">
+              </a>
+              <!-- Each hotspot covers one app card in the screenshot. -->
+              <button type="button" class="hotspot" data-gallery-target="hello" style="--x: 1.70%; --y: 25.70%; --w: 30.84%; --h: 36.99%;" hidden><span class="visually-hidden" data-i18n="apps.open.hello">Show Hello</span></button>
+              <button type="button" class="hotspot" data-gallery-target="meds" style="--x: 34.13%; --y: 25.70%; --w: 30.94%; --h: 36.99%;" hidden><span class="visually-hidden" data-i18n="apps.open.meds">Show Medication Tracker</span></button>
+              <button type="button" class="hotspot" data-gallery-target="animals" style="--x: 66.67%; --y: 25.70%; --w: 30.84%; --h: 36.99%;" hidden><span class="visually-hidden" data-i18n="apps.open.animals">Show Animals</span></button>
+              <button type="button" class="hotspot" data-gallery-target="sketch" style="--x: 1.70%; --y: 65.30%; --w: 30.84%; --h: 33.06%;" hidden><span class="visually-hidden" data-i18n="apps.open.sketch">Show Sketch</span></button>
+              <button type="button" class="hotspot" data-gallery-target="pantry" style="--x: 34.13%; --y: 65.30%; --w: 30.94%; --h: 33.06%;" hidden><span class="visually-hidden" data-i18n="apps.open.pantry">Show Pantry</span></button>
+            </div>
+            <figcaption data-i18n="apps.dashboard.caption">Every app you make or add shows up here, right next to the ones that come with Privatium.</figcaption>
+          </figure>
+          <figure id="gallery-hello" data-gallery-view="hello">
+            <div class="shot">
+              <a class="screenshot-link" href="assets/branding/hello-app-preview.png" aria-label="View the full-size Hello screenshot">
+                <img class="screenshot" src="assets/branding/hello-app-preview.png" width="1002" height="548" loading="lazy" decoding="async" alt="Hello with a card that reads Good morning, Gabriel, and a Change my name button. The Privatium bar at the top shows the app name, an Apps link, and a menu button.">
+              </a>
+              <button type="button" class="hotspot" data-gallery-target="dashboard" style="--x: 0%; --y: 0%; --w: 100%; --h: 9.12%;" hidden><span class="visually-hidden" data-i18n="apps.back">Apps: back to the app dashboard</span></button>
+            </div>
+            <figcaption data-i18n="apps.hello.caption">Hello is the simplest included app. It greets you by the name you choose, and it is a good place to start when you make your own.</figcaption>
+          </figure>
+          <figure id="gallery-meds" data-gallery-view="meds">
+            <div class="shot">
+              <a class="screenshot-link" href="assets/branding/meds-app-preview.png" aria-label="View the full-size Medication Tracker screenshot">
+                <img class="screenshot" src="assets/branding/meds-app-preview.png" width="1188" height="709" loading="lazy" decoding="async" alt="The Medications page of Medication Tracker, with an invented family. Tabs for Medications, Refills, History, Authorizations, and Setup sit above a Track a new medication button and a search box. The first medicine shows how to take it, the prescriber, and a refill badge that reads Due in 7 days.">
+              </a>
+              <button type="button" class="hotspot" data-gallery-target="dashboard" style="--x: 0%; --y: 0%; --w: 100%; --h: 7.19%;" hidden><span class="visually-hidden" data-i18n="apps.back">Apps: back to the app dashboard</span></button>
+            </div>
+            <figcaption data-i18n="apps.meds.caption">Medication Tracker helps your family keep track of medications, refills, insurance, and prior authorizations, so you know what to refill next. It is a free app built with Privatium. Get it from the <a href="https://dev.mongefranco.com/privatium-app-meds/">Medication Tracker website</a>. The people shown are made up.</figcaption>
+          </figure>
+          <figure id="gallery-animals" data-gallery-view="animals">
+            <div class="shot">
+              <a class="screenshot-link" href="assets/branding/animals-app-preview.png" aria-label="View the full-size Animals screenshot">
+                <img class="screenshot" src="assets/branding/animals-app-preview.png" width="1008" height="544" loading="lazy" decoding="async" alt="Animals asks: Does it have legs? It offers Yes and No buttons, says it knows 2 animals and 1 question, and links to What I know and Start over.">
+              </a>
+              <button type="button" class="hotspot" data-gallery-target="dashboard" style="--x: 0%; --y: 0%; --w: 100%; --h: 9.01%;" hidden><span class="visually-hidden" data-i18n="apps.back">Apps: back to the app dashboard</span></button>
+            </div>
+            <figcaption data-i18n="apps.animals.caption">Animals is an included guessing game. Think of an animal and answer a few questions. When it guesses wrong, teach it something new.</figcaption>
           </figure>
           <figure id="gallery-sketch" data-gallery-view="sketch">
-            <a class="screenshot-link" href="assets/branding/sketch-app-preview.png" aria-label="View the full-size Sketch screenshot">
-              <img class="screenshot" src="assets/branding/sketch-app-preview.png" width="1076" height="731" loading="lazy" decoding="async" alt="Sketch with a drawing canvas, brush and shape tools, color choices, undo controls, and a menu for downloading PNG or SVG files.">
-            </a>
+            <div class="shot">
+              <a class="screenshot-link" href="assets/branding/sketch-app-preview.png" aria-label="View the full-size Sketch screenshot">
+                <img class="screenshot" src="assets/branding/sketch-app-preview.png" width="1076" height="731" loading="lazy" decoding="async" alt="Sketch with a drawing canvas, brush and shape tools, color choices, undo controls, and a menu for downloading PNG or SVG files.">
+              </a>
+              <!-- Sketch has no top bar; its Pv logo and the open menu's Apps item lead back instead. -->
+              <button type="button" class="hotspot" data-gallery-target="dashboard" style="--x: 0.19%; --y: 0.27%; --w: 3.53%; --h: 5.20%;" hidden><span class="visually-hidden" data-i18n="apps.back.logo">Privatium logo: back to the app dashboard</span></button>
+              <button type="button" class="hotspot" data-gallery-target="dashboard" style="--x: 83.55%; --y: 9.58%; --w: 16.45%; --h: 6.02%;" hidden><span class="visually-hidden" data-i18n="apps.back">Apps: back to the app dashboard</span></button>
+            </div>
             <figcaption data-i18n="apps.sketch.caption">Sketch is included: draw with brushes and shapes, choose your colors, and download your work as PNG or SVG.</figcaption>
+          </figure>
+          <figure id="gallery-pantry" data-gallery-view="pantry">
+            <div class="shot">
+              <a class="screenshot-link" href="assets/branding/pantry-app-preview.png" aria-label="View the full-size Pantry screenshot">
+                <img class="screenshot" src="assets/branding/pantry-app-preview.png" width="1228" height="743" loading="lazy" decoding="async" alt="Pantry showing a Top shelf with 2 containers of tomato soup, forms to add a shelf and a batch, and side panels for items taken out, stock checks, and recent activity with an Undo link.">
+              </a>
+              <button type="button" class="hotspot" data-gallery-target="dashboard" style="--x: 0%; --y: 0%; --w: 100%; --h: 6.19%;" hidden><span class="visually-hidden" data-i18n="apps.back">Apps: back to the app dashboard</span></button>
+            </div>
+            <figcaption data-i18n="apps.pantry.caption">Pantry is included too. Keep track of what is on each shelf and in the freezer, what you took out, and what to use soon.</figcaption>
           </figure>
         </div>
         <p class="gallery-status visually-hidden" id="gallery-status" role="status" aria-live="polite" aria-atomic="true"></p>
         <div class="resources" aria-label="Example app source code">
-          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/hello" data-i18n="apps.hello.source">Hello source</a>
-          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/pantry" data-i18n="apps.pantry.source">Pantry source</a>
-          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/sketch" data-i18n="apps.sketch.source">Sketch source</a>
-          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/animals" data-i18n="apps.animals.source">Animals source</a>
+          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/hello" data-source-app="hello" data-i18n="apps.hello.source">Hello source</a>
+          <a href="https://github.com/gabrielmongefranco/privatium-app-meds" data-source-app="meds" data-i18n="apps.meds.source">Medication Tracker source</a>
+          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/animals" data-source-app="animals" data-i18n="apps.animals.source">Animals source</a>
+          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/sketch" data-source-app="sketch" data-i18n="apps.sketch.source">Sketch source</a>
+          <a href="https://github.com/gabrielmongefranco/privatium/tree/main/apps/pantry" data-source-app="pantry" data-i18n="apps.pantry.source">Pantry source</a>
         </div>
       </div>
     </section>
@@ -399,46 +473,66 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
         <div><a class="footer-name" href="https://dev.mongefranco.com/privatium/">Privatium™</a><p data-i18n="footer.tagline">The private element of personal software.</p></div>
         <p>© 2026 <a href="https://gabriel.mongefranco.com">Gabriel Mongefranco</a></p>
       </div>
-      <div class="footer-legal"><span data-i18n="footer.trademark">Privatium™ is a trademark of Gabriel Mongefranco.</span><a href="https://github.com/gabrielmongefranco/privatium/blob/main/LICENSE" data-i18n="footer.license">GPLv3 or later</a><a href="https://github.com/gabrielmongefranco/privatium/blob/main/README.md#credits" data-i18n="footer.credits">Credits</a></div>
+      <div class="footer-legal"><span data-i18n="footer.trademark">Privatium™ is a trademark of Gabriel Mongefranco.</span><a href="https://github.com/gabrielmongefranco/privatium/blob/main/LICENSE" data-i18n="footer.license">GPLv3 or later</a><a href="https://github.com/gabrielmongefranco/privatium/blob/main/README.md#credits" data-i18n="footer.credits">Credits</a><a href="https://gabriel.mongefranco.com/projects/directory/" data-i18n="footer.more">More apps</a></div>
     </div>
   </footer>
   <script>
     (() => {
       'use strict';
 
-      // Keep both screenshots readable when scripting is unavailable.
+      // Keep every screenshot readable when scripting is unavailable.
       const gallery = document.getElementById('gallery');
       const controls = document.getElementById('gallery-controls');
+      const hint = document.getElementById('gallery-hint');
       const status = document.getElementById('gallery-status');
       const buttons = Array.from(controls.querySelectorAll('[data-gallery]'));
       const panels = Array.from(gallery.querySelectorAll('[data-gallery-view]'));
+      const hotspots = Array.from(gallery.querySelectorAll('[data-gallery-target]'));
+      const sourceLinks = Array.from(document.querySelectorAll('[data-source-app]'));
       const views = new Map(panels.map(panel => [panel.dataset.galleryView, panel]));
 
       /**
-       * Select an existing screenshot without moving keyboard focus.
+       * Select an existing screenshot and mark its button and source link as current.
        * @param {string} name Name declared on a gallery panel.
-       * @param {boolean} announce Whether to announce the selection to assistive technology.
+       * @param {{announce?: boolean, focusControl?: boolean}} [options]
+       *   announce: tell assistive technology which screenshot is showing.
+       *   focusControl: move focus to the selected button, for callers whose own
+       *   control was just hidden. The focused button's name replaces the announcement.
        * @returns {void} Unknown names leave the current selection unchanged.
        */
-      function showScreenshot(name, announce = true) {
+      function showScreenshot(name, { announce = true, focusControl = false } = {}) {
         if (!views.has(name)) return;
         panels.forEach(panel => { panel.hidden = panel !== views.get(name); });
+        let selectedButton = null;
         buttons.forEach(button => {
           const selected = button.dataset.gallery === name;
           button.setAttribute('aria-pressed', String(selected));
-          if (selected && announce) status.textContent = button.textContent.trim();
+          if (selected) selectedButton = button;
         });
+        // The dashboard shows every app, so no single source link is current there.
+        sourceLinks.forEach(link => {
+          if (link.dataset.sourceApp === name) link.setAttribute('aria-current', 'true');
+          else link.removeAttribute('aria-current');
+        });
+        if (!selectedButton) return;
+        if (focusControl) selectedButton.focus();
+        else if (announce) status.textContent = selectedButton.textContent.trim();
       }
 
       buttons.forEach(button => {
         button.addEventListener('click', () => showScreenshot(button.dataset.gallery));
       });
+      hotspots.forEach(hotspot => {
+        hotspot.addEventListener('click', () => showScreenshot(hotspot.dataset.galleryTarget, { focusControl: true }));
+        hotspot.hidden = false;
+      });
       document.querySelectorAll('[data-gallery-link]').forEach(link => {
         link.addEventListener('click', () => showScreenshot(link.dataset.galleryLink));
       });
-      showScreenshot('sketch', false);
+      showScreenshot('dashboard', { announce: false });
       gallery.classList.add('is-enhanced');
       controls.hidden = false;
+      hint.hidden = false;
     })();
   </script>
 </body>
