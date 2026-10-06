@@ -184,6 +184,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
     .more-content { display: grid; gap: 1rem; padding-block: 0 1.4rem; }
     .more-content p { font-size: .925rem; }
     .more-content pre { border: 1px solid var(--control-line); border-radius: 4px; padding: 1rem; background: var(--paper); }
+    .folders { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .folders caption { text-align: left; font-weight: 600; padding-bottom: .5rem; }
+    .folders th, .folders td { text-align: left; vertical-align: top; padding: .6rem .75rem .6rem 0; border-bottom: 1px solid var(--line); }
+    .folders code { overflow-wrap: anywhere; }
     .resources { display: flex; flex-wrap: wrap; gap: .4rem 1.5rem; margin-top: 1.5rem; }
     .resources a { display: inline-flex; align-items: center; min-height: 44px; font-size: .9rem; }
     .site-footer { padding-block: 2rem; border-top: 1px solid var(--line); }
@@ -280,7 +284,6 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
             </a>
             <figcaption data-i18n="hero.caption">Your apps, together in one place.</figcaption>
           </figure>
-          <p class="custom-note" data-i18n="hero.custom">Medication Tracker is a free app built with Privatium. Get it from the <a href="https://dev.mongefranco.com/privatium-app-meds/">Medication Tracker website</a>.</p>
           <a class="text-link" href="#apps" data-gallery-link="dashboard" data-i18n="hero.closer">Take a closer look <span aria-hidden="true">↓</span></a>
         </div>
       </div>
@@ -337,7 +340,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
               </a>
               <button type="button" class="hotspot" data-gallery-target="dashboard" style="--x: 0%; --y: 0%; --w: 100%; --h: 7.19%;" hidden><span class="visually-hidden" data-i18n="apps.back">Apps: back to the app dashboard</span></button>
             </div>
-            <figcaption data-i18n="apps.meds.caption">Medication Tracker helps your family keep track of medications, refills, insurance, and prior authorizations, so you know what to refill next. It is a free app built with Privatium. Get it from the <a href="https://dev.mongefranco.com/privatium-app-meds/">Medication Tracker website</a>. The people shown are made up.</figcaption>
+            <figcaption data-i18n="apps.meds.caption">Medication Tracker helps your family keep track of medications, refills, insurance, and prior authorizations, so you know what to refill next. It is a free app built with Privatium. Get it from the <a href="https://dev.mongefranco.com/privatium-app-meds/">Medication Tracker website</a>.</figcaption>
           </figure>
           <figure id="gallery-animals" data-gallery-view="animals">
             <div class="shot">
@@ -445,9 +448,29 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
         <details class="more">
           <summary data-i18n="start.phone.title">Use it from your phone</summary>
           <div class="more-content">
-            <p data-i18n="start.phone.command">Start Privatium with the following command. On Windows, use <code translate="no">./privatium.exe --open</code>.</p>
-            <pre><code translate="no">./privatium --open</code></pre>
-            <p data-i18n="start.phone.pair">Connect your phone to the same home network, scan the QR code, and type the two words or tap the four emoji. To pair another device later, open Settings → Devices on your computer.</p>
+            <ol class="steps">
+              <li><p data-i18n="start.phone.devices">With Privatium running, open <a href="http://127.0.0.1:8420/settings/devices">Settings › Devices</a> on your computer and select <strong>Open pairing</strong>. A QR code and a pairing code appear.</p></li>
+              <li><p data-i18n="start.phone.scan">Connect your phone to the same home network. Scan the QR code, or type the address shown under it into the phone's browser.</p></li>
+              <li><p data-i18n="start.phone.pair">On the phone, type the two code words or tap the four matching emoji.</p></li>
+            </ol>
+            <p data-i18n="start.phone.manage">You can label or remove paired phones on the same page.</p>
+          </div>
+        </details>
+        <details class="more">
+          <summary data-i18n="start.folders.title">View app and data directories</summary>
+          <div class="more-content">
+            <p data-i18n="start.folders.intro">Privatium keeps your apps in an <code translate="no">apps</code> folder and your records in a <code translate="no">data</code> folder. Both sit inside one Privatium folder. To back up, copy the <code translate="no">data</code> folder.</p>
+            <table class="folders">
+              <caption data-i18n="start.folders.caption">Default Privatium folder on each system</caption>
+              <thead><tr><th scope="col" data-i18n="start.folders.system">System</th><th scope="col" data-i18n="start.folders.apps">Apps</th><th scope="col" data-i18n="start.folders.data">Data</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Windows</th><td><code translate="no">%LOCALAPPDATA%\privatium\apps</code></td><td><code translate="no">%LOCALAPPDATA%\privatium\data</code></td></tr>
+                <tr><th scope="row">macOS</th><td><code translate="no">~/Library/Application Support/privatium/apps</code></td><td><code translate="no">~/Library/Application Support/privatium/data</code></td></tr>
+                <tr><th scope="row">Linux</th><td><code translate="no">~/.local/share/privatium/apps</code></td><td><code translate="no">~/.local/share/privatium/data</code></td></tr>
+              </tbody>
+            </table>
+            <p data-i18n="start.folders.portable">If you create a folder named <code translate="no">privatium-data</code> beside the program, Privatium uses that folder instead. The Windows portable download already includes one.</p>
+            <p data-i18n="start.folders.settings">To see the folders your copy actually uses, open <a href="http://127.0.0.1:8420/settings/data">Settings › Data settings</a> while Privatium is running. Privatium also prints the folder in the terminal each time it starts.</p>
           </div>
         </details>
         <details class="more">
