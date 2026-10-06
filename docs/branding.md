@@ -3,7 +3,7 @@ This file is part of Privatium
 docs/branding.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-05
-Last Modified: 2026-09-27
+Last Modified: 2026-10-06
 Summary: Approved visual direction, brand assets, and usage guidance. Copyright © 2026 Gabriel
          Mongefranco Privatium™ is a trademark of Gabriel Mongefranco. Documentation
          license: GFDL-1.3-or-later, with no Invariant Sections, no Front-Cover Texts, and
@@ -111,12 +111,15 @@ Preview: [banner](../assets/branding/privatium-banner.png),
 
 ## Layout and accessibility
 
-The [project homepage](homepage.md) also uses three owner-supplied screenshots in
-`assets/branding/`: `privatium-dashboard-preview.png`, `sketch-app-preview.png`, and
-`device-pairing-preview.png`. These are unaltered application captures, not generated
-illustrations. The dashboard includes a custom Prescription Tracker app in development;
-the homepage identifies it separately from the included apps. The pairing capture
-retains the address and QR-code redactions supplied by the owner.
+The [project homepage](homepage.md) also uses owner-supplied screenshots in
+`assets/branding/`: `privatium-dashboard-preview.png`, `hello-app-preview.png`,
+`meds-app-preview.png`, `animals-app-preview.png`, `sketch-app-preview.png`,
+`pantry-app-preview.png`, and `device-pairing-preview.png`. These are application
+captures, not generated illustrations. All are unaltered except
+`meds-app-preview.png`, which keeps only the top of a capture from the Medication
+Tracker repository. Medication Tracker is a separate app, and the homepage identifies
+it separately from the included apps. The pairing capture retains the address and
+QR-code redactions supplied by the owner.
 
 - Keep the main logo and tagline away from image edges and bright background effects.
 - Display the banner at its natural proportions. Do not crop the wordmark or tagline.
