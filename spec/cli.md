@@ -3,7 +3,7 @@ This file is part of Privatium
 spec/cli.md
 Author(s): Gabriel Mongefranco
 Created: 2026-08-30
-Last Modified: 2026-10-04
+Last Modified: 2026-10-16
 Summary: NORMATIVE. The command-line interface, including the linter that makes the skills system
          enforceable rather than advisory.
 Notes: See README file for documentation and full license information.
@@ -202,6 +202,32 @@ before anything is written.
 **The generator has no runtime presence.** It writes ordinary source files you then edit,
 delete, or rewrite. Implementations MUST NOT introduce a config format that describes a UI
 (`spec/app-contract.md §1`).
+
+---
+
+## 4.1 `privatium install` — install an app from a zip file
+
+```
+privatium install <zip> [--yes]
+```
+
+Reads an app zip file, checks the manifest, surfaces security and privacy warnings, and
+extracts into `<data-dir>/apps/<slug>/`.
+
+The archive may be flat (`app.toml` at the root) or wrapped in a single top-level folder
+(`<slug>/app.toml`). It must contain a valid `app.toml` specifying an allowed slug
+(`spec/app-contract.md §3`).
+
+Before unpacking anything:
+- Refuses archive entries with path-traversal names (such as containing `..` or beginning
+  with `/` or `\`).
+- Refuses if `<data-dir>/apps/<slug>/` or any target file already exists (`install` never
+  overwrites).
+- Displays the app's title, slug, and destination folder, alongside the list of files to
+  be written.
+- Displays the security warning (`spec/app-contract.md §9`) and any privacy warnings for
+  widened permissions (`spec/app-contract.md §5.4`).
+- Prompts the owner for confirmation before extracting files (`--yes` skips confirmation).
 
 ---
 

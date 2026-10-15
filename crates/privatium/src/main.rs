@@ -2,7 +2,7 @@
 // crates/privatium/src/main.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-08-31
-// Last Modified: 2026-10-04
+// Last Modified: 2026-10-15
 // Summary: Entry point: spec/cli.md. Bare `privatium` runs a node; `dev`, `new`, `lint`, `skill`,
 //          `snapshot`, `restore` and `pair` are the subcommands this build has; `firewall` is
 //          not built yet, and it parses and says so rather than being absent, so the help text
@@ -28,6 +28,7 @@ use std::process::ExitCode;
 
 mod cli;
 mod data;
+mod install;
 mod lint;
 mod new;
 mod node;
@@ -131,6 +132,7 @@ fn main() -> ExitCode {
             scaffold.as_deref(),
         ),
         Command::NewExamples => new::examples(&invocation.global),
+        Command::Install { zip, yes } => install::install(&invocation.global, &zip, yes),
         Command::Lint {
             paths,
             format,
