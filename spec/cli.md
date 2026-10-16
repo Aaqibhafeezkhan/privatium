@@ -29,7 +29,7 @@ point at.
 
 ## 1. Global behaviour
 
-```
+```text
 privatium [--data-dir <path>] [--config <file>] [--verbose] [--version] [<command> [args]]
 ```
 
@@ -59,7 +59,7 @@ release tags spell it, `major.minor.patch`, exactly as the workspace manifest ha
 the first line is normative; an implementation MUST print it, and the rest is what this
 one prints:
 
-```
+```text
 privatium 0.3.2 pv/1 (partial: phase 2)
 Privatium™ is a framework for building small, personal apps that sync across your devices seamlessly without cloud services
 Product:       Privatium
@@ -99,7 +99,7 @@ Exit codes: `0` success, `1` runtime error, `2` usage error, `3` lint findings p
 
 ## 2. `privatium` — run a node
 
-```
+```text
 privatium [--port 8420] [--solo <slug>] [--no-discovery] [--open]
 ```
 
@@ -136,7 +136,7 @@ nothing.
 
 ## 3. `privatium dev` — the development loop
 
-```
+```text
 privatium dev [--app <slug>] [--open]
 ```
 
@@ -167,7 +167,7 @@ beneath the mount until the next save loads — never the code from before it.
 
 ## 4. `privatium new` — scaffold an app
 
-```
+```text
 privatium new <slug> [--tier lua|web|rust] [--from <existing-app>] [--scaffold <table>]
 privatium new --examples
 ```
@@ -207,7 +207,7 @@ delete, or rewrite. Implementations MUST NOT introduce a config format that desc
 
 ## 4.1 `privatium install` — install an app from a zip file
 
-```
+```text
 privatium install <zip> [--yes]
 ```
 
@@ -233,7 +233,7 @@ Before unpacking anything:
 
 ## 5. `privatium lint` — the enforcement mechanism
 
-```
+```text
 privatium lint [<path>...] [--format text|json] [--severity error|warn|info] [--fix]
 ```
 
@@ -395,7 +395,7 @@ fails one of them fails CI exactly as an app would.
 
 ## 6. `privatium skill` — skills for an assistant
 
-```
+```text
 privatium skill list
 privatium skill export [<name>...] [--out <dir>]
 ```
@@ -419,7 +419,7 @@ a few hundred kilobytes of Markdown and every extractor reads a stored zip.
 
 ## 7. `privatium snapshot` and `privatium restore`
 
-```
+```text
 privatium snapshot [--app <slug>] [--verify]
 privatium restore --from <path> [--app <slug>] [--dry-run]
 ```
@@ -456,7 +456,7 @@ is ordinarily "copy the folder back" (`docs/backup-and-restore.md`).
 
 ## 8. `privatium pair`
 
-```
+```text
 privatium pair [--open] [--timeout 120] [--node] [--join <url>]
 ```
 
@@ -491,7 +491,7 @@ the first-run window of `§2` (`spec/protocol.md §7.1`).
 
 ## 9. `privatium firewall`
 
-```
+```text
 privatium firewall [--apply]
 ```
 

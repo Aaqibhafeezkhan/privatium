@@ -3,14 +3,14 @@
 // Author(s): Gabriel Mongefranco
 // Created: 2026-10-15
 // Last Modified: 2026-10-16
-// Summary: `privatium install <zip> [--yes]` (spec/cli.md ง4.1): read an app zip, show what
+// Summary: `privatium install <zip> [--yes]` (spec/cli.md ยง4.1): read an app zip, show what
 //          will be written, surface security and privacy warnings, ask for confirmation
 //          (unless --yes), then extract into <data-dir>/apps/<slug>/.
 //          No file is written before the user confirms. The zip reader in
 //          privatium_core::zip refuses path-traversal names before this function runs.
 // Notes: See README file for documentation and full license information.
 //
-// Copyright ฉ 2026 Gabriel Mongefranco
+// Copyright ยฉ 2026 Gabriel Mongefranco
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -33,10 +33,10 @@ use privatium_core::app::manifest::{Manifest, Tier};
 use privatium_core::config::Mode;
 use privatium_core::zip;
 
-use crate::cli::{Global, HELP};
+use crate::cli::Global;
 use crate::node;
 
-/// `privatium install <zip> [--yes]` (`spec/cli.md ง4.1`).
+/// `privatium install <zip> [--yes]` (`spec/cli.md ยง4.1`).
 ///
 /// Reads the zip at `zip_path`, locates `app.toml` (at the root of the archive or inside
 /// a single top-level folder), validates the slug and refuses if the destination folder
@@ -113,7 +113,7 @@ pub fn install(global: &Global, zip_path: &Path, yes: bool) -> Result<u8> {
         eprintln!("    {}", rel.display());
     }
 
-    // Security warning (`spec/app-contract.md ง9`)
+    // Security warning (`spec/app-contract.md ยง9`)
     eprintln!("\nSecurity warning:");
     match manifest.app.tier {
         Tier::Lua => {
@@ -136,7 +136,7 @@ pub fn install(global: &Global, zip_path: &Path, yes: bool) -> Result<u8> {
         }
     }
 
-    // Privacy warning for non-default permissions (`spec/app-contract.md ง5.4`)
+    // Privacy warning for non-default permissions (`spec/app-contract.md ยง5.4`)
     let widenings = manifest.permissions.widenings();
     if !widenings.is_empty() {
         eprintln!(
@@ -165,7 +165,7 @@ pub fn install(global: &Global, zip_path: &Path, yes: bool) -> Result<u8> {
 
     // ### Write the files ###
     // Refuse before writing anything if any destination file already exists, then write
-    // all at once - consistent with `new` (spec/cli.md ง4).
+    // all at once - consistent with `new` (spec/cli.md ยง4).
     for (rel, _) in &files {
         let on_disk = target.join(rel);
         if on_disk.exists() {
