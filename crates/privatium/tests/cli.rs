@@ -708,19 +708,36 @@ tier = "web"
 
     let (code, out, err) = privatium(
         root.path(),
-        &["--data-dir", &dir, "install", zip_path.to_str().unwrap(), "--yes"],
+        &[
+            "--data-dir",
+            &dir,
+            "install",
+            zip_path.to_str().unwrap(),
+            "--yes",
+        ],
     );
     assert_eq!(code, 0, "{err}");
     assert!(out.contains("cool-app/app.toml"), "{out}");
     assert!(out.contains("cool-app/web/index.html"), "{out}");
     assert!(apps.join("cool-app").join("app.toml").is_file());
-    assert!(apps.join("cool-app").join("web").join("index.html").is_file());
+    assert!(
+        apps.join("cool-app")
+            .join("web")
+            .join("index.html")
+            .is_file()
+    );
     assert!(err.contains("Security warning"), "{err}");
 
     // Installing again refuses because folder exists
     let (code, _, err) = privatium(
         root.path(),
-        &["--data-dir", &dir, "install", zip_path.to_str().unwrap(), "--yes"],
+        &[
+            "--data-dir",
+            &dir,
+            "install",
+            zip_path.to_str().unwrap(),
+            "--yes",
+        ],
     );
     assert_ne!(code, 0);
     assert!(err.contains("already exists"), "{err}");
@@ -1209,9 +1226,7 @@ fn test_spec_cli_9_firewall_parses_and_refuses() {
 fn test_spec_cli_10_absent_commands() {
     let root = tempfile::tempdir().unwrap();
     let (_, help, _) = privatium(root.path(), &["--help"]);
-    for absent in [
-        "doctor", "diagnose", "serve", "migrate", "login", "account",
-    ] {
+    for absent in ["doctor", "diagnose", "serve", "migrate", "login", "account"] {
         let (code, _, err) = privatium(root.path(), &[absent]);
         assert_eq!(code, 2, "{absent}");
         assert!(err.contains("spec/cli.md §10"), "{absent}: {err}");

@@ -263,10 +263,7 @@ mod tests {
     fn round_trip() {
         let hello = b"hello world".as_slice();
         let empty = b"".as_slice();
-        let zip = stored(&[
-            ("a/b.txt".to_owned(), hello),
-            ("a/c.txt".to_owned(), empty),
-        ]);
+        let zip = stored(&[("a/b.txt".to_owned(), hello), ("a/c.txt".to_owned(), empty)]);
         let got = entries(&zip).expect("parse");
         assert_eq!(got.len(), 2);
         assert_eq!(got[0].0, "a/b.txt");
@@ -300,19 +297,13 @@ mod tests {
     #[test]
     fn path_traversal_dotdot() {
         let zip = stored(&[("../evil.txt".to_owned(), b"bad".as_slice())]);
-        assert!(matches!(
-            entries(&zip),
-            Err(ZipError::PathTraversal { .. })
-        ));
+        assert!(matches!(entries(&zip), Err(ZipError::PathTraversal { .. })));
     }
 
     /// Absolute path is refused.
     #[test]
     fn path_traversal_absolute() {
         let zip = stored(&[("/etc/passwd".to_owned(), b"bad".as_slice())]);
-        assert!(matches!(
-            entries(&zip),
-            Err(ZipError::PathTraversal { .. })
-        ));
+        assert!(matches!(entries(&zip), Err(ZipError::PathTraversal { .. })));
     }
 }

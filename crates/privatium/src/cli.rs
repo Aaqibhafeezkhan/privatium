@@ -701,7 +701,9 @@ fn install_cmd(global: &mut Global, args: &mut Args) -> Result<Command, Usage> {
         },
         |positional| {
             if zip.is_some() {
-                return Err(usage(format!("install: unexpected argument {positional:?}")));
+                return Err(usage(format!(
+                    "install: unexpected argument {positional:?}"
+                )));
             }
             zip = Some(PathBuf::from(positional));
             Ok(())

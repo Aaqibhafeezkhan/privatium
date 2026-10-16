@@ -45,19 +45,16 @@ use crate::node;
 /// `<data-dir>/apps/<slug>/`.
 pub fn install(global: &Global, zip_path: &Path, yes: bool) -> Result<u8> {
     // ### Read the zip ###
-    let bytes = fs::read(zip_path)
-        .with_context(|| format!("reading {}", zip_path.display()))?;
-    let all = zip::entries(&bytes)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let bytes = fs::read(zip_path).with_context(|| format!("reading {}", zip_path.display()))?;
+    let all = zip::entries(&bytes).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // ### Locate app.toml and determine strip prefix ###
     let (app_toml_bytes, strip) = locate_manifest(&all)?;
 
     // ### Parse and validate the manifest ###
-    let manifest_text = std::str::from_utf8(app_toml_bytes)
-        .context("app.toml is not valid UTF-8")?;
-    let manifest = Manifest::parse(manifest_text)
-        .context("parsing app.toml")?;
+    let manifest_text =
+        std::str::from_utf8(app_toml_bytes).context("app.toml is not valid UTF-8")?;
+    let manifest = Manifest::parse(manifest_text).context("parsing app.toml")?;
     let slug = &manifest.app.slug;
 
     manifest
@@ -108,7 +105,11 @@ pub fn install(global: &Global, zip_path: &Path, yes: bool) -> Result<u8> {
         slug,
         zip_path.display()
     );
-    eprintln!("  Will write {} file(s) to {}:", files.len(), target.display());
+    eprintln!(
+        "  Will write {} file(s) to {}:",
+        files.len(),
+        target.display()
+    );
     for (rel, _) in &files {
         eprintln!("    {}", rel.display());
     }
@@ -175,16 +176,13 @@ pub fn install(global: &Global, zip_path: &Path, yes: bool) -> Result<u8> {
             );
         }
     }
-    fs::create_dir_all(&target)
-        .with_context(|| format!("creating {}", target.display()))?;
+    fs::create_dir_all(&target).with_context(|| format!("creating {}", target.display()))?;
     for (rel, data) in &files {
         let on_disk = target.join(rel);
         if let Some(parent) = on_disk.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("creating {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
         }
-        fs::write(&on_disk, data)
-            .with_context(|| format!("writing {}", on_disk.display()))?;
+        fs::write(&on_disk, data).with_context(|| format!("writing {}", on_disk.display()))?;
         println!("{}", relative(&on_disk, &apps_dir));
     }
     eprintln!(
@@ -298,7 +296,10 @@ tier = "{tier}"
         let manifest = sample_manifest("testapp", "web");
         let entries = vec![
             ("testapp/app.toml".to_string(), manifest.into_bytes()),
-            ("testapp/web/index.html".to_string(), b"<h1>Hello</h1>".to_vec()),
+            (
+                "testapp/web/index.html".to_string(),
+                b"<h1>Hello</h1>".to_vec(),
+            ),
         ];
         let (data, strip) = locate_manifest(&entries).unwrap();
         assert_eq!(strip, 1);
@@ -333,7 +334,10 @@ tier = "{tier}"
         let manifest = sample_manifest("myweb", "web");
         let zip_bytes = zip::stored(&[
             ("myweb/app.toml".to_string(), manifest.as_bytes()),
-            ("myweb/web/index.html".to_string(), b"<h1>Test</h1>".as_slice()),
+            (
+                "myweb/web/index.html".to_string(),
+                b"<h1>Test</h1>".as_slice(),
+            ),
         ]);
 
         let zip_path = dir.path().join("myweb.zip");
@@ -365,9 +369,7 @@ tier = "{tier}"
         };
 
         let manifest = sample_manifest("mylua", "lua");
-        let zip_bytes = zip::stored(&[
-            ("mylua/app.toml".to_string(), manifest.as_bytes()),
-        ]);
+        let zip_bytes = zip::stored(&[("mylua/app.toml".to_string(), manifest.as_bytes())]);
 
         let zip_path = dir.path().join("mylua.zip");
         fs::write(&zip_path, zip_bytes).unwrap();
