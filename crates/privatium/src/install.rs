@@ -202,7 +202,7 @@ pub fn install(global: &Global, zip_path: &Path, yes: bool) -> Result<u8> {
 ///   `hello/app.toml`. Strip that one component.
 ///
 /// Any other layout is a usage error.
-fn locate_manifest<'a>(all: &'a [(String, Vec<u8>)]) -> Result<(&'a [u8], usize)> {
+fn locate_manifest(all: &[(String, Vec<u8>)]) -> Result<(&[u8], usize)> {
     // Flat layout: app.toml at the top.
     if let Some((_, data)) = all.iter().find(|(n, _)| n == "app.toml") {
         return Ok((data, 0));
@@ -262,6 +262,9 @@ fn relative(path: &Path, base: &Path) -> String {
         .replace('\\', "/")
 }
 
+// AGENTS.md, Style: unwrap() is permitted in tests. The crate-level deny reaches unit
+// tests inside src/, so each one opts out where it is declared.
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(test)]
 mod tests {
     use super::*;

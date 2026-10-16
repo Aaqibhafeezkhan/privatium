@@ -2,7 +2,7 @@
 // crates/privatium-core/src/zip.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-10-08
-// Last Modified: 2026-10-15
+// Last Modified: 2026-10-16
 // Summary: A stored-only zip writer (PKWARE APPNOTE 6.3.x) and a minimal zip reader for
 //          the same format. Writer: local file headers, a central directory, and the
 //          end-of-central-directory record — method 0, no data descriptors, no zip64.
@@ -254,6 +254,9 @@ pub fn entries(data: &[u8]) -> Result<Vec<(String, Vec<u8>)>, ZipError> {
     Ok(out)
 }
 
+// AGENTS.md, Style: unwrap() is permitted in tests. The crate-level deny reaches unit
+// tests inside src/, so each one opts out where it is declared.
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(test)]
 mod tests {
     use super::*;
