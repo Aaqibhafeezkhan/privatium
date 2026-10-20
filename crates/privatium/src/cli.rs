@@ -2,7 +2,7 @@
 // crates/privatium/src/cli.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-09-06
+// Last Modified: 2026-10-15
 // Summary: The argument grammar of spec/cli.md, by hand. The surface is eight commands and twenty flags
 //          fixed by a normative document, and the help text is that document's synopsis lines
 //          — so there is no derive layer to drift from it, no dependency to carry for it, and
@@ -41,6 +41,8 @@ privatium [--data-dir <path>] [--config <file>] [--verbose] [--version] [<comman
   privatium new <slug> [--tier lua|web|rust] [--from <existing-app>] [--scaffold <table>]
   privatium new --examples
       scaffold an app under <data-dir>/apps/<slug>/, or write every example app (§4)
+  privatium install <zip> [--yes]
+      install an app from a zip file (§4.1)
   privatium lint [<path>...] [--format text|json] [--severity error|warn|info] [--fix]
       the linter (§5)
   privatium skill list
@@ -111,6 +113,8 @@ pub enum Command {
     },
     /// `§4`, `new --examples`: every example app the binary carries.
     NewExamples,
+    /// `§4.1`: install an app from a zip file on disk or stdin.
+    Install { zip: PathBuf, yes: bool },
     /// `§5`.
     Lint {
         paths: Vec<PathBuf>,
@@ -290,6 +294,7 @@ pub fn parse(argv: impl IntoIterator<Item = OsString>) -> Result<Invocation, Usa
         None => run(&mut global, &mut args)?,
         Some("dev") => dev(&mut global, &mut args)?,
         Some("new") => new(&mut global, &mut args)?,
+        Some("install") => install_cmd(&mut global, &mut args)?,
         Some("lint") => lint(&mut global, &mut args)?,
         Some("skill") => skill(&mut global, &mut args)?,
         Some("snapshot") => snapshot(&mut global, &mut args)?,
@@ -680,6 +685,37 @@ fn pair(global: &mut Global, args: &mut Args) -> Result<Command, Usage> {
     })
 }
 
+fn install_cmd(global: &mut Global, args: &mut Args) -> Result<Command, Usage> {
+    let mut zip: Option<PathBuf> = None;
+    let mut yes = false;
+    let terminal = flags(
+        global,
+        args,
+        |name, inline, _args| match name {
+            "-y" | "--yes" => {
+                Args::switch(name, inline)?;
+                yes = true;
+                Ok(true)
+            }
+            _ => Ok(false),
+        },
+        |positional| {
+            if zip.is_some() {
+                return Err(usage(format!(
+                    "install: unexpected argument {positional:?}"
+                )));
+            }
+            zip = Some(PathBuf::from(positional));
+            Ok(())
+        },
+    )?;
+    if let Some(terminal) = terminal {
+        return Ok(terminal);
+    }
+    let zip = zip.ok_or_else(|| usage("install: a zip file path is required"))?;
+    Ok(Command::Install { zip, yes })
+}
+
 fn firewall(global: &mut Global, args: &mut Args) -> Result<Command, Usage> {
     let mut apply = false;
     let terminal = flags(
@@ -769,6 +805,20 @@ mod tests {
             }
         );
         assert_eq!(
+            parsed("install app.zip --yes").unwrap().command,
+            Command::Install {
+                zip: "app.zip".into(),
+                yes: true,
+            }
+        );
+        assert_eq!(
+            parsed("install -y app.zip").unwrap().command,
+            Command::Install {
+                zip: "app.zip".into(),
+                yes: true,
+            }
+        );
+        assert_eq!(
             parsed("lint a b --format json --severity warn --fix")
                 .unwrap()
                 .command,
@@ -851,6 +901,8 @@ mod tests {
             ("new a --examples", "--examples"),
             ("new --examples --tier web", "--examples"),
             ("restore", "--from"),
+            ("install", "zip"),
+            ("install a.zip b.zip", "unexpected"),
             ("skill", "list or export"),
             ("skill nope", "nope"),
             ("--port x", "--port"),

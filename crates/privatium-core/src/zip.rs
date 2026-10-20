@@ -2,10 +2,11 @@
 // crates/privatium-core/src/zip.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-10-08
-// Last Modified: 2026-10-08
-// Summary: A stored-only zip writer (PKWARE APPNOTE 6.3.x): local file headers, a central
-//          directory, and the end-of-central-directory record. Method 0, no data descriptors, no
-//          zip64, so the format is the 1989 one every extractor reads.
+// Last Modified: 2026-10-16
+// Summary: A stored-only zip writer (PKWARE APPNOTE 6.3.x) and a minimal zip reader for
+//          the same format. Writer: local file headers, a central directory, and the
+//          end-of-central-directory record — method 0, no data descriptors, no zip64.
+//          Reader: walks local file headers, validates CRC-32, refuses path traversal.
 // Notes: See README file for documentation and full license information.
 //
 // Copyright © 2026 Gabriel Mongefranco
@@ -112,4 +113,200 @@ fn put16(out: &mut Vec<u8>, value: u16) {
 
 fn put32(out: &mut Vec<u8>, value: u32) {
     out.extend_from_slice(&value.to_le_bytes());
+}
+
+// ── Reader ─────────────────────────────────────────────────────────────────────
+
+/// Errors from [`entries`].
+#[derive(Debug)]
+pub enum ZipError {
+    /// The byte slice does not contain a valid local file header signature at `offset`.
+    BadSignature { offset: usize },
+    /// A local file header field points past the end of the slice.
+    Truncated,
+    /// The stored CRC-32 does not match the data (`entry_name` names the entry).
+    Crc { name: String },
+    /// The compression method is not "stored" (0). `privatium install` only needs the
+    /// app bundles this binary's own `stored()` produces, so deflate is not worth adding.
+    Compressed { name: String, method: u16 },
+    /// An entry name is not valid UTF-8.
+    BadName,
+    /// An entry name contains `..` or starts with `/` or `\`, which would write outside
+    /// the target folder — refused before any file is written.
+    PathTraversal { name: String },
+}
+
+impl std::fmt::Display for ZipError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ZipError::BadSignature { offset } => {
+                write!(f, "zip: bad signature at byte {offset}")
+            }
+            ZipError::Truncated => write!(f, "zip: file is truncated"),
+            ZipError::Crc { name } => write!(f, "zip: CRC mismatch in {name:?}"),
+            ZipError::Compressed { name, method } => write!(
+                f,
+                "zip: {name:?} uses compression method {method}; only stored (0) is supported"
+            ),
+            ZipError::BadName => write!(f, "zip: entry name is not valid UTF-8"),
+            ZipError::PathTraversal { name } => {
+                write!(f, "zip: {name:?} would write outside the target folder")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ZipError {}
+
+/// Walk every local file header in `data` and return `(name, file_data)` pairs in order.
+///
+/// Only method 0 (stored) is accepted. CRC-32 is verified for every entry. Entry names
+/// that contain `..` or start with `/` or `\` are refused so the caller can write
+/// directly into a target folder without a second path-traversal check.
+///
+/// Directory entries (names ending with `/`) are silently skipped; callers need files.
+pub fn entries(data: &[u8]) -> Result<Vec<(String, Vec<u8>)>, ZipError> {
+    let mut pos = 0usize;
+    let mut out = Vec::new();
+
+    while pos + 4 <= data.len() {
+        // Central directory and end-of-central-directory start with different signatures;
+        // stop when we leave the local-file-header section.
+        let sig = u32::from_le_bytes(
+            data[pos..pos + 4]
+                .try_into()
+                .map_err(|_| ZipError::Truncated)?,
+        );
+        if sig == 0x0201_4b50 || sig == 0x0605_4b50 {
+            // Central directory or EOCD record — we have seen every local header.
+            break;
+        }
+        if sig != 0x0403_4b50 {
+            return Err(ZipError::BadSignature { offset: pos });
+        }
+
+        // Local file header: 30 bytes fixed, then name and extra field.
+        if pos + 30 > data.len() {
+            return Err(ZipError::Truncated);
+        }
+        let method = u16::from_le_bytes([data[pos + 8], data[pos + 9]]);
+        let stored_crc = u32::from_le_bytes([
+            data[pos + 14],
+            data[pos + 15],
+            data[pos + 16],
+            data[pos + 17],
+        ]);
+        let comp_size = u32::from_le_bytes([
+            data[pos + 18],
+            data[pos + 19],
+            data[pos + 20],
+            data[pos + 21],
+        ]) as usize;
+        let name_len = u16::from_le_bytes([data[pos + 26], data[pos + 27]]) as usize;
+        let extra_len = u16::from_le_bytes([data[pos + 28], data[pos + 29]]) as usize;
+
+        let name_start = pos + 30;
+        let data_start = name_start + name_len + extra_len;
+        let data_end = data_start + comp_size;
+
+        if data_end > data.len() {
+            return Err(ZipError::Truncated);
+        }
+
+        let name = std::str::from_utf8(&data[name_start..name_start + name_len])
+            .map_err(|_| ZipError::BadName)?
+            .to_owned();
+
+        // Skip directory entries — they have no payload we need.
+        if name.ends_with('/') {
+            pos = data_end;
+            continue;
+        }
+
+        // Refuse names that would write outside the target folder (path traversal).
+        if name.starts_with('/') || name.starts_with('\\') {
+            return Err(ZipError::PathTraversal { name });
+        }
+        for component in name.split('/').chain(name.split('\\')) {
+            if component == ".." {
+                return Err(ZipError::PathTraversal { name });
+            }
+        }
+
+        // Only method 0 (stored) is supported. Deflate needs an inflate implementation
+        // and none of the app bundles this binary produces need it.
+        if method != 0 {
+            return Err(ZipError::Compressed { name, method });
+        }
+
+        let file_data = data[data_start..data_end].to_vec();
+
+        // Verify the stored CRC-32, so a truncated download is caught before writing.
+        let actual_crc = crc32(&file_data);
+        if actual_crc != stored_crc {
+            return Err(ZipError::Crc { name });
+        }
+
+        out.push((name, file_data));
+        pos = data_end;
+    }
+
+    Ok(out)
+}
+
+// AGENTS.md, Style: unwrap() is permitted in tests. The crate-level deny reaches unit
+// tests inside src/, so each one opts out where it is declared.
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Round-trip: write with `stored`, read back with `entries`.
+    #[test]
+    fn round_trip() {
+        let hello = b"hello world".as_slice();
+        let empty = b"".as_slice();
+        let zip = stored(&[("a/b.txt".to_owned(), hello), ("a/c.txt".to_owned(), empty)]);
+        let got = entries(&zip).expect("parse");
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].0, "a/b.txt");
+        assert_eq!(got[0].1, hello);
+        assert_eq!(got[1].0, "a/c.txt");
+        assert_eq!(got[1].1, empty);
+    }
+
+    /// A bad signature at offset 0 is rejected.
+    #[test]
+    fn bad_signature() {
+        let mut zip = stored(&[("x.txt".to_owned(), b"x".as_slice())]);
+        zip[0] = 0xFF;
+        assert!(matches!(
+            entries(&zip),
+            Err(ZipError::BadSignature { offset: 0 })
+        ));
+    }
+
+    /// CRC mismatch in payload is caught.
+    #[test]
+    fn crc_mismatch() {
+        let mut zip = stored(&[("x.txt".to_owned(), b"x".as_slice())]);
+        // Flip a byte in the payload (past the 30-byte header + 5-char name).
+        let payload_pos = 30 + 5;
+        zip[payload_pos] ^= 0xFF;
+        assert!(matches!(entries(&zip), Err(ZipError::Crc { .. })));
+    }
+
+    /// Path traversal with `..` is refused.
+    #[test]
+    fn path_traversal_dotdot() {
+        let zip = stored(&[("../evil.txt".to_owned(), b"bad".as_slice())]);
+        assert!(matches!(entries(&zip), Err(ZipError::PathTraversal { .. })));
+    }
+
+    /// Absolute path is refused.
+    #[test]
+    fn path_traversal_absolute() {
+        let zip = stored(&[("/etc/passwd".to_owned(), b"bad".as_slice())]);
+        assert!(matches!(entries(&zip), Err(ZipError::PathTraversal { .. })));
+    }
 }

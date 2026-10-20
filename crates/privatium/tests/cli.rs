@@ -2,7 +2,7 @@
 // crates/privatium/tests/cli.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-10-04
+// Last Modified: 2026-10-16
 // Summary: spec/cli.md against the real binary, section by section: the qualified --version (§1) and
 //          the exit codes; the flags, which are exactly the spec's synopsis lines (§1–§9, both
 //          directions); a node on loopback with --port, --solo and --no-discovery (§2); dev
@@ -679,6 +679,70 @@ fn test_new_from_hello_rewrites_slug_and_title() {
     assert!(body.contains("<h1>Profile</h1>"), "{body}");
 }
 
+/// `§4.1` — `install` reads an app zip, validates manifest and tier files, surfaces
+/// security/privacy warnings, and extracts into `<data-dir>/apps/<slug>/`. Refuses
+/// overwriting existing folders.
+#[test]
+fn test_spec_cli_4_1_install_from_zip() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = data_dir(&root);
+    let apps = Path::new(&dir).join("apps");
+
+    let manifest = r#"[app]
+slug = "cool-app"
+title = "Cool App"
+version = "0.1.0"
+api = 1
+tier = "web"
+"#;
+    let zip_bytes = privatium_core::zip::stored(&[
+        ("cool-app/app.toml".to_owned(), manifest.as_bytes()),
+        (
+            "cool-app/web/index.html".to_owned(),
+            b"<!DOCTYPE html><html><body><h1>Cool App</h1></body></html>".as_slice(),
+        ),
+    ]);
+
+    let zip_path = root.path().join("cool-app.zip");
+    fs::write(&zip_path, zip_bytes).unwrap();
+
+    let (code, out, err) = privatium(
+        root.path(),
+        &[
+            "--data-dir",
+            &dir,
+            "install",
+            zip_path.to_str().unwrap(),
+            "--yes",
+        ],
+    );
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("cool-app/app.toml"), "{out}");
+    assert!(out.contains("cool-app/web/index.html"), "{out}");
+    assert!(apps.join("cool-app").join("app.toml").is_file());
+    assert!(
+        apps.join("cool-app")
+            .join("web")
+            .join("index.html")
+            .is_file()
+    );
+    assert!(err.contains("Security warning"), "{err}");
+
+    // Installing again refuses because folder exists
+    let (code, _, err) = privatium(
+        root.path(),
+        &[
+            "--data-dir",
+            &dir,
+            "install",
+            zip_path.to_str().unwrap(),
+            "--yes",
+        ],
+    );
+    assert_ne!(code, 0);
+    assert!(err.contains("already exists"), "{err}");
+}
+
 /// `§5` — `lint` exits 0 on a clean app and 3 on findings (`§1`); `--format json` is one
 /// object per finding with the seven fields of `§5.2`; `--severity error` hides a
 /// warn-only fixture; `--fix` rewrites a mount path and reports what it touched (`§5.3`);
@@ -1162,9 +1226,7 @@ fn test_spec_cli_9_firewall_parses_and_refuses() {
 fn test_spec_cli_10_absent_commands() {
     let root = tempfile::tempdir().unwrap();
     let (_, help, _) = privatium(root.path(), &["--help"]);
-    for absent in [
-        "doctor", "diagnose", "serve", "migrate", "install", "login", "account",
-    ] {
+    for absent in ["doctor", "diagnose", "serve", "migrate", "login", "account"] {
         let (code, _, err) = privatium(root.path(), &[absent]);
         assert_eq!(code, 2, "{absent}");
         assert!(err.contains("spec/cli.md §10"), "{absent}: {err}");
