@@ -81,7 +81,7 @@ error, not a broken page.
 **SDL, bgfx, Ogre3D, The Forge, Tilengine** (native rendering libraries — you would be
 building the Emscripten pipeline yourself). Any of these can still use §5.3.
 
-## What the loader says
+## Loader messages
 
 ```
 permissions.cross_origin_isolated is allowed in solo mode only (spec/app-contract.md §5.4, docs/frameworks.md §5.4)

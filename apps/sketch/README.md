@@ -13,7 +13,7 @@ One canvas means one canvas. If you drew on your desktop and your laptop before 
 them, both drawings are there afterwards, merged, every stroke kept — and undo reverses
 whichever was drawn last.
 
-## What is not here
+## Features left out
 
 | File | Present? |
 |---|---|
@@ -36,7 +36,7 @@ strip below the sheet. Open **Help** for the keyboard map. Help and status text 
 readable when zoomed; see [Sample app design](../../docs/sample-app-design.md) for the
 layout and its limits.
 
-## Why it declines the bar
+## Reasons it declines the bar
 
 Every other app wears the framework's bar and footer, inserted around its page
 (`spec/app-contract.md §5`). Sketch turns them off with `[ui] chrome = "none"` in
@@ -50,7 +50,7 @@ there is no launcher to return to. On a narrow screen the rail's heading is hidd
 the menu's entry is the way out. An app that keeps the bar gets all of this for nothing,
 and `apps/pantry` shows that side.
 
-## What the framework still gives it
+## Framework features it still uses
 
 The framework provides:
 
@@ -96,7 +96,7 @@ This app uses vanilla JS because a canvas needs no framework, not because one wa
 Ten tools, a colour wheel and a clipboard did not change that: the sheet is imperative
 drawing, and the toolbars are buttons with `aria-pressed`.
 
-## Why this is not a Tier 1 app
+## Reasons it is not a Tier 1 app
 
 A drawing canvas has no server-rendered form of itself. Tier 1 would mean shipping a
 `<canvas>` and then writing all the JavaScript anyway, with an LSP template that does

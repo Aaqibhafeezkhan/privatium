@@ -21,7 +21,7 @@ See <https://www.gnu.org/licenses/fdl-1.3.html>.
 **Bootstrap Icons only.** No other icon set, no emoji-as-icon, no custom SVGs in app
 folders.
 
-## Why Bootstrap Icons
+## Reasons for Bootstrap Icons
 
 - <cite>MIT licensed, standalone SVGs that work without any Bootstrap CSS</cite>
 - <cite>Over 2,000 icons on a 16px grid</cite>
@@ -31,7 +31,7 @@ folders.
 Pin one version in the repository. The pinned release is **v1.13.1**; re-verify against
 npm before moving it.
 
-## How they are delivered
+## Delivery
 
 **Bundled raw SVGs, inlined server-side at render time.** Not the web font, not a runtime
 `<use>` reference to an external sprite.
@@ -49,20 +49,20 @@ crates/privatium-core/assets/icons/   vendored from twbs/icons, `icons/` directo
 The framework embeds this directory in the binary (`include_dir!`) and inlines the
 requested icon into the HTML at render.
 
-### Why not the web font
+### Rejected option: the web font
 
 - `@font-face` requires adding `font-src` to the CSP for no benefit.
 - Icon fonts are read aloud as garbage by screen readers unless carefully suppressed.
 - A blocked or failed font swaps every icon for a tofu box.
 - Fonts do not inherit `currentColor` as cleanly across theme switches.
 
-### Why not a runtime external sprite
+### Rejected option: a runtime external sprite
 
 Cross-document `<use href="/static/bi.svg#name">` has a long history of browser quirks,
 adds a second request on cold cache, and buys nothing when the SVGs are already in the
 binary. Inlining is one embedded file read and a string write.
 
-### Why not a build-time subset
+### Rejected option: a build-time subset
 
 Apps are installed at runtime and declare their own icon in `app.toml`. A subset computed
 at build time cannot know about them. Two thousand 1KB files compress to a few hundred

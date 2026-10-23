@@ -285,7 +285,7 @@ still needs the page.
    says "check stock" and shows -1. Why it does not clamp.
 8. **Read your pantry without Privatium**: a `jq` line over the log, mirroring `sketch`'s.
 9. **The feature table**, corrected as §11 says.
-10. **What is not here**: global undo, images, a pending count, a graphics library.
+10. **Features left out**: global undo, images, a pending count, a graphics library.
 
 `SKILL.md` is the same material as conventions rather than a tour: the schema and its
 grains, the seven views, the one-append rule, the `amount` naming rule and why it exists,

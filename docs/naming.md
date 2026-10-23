@@ -22,7 +22,7 @@ See <https://www.gnu.org/licenses/fdl-1.3.html>.
 procedure below is retained because the tokens it lists are load-bearing, not because
 another rename is expected.
 
-## Why Privatium
+## Origin of the name
 
 *Privatium* reads as an element — the private element of personal software. It carries
 "private" without saying it flatly, and the `-ium` suffix suggests something elemental and

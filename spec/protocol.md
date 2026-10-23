@@ -755,7 +755,7 @@ Implementations MUST NOT run a PAKE to establish a channel and then transmit the
 bearer credential to "log in." That is strictly weaker: it puts the code on the wire, makes
 it replayable, and discards the property the PAKE was chosen for.
 
-#### What this means for an untrusted device on the LAN
+#### Effect on an untrusted device on the LAN
 
 Discovery is public. Anyone on the network can see that a node exists (§6), and that is
 inherent to mDNS. What they cannot do is get any application data:

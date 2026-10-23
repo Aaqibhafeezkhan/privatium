@@ -2,7 +2,7 @@
 
 The smallest thing that is still an app. Read it before writing your own.
 
-## What it does
+## Features
 
 Asks for your name. Greets you with it. Lets you change it.
 
@@ -28,7 +28,7 @@ cp -r apps/hello ~/.local/share/privatium/apps/myapp
 
 Change `slug` and `title` in `app.toml`. The slug must match the folder name.
 
-## What to notice
+## Points to notice
 
 **Nothing is stored in the table.** Change your name three times and the table still holds
 one row — but `data/hello/log/<device>.jsonl` holds three lines. The table is derived. Open

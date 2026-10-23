@@ -50,7 +50,7 @@ the node sends `Cross-Origin-Opener-Policy: same-origin` and
 (`spec/protocol.md §9.3`), so a subresource the app loads from elsewhere needs CORP or
 CORS of its own.
 
-## What each widening says to the owner
+## Messages the owner sees for each widening
 
 From the crate: the plain-language line `spec/app-contract.md §5.4` requires at install, exactly as the loader words it.
 
@@ -63,7 +63,7 @@ From the crate: the plain-language line `spec/app-contract.md §5.4` requires at
 | `sql = true` | ad-hoc read-only SQL over the app's tables (pv.sql) |
 | `cross_origin_isolated = true` | cross-origin isolation headers (COOP/COEP) — solo mode only |
 
-## What the loader refuses
+## Loader refusals
 
 - `permissions.cross_origin_isolated is allowed in solo mode only (spec/app-contract.md §5.4, docs/frameworks.md §5.4)`
 - `permissions.remote entry "https://example.com/path" is not an origin — expected http(s)://host[:port] (spec/app-contract.md §5.4)`

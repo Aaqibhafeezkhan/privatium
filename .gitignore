@@ -24,6 +24,8 @@ Thumbs.db
 log.txt
 logs.txt
 logs/*
+.coverage
+*-lint-report*
 
 # Ignore Editor cruft
 .vscode/
@@ -39,11 +41,9 @@ logs/*
 .github-copilot
 .github-copilot/*
 .kimi
-CLAUDE.md
 CLAUDECODE.md
 GEMINI.md
 KIMI.md
-CODEX.md
 CHATGPT.md
 
 # Ignore cache files

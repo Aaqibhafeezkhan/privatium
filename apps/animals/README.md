@@ -6,7 +6,7 @@ side, and learns one animal per round, forever.
 
 It is here because it forces the framework to prove things `hello` does not.
 
-## What it demonstrates
+## Features shown
 
 | Feature | Where |
 |---|---|
@@ -22,7 +22,7 @@ It is here because it forces the framework to prove things `hello` does not.
 | **Swap navigation** | `app.toml` → `[ui] navigation = "swap"`: pages change under a bar that does not move |
 | **A strict CSP, satisfied** | `static/animals.js` — Alpine's CSP build, no `eval` |
 
-## Why this app exists, in one sentence
+## Purpose, in one sentence
 
 **The animal tree *is* the event log.** The system learns by appending, and nothing is ever
 updated. Teach it "ostrich" and that is a new line in a JSONL file you can `cat`. That is
