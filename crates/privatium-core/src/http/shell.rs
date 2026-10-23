@@ -1064,7 +1064,6 @@ fn data_page(cx: &Context<'_>, body: &mut String) {
     );
 }
 
-
 /// Collect each directory's size in one traversal, without following symlinks.
 fn directory_sizes(root: &Path) -> BTreeMap<PathBuf, Option<u64>> {
     let mut sizes = BTreeMap::new();
@@ -1298,4 +1297,42 @@ pub(crate) fn query<T>(
         out.push(row.map_err(duck)?);
     }
     Ok(out)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod directory_size_tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn directory_sizes_include_nested_files() {
+        let root = tempfile::tempdir().unwrap();
+        let nested = root.path().join("nested");
+        fs::create_dir(&nested).unwrap();
+        fs::write(root.path().join("root.txt"), b"abc").unwrap();
+        fs::write(nested.join("nested.txt"), b"12345").unwrap();
+
+        let sizes = directory_sizes(root.path());
+        assert_eq!(sizes.get(root.path()), Some(&Some(8)));
+        assert_eq!(sizes.get(&nested), Some(&Some(5)));
+    }
+
+    #[test]
+    fn directory_size_format_uses_binary_units_and_one_decimal_maximum() {
+        assert_eq!(format_directory_size(0), "0 KB");
+        assert_eq!(format_directory_size(512), "0.5 KB");
+        assert_eq!(format_directory_size(1024), "1 KB");
+        assert_eq!(format_directory_size(1536), "1.5 KB");
+        assert_eq!(format_directory_size(1024 * 1024), "1 MB");
+        assert_eq!(format_directory_size(1024_u64.pow(4)), "1 TB");
+    }
+
+    #[test]
+    fn unavailable_directory_size_is_recorded() {
+        let root = tempfile::tempdir().unwrap();
+        let missing = root.path().join("missing");
+        let sizes = directory_sizes(&missing);
+        assert_eq!(sizes.get(&missing), Some(&None));
+    }
 }
