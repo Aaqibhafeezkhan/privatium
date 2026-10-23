@@ -2,7 +2,7 @@
 // crates/privatium-core/src/http/shell.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-10-09
+// Last Modified: 2026-10-23
 // Summary: The framework's own pages — launcher, settings, errors — and the frame a Tier 1 view
 //          renders inside, as server-rendered HTML with HTMX and inlined Bootstrap Icons
 //          (docs/architecture.md §2.5, docs/icons.md). The frame is the standard chrome of
@@ -29,7 +29,9 @@
 // You should have received a copy of the GNU General Public License along
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
 
 use axum::http::StatusCode;
 
@@ -999,36 +1001,43 @@ fn table_count(app: &crate::App, table: &str) -> i64 {
 
 fn data_page(cx: &Context<'_>, body: &mut String) {
     let paths = cx.node.paths();
+    let root = paths.root();
+    let data_dir = paths.data_dir();
+    let identity_dir = paths.identity_dir();
+    let apps_dir = paths.apps_dir();
+    let cache_dir = paths.cache_dir();
+    let local_dir = paths.local_dir();
+    let sizes = directory_sizes(root);
     body.push_str("<div class=\"pv-card\"><h3>");
     body.push_str(&icon("archive"));
     body.push_str(" Where your data is</h3>\n<dl>\n");
     dl(
         body,
         "App Directory",
-        &code(&paths.root().display().to_string()),
+        &directory_value(root, &sizes),
     );
     dl(
         body,
         "Your data",
-        &code(&paths.data_dir().display().to_string()),
+        &directory_value(&data_dir, &sizes),
     );
     dl(
         body,
         "Your space's key",
-        &code(&paths.identity_dir().display().to_string()),
+        &directory_value(&identity_dir, &sizes),
     );
     dl(
         body,
         "App folders",
-        &code(&paths.apps_dir().display().to_string()),
+        &directory_value(&apps_dir, &sizes),
     );
     dl(
         body,
         "Disposable",
         &format!(
             "{} and {}",
-            code(&paths.cache_dir().display().to_string()),
-            code(&paths.local_dir().display().to_string())
+            directory_value(&cache_dir, &sizes),
+            directory_value(&local_dir, &sizes)
         ),
     );
     // `spec/cli.md §1`: the page names the root and which of the three rules chose it,
@@ -1053,6 +1062,92 @@ fn data_page(cx: &Context<'_>, body: &mut String) {
         folder_link(&paths.data_dir(), "data"),
         PROJECT_URL
     );
+}
+
+
+/// Collect each directory's size in one traversal, without following symlinks.
+fn directory_sizes(root: &Path) -> BTreeMap<PathBuf, Option<u64>> {
+    let mut sizes = BTreeMap::new();
+    let _ = collect_directory_size(root, &mut sizes);
+    sizes
+}
+
+fn collect_directory_size(
+    path: &Path,
+    sizes: &mut BTreeMap<PathBuf, Option<u64>>,
+) -> Option<u64> {
+    let entries = match std::fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(_) => {
+            sizes.insert(path.to_path_buf(), None);
+            return None;
+        }
+    };
+    let mut total = 0u64;
+    let mut complete = true;
+
+    for entry in entries {
+        let Ok(entry) = entry else {
+            complete = false;
+            continue;
+        };
+        let Ok(file_type) = entry.file_type() else {
+            complete = false;
+            continue;
+        };
+        if file_type.is_dir() {
+            let Some(size) = collect_directory_size(&entry.path(), sizes) else {
+                complete = false;
+                continue;
+            };
+            match total.checked_add(size) {
+                Some(sum) => total = sum,
+                None => complete = false,
+            }
+        } else if file_type.is_file() {
+            match entry
+                .metadata()
+                .ok()
+                .and_then(|metadata| total.checked_add(metadata.len()))
+            {
+                Some(sum) => total = sum,
+                None => complete = false,
+            }
+        }
+    }
+
+    let size = complete.then_some(total);
+    sizes.insert(path.to_path_buf(), size);
+    size
+}
+
+/// Render a directory path with its readable size or a clear unavailable status.
+fn directory_value(path: &Path, sizes: &BTreeMap<PathBuf, Option<u64>>) -> String {
+    let size = sizes
+        .get(path)
+        .copied()
+        .flatten()
+        .map(|bytes| format!("Approximate size: {}", format_directory_size(bytes)))
+        .unwrap_or_else(|| "Approximate size unavailable".to_owned());
+    format!(
+        "{} <span class=\"pv-muted\">({})</span>",
+        code(&path.display().to_string()),
+        escape(&size)
+    )
+}
+
+fn format_directory_size(bytes: u64) -> String {
+    let mut value = bytes as f64 / 1024.0;
+    let mut unit = "KB";
+    for next_unit in ["MB", "GB", "TB"] {
+        if value < 1024.0 {
+            break;
+        }
+        value /= 1024.0;
+        unit = next_unit;
+    }
+    let formatted = format!("{value:.1}");
+    format!("{} {unit}", formatted.strip_suffix(".0").unwrap_or(&formatted))
 }
 
 /// The repository the shell links documentation to. Documentation is not shipped beside

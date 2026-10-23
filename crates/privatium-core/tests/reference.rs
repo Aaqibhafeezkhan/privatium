@@ -2,7 +2,7 @@
 // crates/privatium-core/tests/reference.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-04
-// Last Modified: 2026-10-04
+// Last Modified: 2026-10-23
 // Summary: The three reference apps end to end through core::handle with no listener, exactly as their
 //          READMEs describe them: hello (write, amend, break the cache, and the README's own
 //          `echo >>` line run for real), animals (the seed, a round over htmx and over plain
@@ -2420,6 +2420,10 @@ async fn test_spec_cli_5_pv4xx_shell_pages() {
     ] {
         assert!(apps_page.contains(expected), "{expected}\n{apps_page}");
     }
+    let data_page = page("/settings/data");
+    assert!(data_page.contains("Approximate size:"), "{data_page}");
+    assert!(data_page.contains("KB"), "{data_page}");
+    assert!(data_page.contains("Your space's key"), "{data_page}");
     let devices = page("/settings/devices");
     assert!(
         devices.contains("<th scope=\"col\">Device</th>"),
@@ -2789,4 +2793,43 @@ fn test_footer_node_label_is_escaped() {
     assert!(page.contains("https://github.com/gabrielmongefranco/privatium"));
     assert!(page.contains("Connect a device"));
     assert_clean("footer", &page, Unit::Document);
+}
+
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod directory_size_tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn directory_sizes_include_nested_files() {
+        let root = tempfile::tempdir().unwrap();
+        let nested = root.path().join("nested");
+        fs::create_dir(&nested).unwrap();
+        fs::write(root.path().join("root.txt"), b"abc").unwrap();
+        fs::write(nested.join("nested.txt"), b"12345").unwrap();
+
+        let sizes = directory_sizes(root.path());
+        assert_eq!(sizes.get(root.path()), Some(&Some(8)));
+        assert_eq!(sizes.get(&nested), Some(&Some(5)));
+    }
+
+    #[test]
+    fn directory_size_format_uses_binary_units_and_one_decimal_maximum() {
+        assert_eq!(format_directory_size(0), "0 KB");
+        assert_eq!(format_directory_size(512), "0.5 KB");
+        assert_eq!(format_directory_size(1024), "1 KB");
+        assert_eq!(format_directory_size(1536), "1.5 KB");
+        assert_eq!(format_directory_size(1024 * 1024), "1 MB");
+        assert_eq!(format_directory_size(1024_u64.pow(4)), "1 TB");
+    }
+
+    #[test]
+    fn unavailable_directory_size_is_recorded() {
+        let root = tempfile::tempdir().unwrap();
+        let missing = root.path().join("missing");
+        let sizes = directory_sizes(&missing);
+        assert_eq!(sizes.get(&missing), Some(&None));
+    }
 }
