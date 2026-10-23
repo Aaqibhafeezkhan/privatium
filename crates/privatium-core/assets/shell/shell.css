@@ -296,3 +296,92 @@ main form button, main form .pv-btn { margin: .75rem .5rem 0 0; }
 .pv-label-form { display: inline-flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .pv-label-form input { width: 10rem; }
 .pv-found { padding-left: 1.25rem; }
+
+/* The launcher uses the existing server-rendered app list as a lightweight app store:
+   clear icon tiles, readable descriptions, and a visible action without client code. */
+.pv-launcher {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 1.1rem;
+}
+.pv-launcher li a,
+.pv-launcher li .pv-unavailable {
+  gap: 1rem;
+  min-height: 15rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .06);
+}
+.pv-launcher li a {
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.pv-launcher .pv-icon {
+  display: block;
+  width: 4.25rem;
+  height: 4.25rem;
+  padding: 1rem;
+  border: 1px solid var(--pv-line);
+  border-radius: 1.1rem;
+  background: var(--pv-bg);
+  color: var(--pv-accent);
+  font-size: 2.25rem;
+}
+.pv-launcher li a > span {
+  display: block;
+  font-size: 1.15rem;
+  line-height: 1.35;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.pv-launcher small {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.pv-launcher li a > span::after {
+  content: "Open app";
+  display: block;
+  margin-top: .9rem;
+  color: var(--pv-accent);
+  font-size: .9rem;
+  font-weight: 650;
+}
+.pv-launcher li a:hover,
+.pv-launcher li a:focus-visible {
+  border-color: var(--pv-accent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .1);
+}
+.pv-launcher li a:hover {
+  transform: translateY(-2px);
+}
+.pv-launcher .pv-unavailable {
+  border-style: dashed;
+  box-shadow: none;
+}
+.pv-launcher .pv-unavailable .pv-icon {
+  background: var(--pv-panel);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pv-launcher li a {
+    transition: none;
+  }
+  .pv-launcher li a:hover {
+    transform: none;
+  }
+}
+@media (max-width: 30rem) {
+  .pv-launcher {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    gap: .75rem;
+  }
+  .pv-launcher li a,
+  .pv-launcher li .pv-unavailable {
+    min-height: 13rem;
+    padding: 1rem;
+  }
+  .pv-launcher .pv-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    padding: .75rem;
+    font-size: 2rem;
+  }
+}
+
