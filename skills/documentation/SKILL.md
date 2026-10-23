@@ -85,7 +85,7 @@ Every page uses this order.
   allowlist in `config/validation.js`; axe-core scan clean as of <date>" is
   acceptable. "Fully HIPAA compliant" is not.
 
-### When to update
+### Changes that need a documentation update
 
 Update `/docs` in the same change set whenever any of these happen:
 

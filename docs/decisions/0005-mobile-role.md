@@ -37,7 +37,7 @@ with a shorter fuse.
 A phone is never a server. There is no configuration in which other devices depend on one
 being reachable.
 
-## Why this is not a compromise
+## Reasons this is not a compromise
 
 The property that actually matters is that the app **just works** — reads, writes, and
 rendering, with no network and no waiting. That property does not come from replica status

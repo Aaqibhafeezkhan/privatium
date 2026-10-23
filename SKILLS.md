@@ -44,15 +44,19 @@ conflicts, follow the applicable higher-priority instructions and identify the c
 
 - [project-preferences](skills/project-preferences/SKILL.md): apply when planning,
   implementing, or reviewing changes in this repository.
-- [response-style](skills/response-style/SKILL.md): apply whenever a response, commit
-  message, pull request, review comment, or document contains prose. This one always
-  applies; it expands section 1 of `AGENTS.md` and never relaxes it.
+- [response-style](skills/response-style/SKILL.md): apply whenever you write prose:
+  responses, commit messages, pull requests, review comments, documents, and
+  interface text. This one always applies; it expands section 1 of `AGENTS.md` and
+  never relaxes it.
 - [accessibility](skills/accessibility/SKILL.md): apply when building or changing an
   interface, or writing a document, dashboard, notebook, report, or Markdown page.
   Expands section 9.
 - [documentation](skills/documentation/SKILL.md): apply when adding or changing a page
   under `/docs`, or when a code change makes existing documentation wrong. Expands
   section 16.
+- [create-media-pack](skills/create-media-pack/SKILL.md): use when creating a
+  project branding or media pack, with three accessible options, approved exports,
+  a branding guide, and README integration.
 
 Keep all project-specific preferences and workflows in `project-preferences`.
 `response-style`, `accessibility`, and `documentation` are reusable across projects and

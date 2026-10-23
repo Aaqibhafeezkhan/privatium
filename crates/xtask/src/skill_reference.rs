@@ -212,7 +212,7 @@ fn generate(root: &Path) -> Result<BTreeMap<String, String>> {
         "privatium-games",
         "isolation.md",
         format!(
-            "# Games, engines and cross-origin isolation\n\nFrom `docs/frameworks.md §5`, plus what the loader says when an app asks for isolation in host mode.\n\n{}\n## What the loader says\n\n```\n{}\n```\n",
+            "# Games, engines and cross-origin isolation\n\nFrom `docs/frameworks.md §5`, plus what the loader says when an app asks for isolation in host mode.\n\n{}\n## Loader messages\n\n```\n{}\n```\n",
             section(root, "docs/frameworks.md", "5")?,
             ManifestError::CrossOriginIsolatedInHostMode
         ),
@@ -522,9 +522,9 @@ fn permissions(root: &Path) -> Result<String> {
         }
     );
     Ok(format!(
-        "# Permissions\n\n{}\n## What each widening says to the owner\n\nFrom the crate: the plain-language \
+        "# Permissions\n\n{}\n## Messages the owner sees for each widening\n\nFrom the crate: the plain-language \
          line `spec/app-contract.md §5.4` requires at install, exactly as the loader words it.\n\n{table}\n\
-         ## What the loader refuses\n\n{refusals}",
+         ## Loader refusals\n\n{refusals}",
         section(root, "spec/app-contract.md", "5.4")?
     ))
 }

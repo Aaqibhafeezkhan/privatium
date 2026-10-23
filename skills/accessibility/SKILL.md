@@ -91,7 +91,8 @@ These help everyone, including dyslexic and ADHD readers.
 - Respect `prefers-reduced-motion`. Nothing flashes more than three times per
   second. Anything that moves or updates on its own needs pause, stop, and hide
   controls.
-- Write plainly, following section 12 of `AGENTS.md`.
+- Write plainly, following section 12 of `AGENTS.md` and the "Interface text"
+  section of the [response-style skill](../response-style/SKILL.md).
 
 ### Verification
 

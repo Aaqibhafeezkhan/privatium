@@ -9,7 +9,7 @@ Your binary, your `main()`, your routing. `privatium-core` supplies the log, the
 materializer, the auth layer, discovery, pairing and node admission as a library now;
 LAN sync runs on the same `Node` through the encrypted peer channel.
 
-## When Tier 3 is right
+## Good uses for Tier 3
 
 Only when the HTTP surface genuinely cannot express what you need:
 

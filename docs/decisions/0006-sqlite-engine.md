@@ -56,7 +56,7 @@ replaceable by a Rust reader in an afternoon — and was the *cause* of the sand
 because `read_json()` needs filesystem access from SQL. Parquet was a nice-to-have. The third,
 the types, survives in weaker but sufficient form, below.
 
-## What SQLite costs, and where each cost is paid
+## Costs of SQLite and where each is paid
 
 | DuckDB gave | SQLite has | Where the gap is closed |
 |---|---|---|
@@ -68,7 +68,7 @@ the types, survives in weaker but sufficient form, below.
 | One instance, exclusive lock, GLOBAL settings | Many connections on one file | The sandbox is the **connection**: read-only at the file, `query_only`, an authorizer refusing every write, every `PRAGMA`, `ATTACH` and `load_extension()`. The framework's connection writes while an app reads. No window, no seal. |
 | Columnar speed | A B-tree | Irrelevant at personal-data scale, and the honest trade if it ever is not. |
 
-## What it buys
+## Benefits
 
 The engine compiles in about a minute, once. The binary loses most of its weight. The
 sandbox is three lines of `OpenFlags` and one authorizer, and the `Store` API lost `seal`,

@@ -32,7 +32,7 @@ The template works for a whole phase, one milestone within a phase, a repair, a
 documentation change, or any other bounded request. The repository and Git are the
 handoff between chats; the new agent should never need the previous transcript.
 
-## How to use this template
+## Template instructions
 
 1. Start a new chat with an agent that can read and edit the Privatium repository.
 2. Copy the complete prompt below.

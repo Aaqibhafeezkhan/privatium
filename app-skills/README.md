@@ -17,7 +17,7 @@ program, the mistakes assistants make most often, and the command that proves th
 They are for anyone writing an app, in any repository. They are not instructions for
 working on Privatium itself; those live in the repository's `skills/` folder.
 
-### What is here
+### Contents
 
 | Skill | Load it when |
 |---|---|

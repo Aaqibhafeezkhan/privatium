@@ -5,7 +5,7 @@ description: Build games on Privatium with synced save files and no account or c
 
 # Privatium Games
 
-## What Privatium gives a game
+## Features Privatium provides to games
 
 Not rendering. **Save files that sync across the player's devices with no account, no
 cloud, and no vendor.** Start on the laptop, finish on the phone. Copy a folder to back up

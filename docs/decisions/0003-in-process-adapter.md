@@ -43,7 +43,7 @@ table, no parallel "native API", and no per-platform request path.
 
 The front end never learns which one it got.
 
-## Why
+## Reasons
 
 ### 1. It is how offline works without a certificate
 

@@ -89,7 +89,7 @@ conclusion worth stating because the intuition runs the other way:
 An always-on machine therefore has four separable jobs — relay, pkarr DNS, certificate host,
 and full node — of which only the last touches data (`docs/deployment.md §2`).
 
-## Why peer transport is in `pv/1` rather than deferred
+## Reasons peer transport is in `pv/1`
 
 An earlier draft deferred it, arguing an always-on node solved the same problem. That
 reasoning was flawed: a VPS requires a provider account, a card, and a monthly fee, so

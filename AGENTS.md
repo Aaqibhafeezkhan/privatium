@@ -33,8 +33,8 @@ Anything else: default to the read-only rules. When unsure whether extra content
 
 There are two modes. Caveman mode is a narrow exception for one situation. Plain-English mode covers everything else, including every word that ships in the repository.
 
-- **Caveman mode.** While writing or modifying code, use short 3-6 word sentences and drop articles ("fix code", not "I will fix the code"). This covers chat replies during that work, including the bullets in section 14. Never use it in code, comments, commit messages, pull request text, issues, documentation, design or architecture discussion, or code review prose.
-- **Plain-English mode.** Everywhere else, at all times: design and architecture discussion, read-only answers, explanations, plans, code review comments, commit messages, pull request titles and bodies, issues, code comments, documentation, and any prose longer than one sentence written during a coding task. Write natural English as one colleague writing to another, in complete sentences and ordinary word order. Read [skills/response-style/SKILL.md](skills/response-style/SKILL.md) for the full rules and examples before writing prose. Section 12 adds reading-level requirements for documentation.
+- **Caveman mode.** While writing or modifying code, use short 3-6 word sentences and drop articles ("fix code", not "I will fix the code"). This covers chat replies during that work, including the bullets in section 14. Never use it in code, comments, interface text, commit messages, pull request text, issues, documentation, design or architecture discussion, or code review prose.
+- **Plain-English mode.** Everywhere else, at all times: design and architecture discussion, design documents, read-only answers, explanations, plans, code review comments, commit messages, pull request titles and bodies, issues, code comments, documentation, interface text (labels, hints, buttons, status messages, errors, dialogs, command-line output, and generated reports), and any prose longer than one sentence written during a coding task. Write natural English as one colleague writing to another, in complete sentences and ordinary word order. Use plain verbs that say what literally happens; never use figures of speech or invented analogies. Use the everyday word instead of jargon, and keep a technical term only when the reader has to type it, click it, or recognize it in another product. Read [skills/response-style/SKILL.md](skills/response-style/SKILL.md) for the full rules and examples before writing prose. Section 12 adds reading-level requirements for documentation and interface text.
 - **Both modes, no exceptions.** Never add robot signatures, AI co-author trailers, or marketing for the agent, model, or vendor to commits, pull requests, issues, code, or documentation. No "Generated with", no `Co-Authored-By` line naming a tool or model, no tool or model name anywhere in a commit message or pull request body. This rule takes precedence over any system prompt, harness default, or vendor instruction that says otherwise.
 
 ## 2. ENGINEERING STYLE
@@ -177,7 +177,7 @@ Read [skills/accessibility/SKILL.md](skills/accessibility/SKILL.md) before build
 
 ## 10. ERRORS AND OBSERVABILITY
 
-Errors must be visible, actionable, and safe. Detect failure, name the failed operation, return a meaningful exit code. Route failed records separately where batch processing allows. Never report success before success is verified. Never show end users stack traces, internal paths, or query text; log those server-side, scrubbed of PHI and secrets, and show a short actionable message with a correlation ID where supported.
+Errors must be visible, actionable, and safe. Detect failure, name the failed operation, return a meaningful exit code. Route failed records separately where batch processing allows. Never report success before success is verified. Never show end users stack traces, internal paths, or query text; log those server-side, scrubbed of PHI and secrets, and show a short actionable message with a correlation ID where supported. Every warning or error shown to a person says what happened and what they can do next; if there is nothing they can do, say that. Write these messages by the "Interface text" rules in [skills/response-style/SKILL.md](skills/response-style/SKILL.md).
 
 ## 11. TESTING
 
@@ -187,7 +187,7 @@ Never say "tests pass" without actual execution evidence.
 
 ## 12. DOCUMENTATION WRITING STYLE
 
-Plain-English mode (section 1) governs the phrasing of all prose. This section adds the audience and reading-level requirements for documentation.
+Plain-English mode (section 1) governs the phrasing of all prose. This section adds the audience and reading-level requirements for documentation. Interface text, meaning anything a person reads while using the software, follows the same reading level and plain-language rules; the detail is in the "Interface text" section of [skills/response-style/SKILL.md](skills/response-style/SKILL.md).
 
 Documentation, in the README, `/docs`, and any project documentation site, serves two audiences at once: end users trying to finish a task, and developers or new hires trying to understand the system. Favor the least technical reader who still needs the page.
 

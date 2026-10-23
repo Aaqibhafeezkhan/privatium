@@ -17,7 +17,7 @@ tar xzf alpinejs-csp-3.17.1.tgz
 cp package/dist/cdn.min.js apps/animals/static/alpine-csp.min.js
 ```
 
-## Why the CSP build and not plain Alpine
+## Reasons for the CSP build of Alpine
 
 An app is served with `script-src 'self'` and no `'unsafe-eval'`
 (`spec/app-contract.md §5.4`). Standard Alpine compiles attribute expressions

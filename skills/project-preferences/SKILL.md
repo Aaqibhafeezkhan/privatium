@@ -1,6 +1,6 @@
 ---
 name: project-preferences
-description: Privatium's file header rules, the exemptions header-check honors, and how to run the check. Apply when creating or editing any file that carries a header.
+description: Privatium's file header rules, the exemptions header-check honors, how to run the check, and the one name the project uses for each concept. Apply when creating or editing any file that carries a header, and when writing interface text or documentation.
 ---
 
 <!--
@@ -8,8 +8,8 @@ This file is part of Privatium
 skills/project-preferences/SKILL.md
 Author(s): Gabriel Mongefranco
 Created: 2026-09-09
-Last Modified: 2026-09-09
-Summary: Repository-specific header rules and exemptions for Privatium.
+Last Modified: 2026-10-22
+Summary: Repository-specific header rules, exemptions, and terms for Privatium.
 Notes: See README file for documentation and full license information.
 
 Copyright © 2026 Gabriel Mongefranco
@@ -44,7 +44,7 @@ can find it.
 summary, and the notes line. Authorship and a full licence notice on every partial of an
 app that nobody reads separately is noise.
 
-### What is checked
+### Checks
 
 `cargo xtask header-check` covers `.rs`, `.lua`, `.sql`, `.js`, `.css`, `.lsp`, and `.md`
 under `spec/` and `docs/`.
@@ -66,6 +66,26 @@ change.
 
 `cargo xtask header-check` is the check of record. Run it after adding or editing any file
 it covers, and fix what it reports rather than exempting the file.
+
+### Terms
+
+Use one name for each concept in the interface, messages, help, and documentation.
+Section 1 of [spec/protocol.md](../../spec/protocol.md) defines these terms, and it wins
+if this list and the specification disagree.
+
+- **Node**: one installation of the Privatium program. Not "server", "instance", or
+  "host" in text a person reads.
+- **Device**: anything paired with a node, such as a browser, a phone, or another node.
+  Not "client" in text a person reads.
+- **Owner**: the one person who controls a node. Not "user" or "admin".
+- **App**: a folder that follows `spec/app-contract.md`. Not "application", "plugin", or
+  "module".
+- **Pair** and **pairing**: connecting a device to a node with a code. Not "link",
+  "register", or "log in".
+- **Cluster**: the nodes that belong to one owner.
+
+Event, log, replay, snapshot, and slug are names for the inside of the system. Keep them
+out of interface text and end-user documentation unless the reader has to type them.
 
 ### Additional resources
 

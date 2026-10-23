@@ -555,7 +555,7 @@ tokens for contrast in both schemes.
 `sheet.js`, `strokes.js`, `paint.js`, `clip.js`, `tools.js` and `history.js` — against
 their own code.
 
-### What still needs a person
+### Checks that still need a person
 
 Neither the linter nor the test suite replaces a browser. **The manual pass on this design
 is outstanding.** It is:

@@ -102,7 +102,7 @@ jq -r 'select(.tbl=="quantity_change") | [.d.reason, .d.amount] | @tsv' data/pan
 
 Copy `data/` and you have copied everything.
 
-## What each part of the app is for
+## Parts of the app
 
 | What you see | What it teaches |
 |---|---|
@@ -118,7 +118,7 @@ Copy `data/` and you have copied everything.
 | **44-pixel targets, 200 % zoom, 320 px reflow** | The accessibility target in `AGENTS.md`. No linter rule measures a pointer target; this one is checked by a person. |
 | **No third parties** | No CDN (`PV504`), no external origin (`PV207`), and every declared permission carries the comment `PV205` wants — all of them left at their defaults. |
 
-## What is not here
+## Features left out
 
 - **A stored balance, or a cached total of any kind.** See §7.
 - **A pending-write count.** `pv.js` exposes none, and inventing one would be guessing.
