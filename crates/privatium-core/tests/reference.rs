@@ -2423,7 +2423,7 @@ async fn test_spec_cli_5_pv4xx_shell_pages() {
     let data_page = page("/settings/data");
     assert!(data_page.contains("Approximate size:"), "{data_page}");
     assert!(data_page.contains("KB"), "{data_page}");
-    assert!(data_page.contains("Your space's key"), "{data_page}");
+    assert!(data_page.contains("Your space&#39;s key"), "{data_page}");
     let devices = page("/settings/devices");
     assert!(
         devices.contains("<th scope=\"col\">Device</th>"),
