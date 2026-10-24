@@ -2,7 +2,7 @@
 // crates/privatium-core/src/http/shell.rs
 // Author(s): Gabriel Mongefranco
 // Created: 2026-09-03
-// Last Modified: 2026-10-23
+// Last Modified: 2026-10-24
 // Summary: The framework's own pages — launcher, settings, errors — and the frame a Tier 1 view
 //          renders inside, as server-rendered HTML with HTMX and inlined Bootstrap Icons
 //          (docs/architecture.md §2.5, docs/icons.md). The frame is the standard chrome of
@@ -1011,26 +1011,14 @@ fn data_page(cx: &Context<'_>, body: &mut String) {
     body.push_str("<div class=\"pv-card\"><h3>");
     body.push_str(&icon("archive"));
     body.push_str(" Where your data is</h3>\n<dl>\n");
-    dl(
-        body,
-        "App Directory",
-        &directory_value(root, &sizes),
-    );
-    dl(
-        body,
-        "Your data",
-        &directory_value(&data_dir, &sizes),
-    );
+    dl(body, "App Directory", &directory_value(root, &sizes));
+    dl(body, "Your data", &directory_value(&data_dir, &sizes));
     dl(
         body,
         "Your space's key",
         &directory_value(&identity_dir, &sizes),
     );
-    dl(
-        body,
-        "App folders",
-        &directory_value(&apps_dir, &sizes),
-    );
+    dl(body, "App folders", &directory_value(&apps_dir, &sizes));
     dl(
         body,
         "Disposable",
@@ -1071,10 +1059,7 @@ fn directory_sizes(root: &Path) -> BTreeMap<PathBuf, Option<u64>> {
     sizes
 }
 
-fn collect_directory_size(
-    path: &Path,
-    sizes: &mut BTreeMap<PathBuf, Option<u64>>,
-) -> Option<u64> {
+fn collect_directory_size(path: &Path, sizes: &mut BTreeMap<PathBuf, Option<u64>>) -> Option<u64> {
     let entries = match std::fs::read_dir(path) {
         Ok(entries) => entries,
         Err(_) => {
@@ -1146,7 +1131,10 @@ fn format_directory_size(bytes: u64) -> String {
         unit = next_unit;
     }
     let formatted = format!("{value:.1}");
-    format!("{} {unit}", formatted.strip_suffix(".0").unwrap_or(&formatted))
+    format!(
+        "{} {unit}",
+        formatted.strip_suffix(".0").unwrap_or(&formatted)
+    )
 }
 
 /// The repository the shell links documentation to. Documentation is not shipped beside
